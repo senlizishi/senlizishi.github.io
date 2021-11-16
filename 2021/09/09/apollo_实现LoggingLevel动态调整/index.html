@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Apollo之实现LoggingLevel动态调整 | Hexo</title>
+  <meta name="description" content="导读：笔者在实际开发中需要实现 Logging Level 动态调整。本文将讨论 Springboot 项目借助 Apollo 实现动态调整 Logging Level 的方式及实现原理，希望对各位有所帮助。 环境   JDK 8   apollo 1.9.0  服务端配置在 Apollo 新建的应用都会创建一个默认 application.properties 的 Namespace，由于笔者打">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apollo之实现LoggingLevel动态调整">
+<meta property="og:url" content="http://senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="导读：笔者在实际开发中需要实现 Logging Level 动态调整。本文将讨论 Springboot 项目借助 Apollo 实现动态调整 Logging Level 的方式及实现原理，希望对各位有所帮助。 环境   JDK 8   apollo 1.9.0  服务端配置在 Apollo 新建的应用都会创建一个默认 application.properties 的 Namespace，由于笔者打">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p26.toutiaoimg.com/origin/pgc-image/c90efcce8ff04ce198d1ff6f7a1d049e?from=pc">
+<meta property="og:image" content="https://p26.toutiaoimg.com/origin/pgc-image/bb3bb78a60dd4643aba43b4354da947e?from=pc">
+<meta property="og:image" content="https://p26.toutiaoimg.com/origin/pgc-image/c3f067998a594ebf9f14d396c2105365?from=pc">
+<meta property="article:published_time" content="2021-09-09T07:37:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T06:55:12.335Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Apollo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p26.toutiaoimg.com/origin/pgc-image/c90efcce8ff04ce198d1ff6f7a1d049e?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%8E%AF%E5%A2%83"><span class="toc-number">1.</span> <span class="toc-text">环境</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE"><span class="toc-number">2.</span> <span class="toc-text">服务端配置</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%AE%9E%E7%8E%B0"><span class="toc-number">3.</span> <span class="toc-text">客户端实现</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-apollo_实现LoggingLevel动态调整" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Apollo之实现LoggingLevel动态调整
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="article-date">
+	  <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Apollo/" rel="tag">Apollo</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <p><strong>导读：</strong>笔者在实际开发中需要实现 Logging Level 动态调整。本文将讨论 Springboot 项目借助 Apollo 实现动态调整 Logging Level 的方式及实现原理，希望对各位有所帮助。</p>
+<h1 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h1><ul>
+<li>  JDK 8</li>
+<li>  apollo 1.9.0</li>
+</ul>
+<h1 id="服务端配置"><a href="#服务端配置" class="headerlink" title="服务端配置"></a>服务端配置</h1><p>在 Apollo 新建的应用都会创建一个默认 application.properties 的 Namespace，由于笔者打算维持原项目采用 yml 的形式进行配置管理，所以创建一个私有的 <strong>application.yml</strong> Namespace，并将项目中的配置信息贴入。这里我们主要关注 <strong>logging.level.{loggerName}</strong> 这个日志级别配置项。</p>
+<p><img src="https://p26.toutiaoimg.com/origin/pgc-image/c90efcce8ff04ce198d1ff6f7a1d049e?from=pc" alt="Springboot 项目借助 Apollo 实现 Logging Level 动态调整"></p>
+<p>启动项目测试尝试打印日志</p>
+<pre><code>public void printLogger() throws Exception&#123;
+                logger.info(&quot;我是info级别日志&quot;);
+                logger.error(&quot;我是error级别日志&quot;);
+                logger.warn(&quot;我是warn级别日志&quot;);
+                logger.debug(&quot;我是debug级别日志&quot;);
+ &#125;
+</code></pre>
+<p>由于日志级别设置为 ERROR，所以只会打印出 ERROR 级别的日志</p>
+<p><img src="https://p26.toutiaoimg.com/origin/pgc-image/bb3bb78a60dd4643aba43b4354da947e?from=pc" alt="Springboot 项目借助 Apollo 实现 Logging Level 动态调整"></p>
+<p>ERROR 级日志</p>
+<h1 id="客户端实现"><a href="#客户端实现" class="headerlink" title="客户端实现"></a>客户端实现</h1><p>项目中关于接入 Apollo 的基础配置可参考 <a target="_blank" rel="noopener" href="https://www.toutiao.com/i7005125355338072590/?group_id=7005125355338072590">实践：把Springboot项目配置迁移至 Apollo 配置管理中心</a> ，这里就不再赘述。</p>
+<p><strong>1、开启额外配置参数</strong></p>
+<p>根据官方文档，要把日志相关配置放在 Apoolo 中管理，使 Apollo 的加载顺序放到日志系统加载之前，需要在本地项目中的 application.properties 中加入下面的配置参数，并开启。</p>
+<pre><code>apollo.bootstrap.eagerLoad.enabled=true
+</code></pre>
+<p><strong>2、客户端 LoggingLevel 刷新服务具体实现</strong></p>
+<p>Apollo 默认支持 @Value（${someKey:someDefaultValue}） 在运行时自动更新（可通过<br>apollo.autoUpdateInjectedSpringProperties=true 参数控制），<strong>但要实现 LoggerLevel 动态变化则需结合 Apollo 监听配置变化事件，并借助 Spring Boot 提供了抽象日志系统(<br>org.springframework.boot.logging.LoggingSystem) 实现修改日志级别的目的。</strong></p>
+<p>具体实现如下：</p>
+<pre><code>import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.model.ConfigChangeEvent;
+import com.ctrip.framework.apollo.spring.annotation.ApolloConfig;
+import com.ctrip.framework.apollo.spring.annotation.ApolloConfigChangeListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.logging.LogLevel;
+import org.springframework.boot.logging.LoggerConfiguration;
+import org.springframework.boot.logging.LoggingSystem;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
+import java.lang.reflect.Method;
+import java.util.Set;
+
+/**
+ * 动态修改日志级别
+ */
+@Service
+public class LoggingLevelRefresher &#123;
+    private static final Logger log = LoggerFactory.getLogger(LoggingLevelRefresher.class);
+
+    private static final String PREFIX = &quot;logging.level.&quot;;
+    private static final String ROOT = LoggingSystem.ROOT_LOGGER_NAME;
+    private static final String SPLIT = &quot;.&quot;;
+
+    @Resource
+    private LoggingSystem loggingSystem;
+
+    /**
+     * 这里的 Config 默认是获取 namespace 为 application.properties，如果监听其他配置文件则需指定 namespace
+     */
+    @ApolloConfig(value = &quot;application.yml&quot;)
+    private Config config;
+
+    @PostConstruct
+    private void init() &#123;
+        refreshLoggingLevels(config.getPropertyNames());
+    &#125;
+
+    /**
+     * 监听也需指定具体监听的 namespace
+     */
+    @ApolloConfigChangeListener(value = &quot;application.yml&quot; ,interestedKeyPrefixes = PREFIX)
+    private void onChange(ConfigChangeEvent changeEvent) &#123;
+        refreshLoggingLevels(changeEvent.changedKeys());
+    &#125;
+
+
+    private void refreshLoggingLevels(Set&lt;String&gt; changedKeys) &#123;
+        for (String key : changedKeys) &#123;
+            if (containsIgnoreCase(key, PREFIX)) &#123;
+                String loggerName = PREFIX.equalsIgnoreCase(key) ? ROOT : key.substring(PREFIX.length());
+                String strLevel = config.getProperty(key, parentStrLevel(loggerName));
+                LogLevel level = LogLevel.valueOf(strLevel.toUpperCase());
+                // 通过此方法动态改变日志级别
+                loggingSystem.setLogLevel(loggerName, level);
+                log(loggerName, strLevel);
+            &#125;
+        &#125;
+    &#125;
+
+
+    private String parentStrLevel(String loggerName) &#123;
+        String parentLoggerName = loggerName.contains(SPLIT) ? loggerName.substring(0, loggerName.lastIndexOf(SPLIT)) : ROOT;
+        return loggingSystem.getLoggerConfiguration(parentLoggerName).getEffectiveLevel().name();
+    &#125;
+
+    /**
+     * 获取当前类的Logger对象有效日志级别对应的方法，进行日志输出。举例：
+     * 如果当前类的EffectiveLevel为WARN，则获取的Method为 `org.slf4j.Logger#warn(java.lang.String, java.lang.Object, java.lang.Object)`
+     * 目的是为了输出`changed &#123;&#125; log level to:&#123;&#125;`这一行日志
+     */
+    private void log(String loggerName, String strLevel) &#123;
+        try &#123;
+            LoggerConfiguration loggerConfiguration = loggingSystem.getLoggerConfiguration(log.getName());
+            Method method = log.getClass().getMethod(loggerConfiguration.getEffectiveLevel().name().toLowerCase(), String.class, Object.class, Object.class);
+            method.invoke(log, &quot;changed &#123;&#125; log level to:&#123;&#125;&quot;, loggerName, strLevel);
+        &#125; catch (Exception e) &#123;
+            log.error(&quot;changed &#123;&#125; log level to:&#123;&#125; error&quot;, loggerName, strLevel, e);
+        &#125;
+    &#125;
+
+    private static boolean containsIgnoreCase(String str, String searchStr) &#123;
+        if (str == null || searchStr == null) &#123;
+            return false;
+        &#125;
+        int len = searchStr.length();
+        int max = str.length() - len;
+        for (int i = 0; i &lt;= max; i++) &#123;
+            if (str.regionMatches(true, i, searchStr, 0, len)) &#123;
+                return true;
+            &#125;
+        &#125;
+        return false;
+    &#125;
+&#125;
+</code></pre>
+<p><strong>3、代码解析</strong></p>
+<p><strong>3.1</strong> 要注意第 36 行代码 @ApolloConfig(value = “application.yml”) 这个注解</p>
+<pre><code>@Retention(RetentionPolicy.RUNTIME)
+@Target(&#123;ElementType.FIELD&#125;)
+@Documented
+public @interface ApolloConfig &#123;
+    String value() default &quot;application&quot;;
+&#125;
+</code></pre>
+<p>其默认指定是 application.properties，由于笔者并没有将配置配在该 namespace 中，而是配置了新建的 application,yml。一开始没注意该注解有属性，导致一直获取 config 为 Null。</p>
+<p><strong>3.2</strong> 第 47 行代码 @<br>ApolloConfigChangeListener(value = “application.yml” ,interestedKeyPrefixes = PREFIX) 监听指定配置文件变化的注解。其具有三个属性，也需指定具体要监听的配置文件，否则默认监听 application.properties</p>
+<pre><code>@Retention(RetentionPolicy.RUNTIME)
+@Target(&#123;ElementType.METHOD&#125;)
+@Documented
+public @interface ApolloConfigChangeListener &#123;
+    String[] value() default &#123;&quot;application&quot;&#125;;
+
+    String[] interestedKeys() default &#123;&#125;;
+
+    String[] interestedKeyPrefixes() default &#123;&#125;;
+&#125;
+</code></pre>
+<p><strong>3.3</strong> 最终通过 loggingSystem.setLogLevel(loggerName, level); 改变了日志级别。</p>
+<p>Spring Boot 在构建 Spring 容器的生命过程中，初始化了日志系统 LoggingSystem 抽象类并绑定了指定的日志组件（如：logback、log4j2）。通过LoggingSystem 屏蔽了不同日志组件之间的差异，又提供了 setLogLevel() 让我们能够方便地修改日志等级。</p>
+<p><strong>4、查看效果</strong></p>
+<p>将 Apollo 的 logging.level 设置为 info ，启动本地 Springboot 项目打印日志，接着修改 logging.level 为 error 并发布生效，再次打印日志。结果如下图所示，实现了动态改变日志打印级别。</p>
+<p><img src="https://p26.toutiaoimg.com/origin/pgc-image/c3f067998a594ebf9f14d396c2105365?from=pc" alt="Springboot 项目借助 Apollo 实现 Logging Level 动态调整"></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文实现日志级别动态变更主要借助 Apollo 配置中心使应用能够准实时监听地获取配置中 Logger 日志级别值变化。同时借助 LoggingSystem 日志系统提供的 setLogLevel() 接口修改日志级别。</p>
+<blockquote>
+<p>参考文档</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/apolloconfig/apollo-use-cases/tree/master/spring-boot-logger">https://github.com/apolloconfig/apollo-use-cases/tree/master/spring-boot-logger</a></p>
+<blockquote>
+</blockquote>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq271859852/article/details/103230470">https://blog.csdn.net/qq271859852/article/details/103230470</a></p>
+</blockquote>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" title="Apollo之实现LoggingLevel动态调整" target="_blank" rel="external">http://senlizishi.github.io/2021/09/09/apollo_实现LoggingLevel动态调整/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" title="Apollo之配置中心架构剖析"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" title="Apollo之迁移Springboot配置"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

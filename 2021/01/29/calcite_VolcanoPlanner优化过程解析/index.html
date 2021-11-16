@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Calcite之VolcanoPlanner优化过程解析 | Hexo</title>
+  <meta name="description" content="原文地址： https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;283362100  导读：VolcanoPlanner是calcite自带的基于代价的优化器。在优化过程中，会计算优化规则生成的等价关系表达式的计算代价，通过动态规划算法找出整个最优的执行计划。 使用VolcanoPlanner这里以一个单元测试为例子解释如何使用calcite的VolcanoPlanner。 @Test">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Calcite之VolcanoPlanner优化过程解析">
+<meta property="og:url" content="http://senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="原文地址： https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;283362100  导读：VolcanoPlanner是calcite自带的基于代价的优化器。在优化过程中，会计算优化规则生成的等价关系表达式的计算代价，通过动态规划算法找出整个最优的执行计划。 使用VolcanoPlanner这里以一个单元测试为例子解释如何使用calcite的VolcanoPlanner。 @Test">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/6704ad235c254510af98a443a84ea746?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/0b1983d30a974b76ac3a87be0696bf22?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/1253115ffd154756a0abeea919f88cbd?from=pc">
+<meta property="article:published_time" content="2021-01-29T03:18:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:31:15.929Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Calcite">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/6704ad235c254510af98a443a84ea746?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8VolcanoPlanner"><span class="toc-number">1.</span> <span class="toc-text">使用VolcanoPlanner</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%85%B3%E7%B3%BB%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%9A%84%E6%B3%A8%E5%86%8C%E8%BF%87%E7%A8%8B"><span class="toc-number">2.</span> <span class="toc-text">关系表达式的注册过程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#registerImpl%E6%96%B9%E6%B3%95"><span class="toc-number">3.</span> <span class="toc-text">registerImpl方法</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-number">4.</span> <span class="toc-text">小结</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BC%98%E5%8C%96"><span class="toc-number">5.</span> <span class="toc-text">优化</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BC%98%E5%8C%96%E4%B8%AD%E7%9A%84%E8%A7%84%E5%88%99%E6%89%A7%E8%A1%8C"><span class="toc-number">6.</span> <span class="toc-text">优化中的规则执行</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9F%A5%E6%89%BE%E6%9C%80%E4%BC%98%E6%89%A7%E8%A1%8C%E8%AE%A1%E5%88%92%E8%B7%AF%E5%BE%84"><span class="toc-number">7.</span> <span class="toc-text">查找最优执行计划路径</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">8.</span> <span class="toc-text">总结</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-calcite_VolcanoPlanner优化过程解析" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Calcite之VolcanoPlanner优化过程解析
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/" class="article-date">
+	  <time datetime="2021-01-29T03:18:00.000Z" itemprop="datePublished">2021-01-29</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Calcite/" rel="tag">Calcite</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>原文地址：</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/283362100">https://zhuanlan.zhihu.com/p/283362100</a></p>
+</blockquote>
+<p><strong>导读</strong>：VolcanoPlanner是calcite自带的基于代价的优化器。在优化过程中，会计算优化规则生成的等价关系表达式的计算代价，通过动态规划算法找出整个最优的执行计划。</p>
+<h1 id="使用VolcanoPlanner"><a href="#使用VolcanoPlanner" class="headerlink" title="使用VolcanoPlanner"></a>使用VolcanoPlanner</h1><p>这里以一个单元测试为例子解释如何使用calcite的VolcanoPlanner。</p>
+<pre><code>@Test
+  void myTest() &#123;
+    ConnectionSpec SCOTT = CalciteAssert.DatabaseInstance.HSQLDB.scott;
+    SchemaPlus rootSchema = Frameworks.createRootSchema(true);
+    Map&lt;String, Object&gt; map = new HashMap&lt;&gt;();
+    map.put(&quot;jdbcDriver&quot;, SCOTT.driver);
+    map.put(&quot;jdbcUser&quot;, SCOTT.username);
+    map.put(&quot;jdbcPassword&quot;, SCOTT.password);
+    map.put(&quot;jdbcUrl&quot;, SCOTT.url);
+    map.put(&quot;jdbcCatalog&quot;, SCOTT.catalog);
+    map.put(&quot;jdbcSchema&quot;, SCOTT.schema);
+    JdbcSchema schema = JdbcSchema.create(rootSchema, &quot;JDBC_SCOTT&quot;, map);
+    rootSchema = rootSchema.add(&quot;  JDBC_SCOTT&quot;, schema);
+    FrameworkConfig config = Frameworks.newConfigBuilder()
+        .defaultSchema(rootSchema)
+        .parserConfig(SqlParser.Config.DEFAULT)
+        .programs(Programs.standard()).build();
+
+
+    RelBuilder relBuilder = RelBuilder.create(config);
+    RelNode relNode = relBuilder.scan(&quot;EMP&quot;)
+        .project(relBuilder.field(&quot;DEPTNO&quot;), relBuilder.field(&quot;ENAME&quot;))
+        .sort(relBuilder.field(&quot;DEPTNO&quot;)).build();
+
+    VolcanoPlanner planner = (VolcanoPlanner) relNode.getCluster().getPlanner();
+    //获取期望的RelTraiset，这里是将Convention.None替换成EnumerableConvention
+    RelTraitSet desired = relNode.getTraitSet().replace(EnumerableConvention.INSTANCE).simplify();
+    //设置根节点，会从根节点开始迭代将所有子节点也注册到planner中
+    planner.setRoot(planner.changeTraits(relNode, desired));
+    RelNode result = planner.chooseDelegate().findBestExp();
+  &#125;
+</code></pre>
+<p>calcite提供了测试的框架，可以让我们直接构造关系表达式。VolcanoPlanner优化的是关系表达式。但是<strong>calcite也提供SqlParser和SqlToRelConverter，可以进行sql解析并且将sqlNode转换成关系表达式RelNode</strong>,在这个测试中不使用SqlParser和SqlToRelConverter来解析sql字符串生成关系表达式,而是直接手动创建逻辑关系表达式,所以使用calcite框架时也可以跳过sql解析与关系表达式转换而用其他方法生成逻辑表达式而直接使用calcite最核心的关系表达式优化功能。 在这个单元测试例子中生成的逻辑关系表达式为：</p>
+<pre><code>LogicalSort(DEPTNO)
+    LogicalProject(DEPTNO,ENAME)
+        JdbcTableScan(EMP)
+</code></pre>
+<blockquote>
+<p>以上使用的表EMP是calcite源码单元测试中已经存在的.</p>
+</blockquote>
+<p>该关系表达式的等价sql为：</p>
+<pre><code>select DEPTNO,ENAME from EMP sort by DEPTNO
+</code></pre>
+<p>逻辑关系表达式不是物理算子不可以执行，所以在volcanoPlanner在执行优化之前要设置期望的RelTraitSet，比如将逻辑表达式的Convention转成EnumerableConvention（Enumerable算子是calcite自带算子实现了相应的算子算法），这样优化过后的算子才是可执行的。</p>
+<blockquote>
+<p>在上面例子中逻辑表达式原来的RelTraitSet的Convention是Convention.NONE,期望转换的CONVENTION设置为EnumerableConvention就可以转换成Enumerable算子为根节点的可执行关系表达式</p>
+</blockquote>
+<p>还需要通过setRoot设置优化器的根节点，在这时候会对算子进行注册，从根节点开始一直到所有子节点都会注册到planner。 后面会详细解析注册过程，整个注册过程就是将关系表达式转换成RelSubset和RelSet结构。</p>
+<ul>
+<li>  <strong>RelSet</strong>: 关系表达式的等价集合，在它的字段rels集合中的关系表达式都有相同的语义。它的subsets集合中的subset会记录有相同物理属性(traitSets)的关系表达式的最小代价RelNode。</li>
+<li>  <strong>RelSubset</strong>：记录有相同物理属性（记录在traitSet中）的关系表达式的最优RelNode。它也是一种RelNode，set字段记录它所属的RelSet</li>
+</ul>
+<h1 id="关系表达式的注册过程"><a href="#关系表达式的注册过程" class="headerlink" title="关系表达式的注册过程"></a>关系表达式的注册过程</h1><p>在上面的单元测试例子中,在planner.setRoot之前要调用planner.changeTrait.这个方法是将关系表达式注册到优化器,经过这个方法后关系表达式RelNode的结构中会出现<strong>RelSet</strong>和<strong>RelSubset</strong>,代表关系表达式结构中各个层次之间等价关系表达式.</p>
+<pre><code>public RelNode changeTraits(final RelNode rel, RelTraitSet toTraits) &#123;
+    assert !rel.getTraitSet().equals(toTraits);
+    assert toTraits.allSimple();
+    //对传入的关系表达式进行注册，经过注册后关系表达式结构都变成RelSubset注册的结构
+    RelSubset rel2 = ensureRegistered(rel, null);
+    //如果期望的TraitSet与原来关系表达式的TraitSet一致
+    //那么可以直接返回，但是比如要从逻辑表达式的TraitSet转成
+    //Enumerable的TraitSet这里就会是false
+    if (rel2.getTraitSet().equals(toTraits)) &#123;
+      return rel2;
+    &#125;
+    //生成新的Subset这个Subset的TraitSet就是期望的TraitSet
+    //后面也会作为planner的根节点
+    return rel2.set.getOrCreateSubset(
+        rel.getCluster(), toTraits, true);
+  &#125;
+</code></pre>
+<p>在上面changeTraits方法中核心的部分就是调用ensureRegistered方法进行注册.在ensureRegistered方法的开头会调用getSubset方法检查要注册的RelNode是否已经存在映射的RelSubset,如果存在说明已经注册并且传入的等价表达式不为空就会进行merge合并等价表达式加入同一个等价表达式集合.在最开始逻辑表达式注册时可定是没有注册的那么就会返回null，继续调用register方法进行注册，而在register方法中实际调用registerImpl方法进行注册。</p>
+<h1 id="registerImpl方法"><a href="#registerImpl方法" class="headerlink" title="registerImpl方法"></a>registerImpl方法</h1><p>在registerImpl方法中会经历一下几个步骤：</p>
+<p>(1) 开头进行一些必要的检查，比如要注册的RelNode的traitSet的size是否与planner traitDefs的大小相同，否则抛出异常。<br>(2) 调用要注册的RelNode的onRegister方法，对于逻辑关系表达式这个方法会以深度优先的方式重复上面的注册过程，让子节点向完成注册，当所有子节点注册完后返回当前节点才继续下面的步骤。比如例子中的逻辑表达式，在这个方法中会递归直到JdbcTableScan算子没有其他子节点了继续registerImpl后面步骤，结束后然后再返回LogicalProject,最后返回LogicalSort。</p>
+<pre><code>LogicalSort(DEPTNO)
+        LogicalProject(DEPTNO,ENAME)
+            JdbcTableScan(EMP)
+</code></pre>
+<p>(3) 判断当前的RelNode是否Converter.如果rel是converter.那么converter会与它的子表达属于同一个RelSet。那么converter的set就从它的input通过getSet获取，不用创建新的。<br>(4) 如果当前RelNode对应的RelSet为空，创建一个新的RelSet对象，并且加入到优化器的allSets中。<br>(5) 调用registerClass方法。在这个方法中会获取RelNode的class对象，并且添加到planner的classes集合中，如果集合中不存在这个class会调用onNewClass方法。在VolcanoPlanner的onNewClass方法实现中首先会调用父类的onNewClass方法，在这时会回调relNode的register方法（这时如果我们自定义了一些关系表达式可以利用这一点给优化器添加自定义的规则等）。这个方法核心代码片段如下：</p>
+<pre><code>final Class&lt;? extends RelNode&gt; clazz = node.getClass();
+        for (RelOptRule rule : mapDescToRule.values()) &#123;
+          if (isPhysical &amp;&amp; rule instanceof TransformationRule) &#123;
+            continue;
+          &#125;
+          for (RelOptRuleOperand operand : rule.getOperands()) &#123;
+            if (operand.getMatchedClass().isAssignableFrom(clazz)) &#123;
+              classOperands.put(clazz, operand);
+            &#125;
+          &#125;
+        &#125;
+</code></pre>
+<p>这部分代码是根据优化规则要匹配的关系表达式类与当前关系表达式的类是否匹配，如果匹配放入calssOperands集合（MultiMap结构）将关系表达式类与优化规则进行映射，这样只有类匹配的优化规则才会应用于对应的关系表达式。 在registerClass方法最后会将RelNode的convention放入conventions集合，如果是新的convention那么就会回调node.getConvention().register(this);方法。比如JdbcTableScan算子的Convention是JdbcConvention是一个新的convention,那么这个时候就会回调JdbcConvention的register方法,实现如下就是将jdbcRule添加到优化器中。</p>
+<pre><code>@Override public void register(RelOptPlanner planner) &#123;
+        for (RelOptRule rule : JdbcRules.rules(this)) &#123;
+          planner.addRule(rule);
+        &#125;
+        planner.addRule(CoreRules.FILTER_SET_OP_TRANSPOSE);
+        planner.addRule(CoreRules.PROJECT_REMOVE);
+      &#125;
+</code></pre>
+<p>(6) 调用addRelToSet将当前注册的RelNode加入对应的RelSet中，该方法返回RelSubset。在该方法中会通过RelNode的RelTraitSet判断RelSet是否存在对应的RelSubset，不存在创建一个新的并加入到RelSet的subsets集合中。将RelNode与对应的RelSubset放入优化器的mapRel2Subset集合中。最后会调用RelSubset的propagateCostImprovements方法根据注册的RelNode计算它的最优代价，与最优的关系表达式算子。比如JdbcTableScan注册时对应的RelSubset的计算出来的结果如下：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/6704ad235c254510af98a443a84ea746?from=pc" alt="Calcite 之 VolcanoPlanner优化过程解析"></p>
+<p>JdbcTableScan会去数据库计算它的真实代价，得到真实代价会比inf小，那么这里JdbcTableScan就会称为RelSubset的best计划。 对于Logicalxxx算子这里计算的代价都是infinity，因为convention.none的都是。在后面的优化中如果有等价的新的关系表达式节点新注册进来时，有更小的代价时这个RelSubset就会更新。这也是VolcanoPlanner基于成本优化的关键点。<br>(7) 调用fireRules方法。</p>
+<pre><code>void fireRules(RelNode rel) &#123;
+        for (RelOptRuleOperand operand : classOperands.get(rel.getClass())) &#123;
+          if (operand.matches(rel)) &#123;
+            final VolcanoRuleCall ruleCall;
+            ruleCall = new DeferringRuleCall(this, operand);
+            ruleCall.match(rel);
+          &#125;
+        &#125;
+      &#125;
+</code></pre>
+<p>将前面classOperands中候选的operand拿出来，根据operand的结构与relNode的结构比较，如果匹配，那么Operand的rule就作为候选的rule放入ruleQueue。因为注册的时候是深度遍历优先，所以在ruleQueue中前面的rule都是RelNode表达式中最底层表达式匹配的rule开始的，实现了从下到上的规则匹配。关于具体的规则匹配解释可以参考Apache Calcite的优化器规则解析。</p>
+<h1 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h1><p>逻辑关系表达式在通过VolcanoPlanner优化之前需要先将关系表达式各个节点注册到优化器中。注册方法采用深度优先遍历，首先注册子节点生成Relset关系表达式等价集合与注册RelNode对应的RelSubset计算最小代价信息。在注册关系表达式节点RelNode时会根据已有的优化器规则对关系表达式结构进行匹配，符合匹配规则的优化规则放入优化器的规则队列中。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/0b1983d30a974b76ac3a87be0696bf22?from=pc" alt="Calcite 之 VolcanoPlanner优化过程解析"></p>
+<p>在注册后，单元测试例子中的逻辑关系表达式结构变换如上图。结构上加入了RelSubset与Relset构成了各个层级的等价表达式集合与每个层次最小代价信息。后面在执行VolcanoPlanner优化器算法时就是利用各种优化规则对关系表达式进行变换，生成新的关系表达式节点加入对应的等价集合层次，利用动态规划的算法不断更新最小代价信息。最后优化过程结束后就可以根据每层的最小代价信息获得代价最小的可执行关系表达式路径。</p>
+<h1 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h1><p>Calcite优化器执行优化算法的方法为findBestExp。VolcanoPlanner的该方法实现代码如下：</p>
+<pre><code>public RelNode findBestExp() &#123;
+    ensureRootConverters();
+    registerMaterializations();
+
+    //核心部分，从规则队列取出优化规则对表达式进行变化
+    ruleDriver.drive();
+
+    if (LOGGER.isTraceEnabled()) &#123;
+      StringWriter sw = new StringWriter();
+      final PrintWriter pw = new PrintWriter(sw);
+      dump(pw);
+      pw.flush();
+      LOGGER.info(sw.toString());
+    &#125;
+    dumpRuleAttemptsInfo();
+    // 通过所有规则变化后，现在所有可行的关系表达式路径都生成了
+    // 在这里根据每一层等价表达式的RelSubset找出最小代价的关系表达式节点
+    // 每一层最小代价表达式结合起来就构成了最优的可执行的关系表达式
+    RelNode cheapest = root.buildCheapestPlan(this);
+    if (LOGGER.isDebugEnabled()) &#123;
+      LOGGER.debug(
+          &quot;Cheapest plan:\n&#123;&#125;&quot;, RelOptUtil.toString(cheapest, SqlExplainLevel.ALL_ATTRIBUTES));
+
+      if (!provenanceMap.isEmpty()) &#123;
+        LOGGER.debug(&quot;Provenance:\n&#123;&#125;&quot;, Dumpers.provenance(provenanceMap, cheapest));
+      &#125;
+    &#125;
+    return cheapest;
+  &#125;
+</code></pre>
+<h1 id="优化中的规则执行"><a href="#优化中的规则执行" class="headerlink" title="优化中的规则执行"></a>优化中的规则执行</h1><p>一般VolcanoPlanner的RuleDriver实现类是IterativeRuleDriver，它的drive方法源码如下：</p>
+<pre><code>@Override public void drive() &#123;
+    while (true) &#123;
+      LOGGER.debug(&quot;PLANNER = &#123;&#125;; COST = &#123;&#125;&quot;, this, planner.root.bestCost);
+
+      VolcanoRuleMatch match = ruleQueue.popMatch();
+      if (match == null) &#123;
+        break;
+      &#125;
+
+      assert match.getRule().matches(match);
+      try &#123;
+        match.onMatch();
+      &#125; catch (VolcanoTimeoutException e) &#123;
+        LOGGER.warn(&quot;Volcano planning times out, cancels the subsequent optimization.&quot;);
+        planner.canonize();
+        break;
+      &#125;
+
+      // The root may have been merged with another
+      // subset. Find the new root subset.
+      planner.canonize();
+    &#125;
+  &#125;
+</code></pre>
+<p>上面的drive方法实现也很简单易懂，就是不断的从规则队列中取出优化规则并执行。这个方法退出条件有两种：1.规则队列没有规则需要执行了。2.在规则执行时抛出VolcanoTimeoutException异常，当VolcanoPlannerd的cancleFlag设置为true时会抛出这个异常，所以在使用如果觉得优化时间太长，超过一定时间可设置cancleFlag为true强制优化结束。</p>
+<p>下面解释一下在这里规则是如何执行的并且规则生成新的关系表达式后做了些什么？ 在我们上面测试例子中，VolcanoPlanner的规则队列中会有一个VolcanoRuleMatch，这个VolcanoRuleMatch的rule是<br>JdbcToEnumerableConverterRule,作用的关系表达式列表中只有JdbcTableScan。以这个为例进行解释。 在上面的代码match.onMatch调用中会调用getRule().onMatch(this)执行规则的onMatch方法。<br>JdbcToEnumerableConverterRule的onMatch方法实现复用ConverterRule实现：</p>
+<pre><code>@Override public void onMatch(RelOptRuleCall call) &#123;
+    RelNode rel = call.rel(0);
+    if (rel.getTraitSet().contains(inTrait)) &#123;
+      final RelNode converted = convert(rel);
+      if (converted != null) &#123;
+        call.transformTo(converted);
+      &#125;
+    &#125;
+  &#125;
+</code></pre>
+<p>JdbcToEnumerableConverterRule`的onMatch方法就是生成新的RelNode converted。该RelNode结构如下：</p>
+<pre><code>JdbcToEnumerableConverter
+    JdbcTableScan
+</code></pre>
+<p>通过transformTo方法将新的RelNode结构注册到优化器中。在transformTo方法中最终还是会调用RelSubset subset =<br>volcanoPlanner.ensureRegistered(rel, rels[0]);通过ensureRegistered来注册。注册过程就是上一节描述的注册过程，只是这里equivRel等价关系表达式不在是null。在这个例子中要注册的新的RelNode是上面生成的JdbcToEnumerableConverter,等价关系表达式equivRel为原来的JdbcTableScan，因此这个注册过程JdbcToEnumerableConverter所在的等价集合就是JdbcTableScan所在的RelSet，在这个RelSet中会加入JdbcToEnumerableConverter对应的RelSubset记录着相应的最小代价信息。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/1253115ffd154756a0abeea919f88cbd?from=pc" alt="Calcite 之 VolcanoPlanner优化过程解析"></p>
+<p>transformTo方法后JdbcTableScan的等价集合RelSet的变化如上图所示。经过<br>JdbcToEnumerableConverterRule变换后虽然生成了新的关系表达式结构JdbcToEnumerableConverter，但是其最小代价大于原来的JdbcTableScan，所以这时这一层最优的关系表达式算子仍然是JdbcTableScan。 其他的规则与上面的例子大致一样，通过匹配已有的关系表达式结构生成新的等价关系表达式结构，放入等价关系表达式集合，根据新的最小代价信息看是否发现了更小的代价，上一层（parent）计算最小代价时会基于这一层的最小代价（动态规划）。</p>
+<h1 id="查找最优执行计划路径"><a href="#查找最优执行计划路径" class="headerlink" title="查找最优执行计划路径"></a>查找最优执行计划路径</h1><p>在优化完成所有可执行的关系表达式路径都生成后，会使用buildCheapestPlan找出最优（代价最小）的RelNode结构路径。</p>
+<pre><code>RelNode buildCheapestPlan(VolcanoPlanner planner) &#123;
+    CheapestPlanReplacer replacer = new CheapestPlanReplacer(planner);
+    final RelNode cheapest = replacer.visit(this, -1, null);
+
+    if (planner.getListener() != null) &#123;
+      RelOptListener.RelChosenEvent event =
+          new RelOptListener.RelChosenEvent(
+              planner,
+              null);
+      planner.getListener().relChosen(event);
+    &#125;
+
+    return cheapest;
+  &#125;
+</code></pre>
+<p>查找方法就是使用CheapestPlanReplacer采用visitor模式从上到下找到每一层最优算子组合起来。</p>
+<pre><code>public RelNode visit(
+        RelNode p,
+        int ordinal,
+        RelNode parent) &#123;
+      if (p instanceof RelSubset) &#123;
+        RelSubset subset = (RelSubset) p;
+        // 当前层次最由关系表达式节点
+        RelNode cheapest = subset.best;
+        . . . . . .
+        p = cheapest;
+      &#125;
+      . . . . . .
+      List&lt;RelNode&gt; oldInputs = p.getInputs();
+      List&lt;RelNode&gt; inputs = new ArrayList&lt;&gt;();
+      // 继续处理子节点
+      for (int i = 0; i &lt; oldInputs.size(); i++) &#123;
+        RelNode oldInput = oldInputs.get(i);
+        RelNode input = visit(oldInput, i, p);
+        inputs.add(input);
+      &#125;
+      if (!inputs.equals(oldInputs)) &#123;
+        final RelNode pOld = p;
+        p = p.copy(p.getTraitSet(), inputs);
+        planner.provenanceMap.put(
+            p, new VolcanoPlanner.DirectProvenance(pOld));
+      &#125;
+      return p;
+</code></pre>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文梳理VolcanoPlanner优化器优化过程中的一些关键地方，还有很多细节比较难以详细描述，Calcite中有很多概念也比较难以理解，要更好的理解VolcanoPlanner优化器优化过程还是需要跟着代码进行调试学习。在实际使用Calcite的时候知道优化过程有助于理解如何对Calcite优化，如何加入自己的优化规则，生成自定义的关系表达式算子等。</p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner%E4%BC%98%E5%8C%96%E8%BF%87%E7%A8%8B%E8%A7%A3%E6%9E%90/" title="Calcite之VolcanoPlanner优化过程解析" target="_blank" rel="external">http://senlizishi.github.io/2021/01/29/calcite_VolcanoPlanner优化过程解析/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/02/01/calcite_JavaCC%E5%BA%94%E7%94%A8%E6%A6%82%E8%BF%B0/" title="Calcite之JavaCC应用概述"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/01/28/calcite_Planner%E4%BC%98%E5%8C%96%E5%99%A8%E8%A7%84%E5%88%99%E8%A7%A3%E6%9E%90/" title="Calcite之Planner优化器规则解析"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

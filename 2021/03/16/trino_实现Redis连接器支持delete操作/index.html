@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Trino之实现Redis连接器支持delete操作 | Hexo</title>
+  <meta name="description" content="导读：Trino 是由 Presto SQL 更名而得，是一个分布式SQL查询引擎。Trino 目前提供了丰富的 Connectors 用于访问不同的数据源。本文接下来将讨论如何在现有的 redis connector 的基础上进行改造使其支持 delete 操作。 1、基础知识本文只提供笔者对于 Redis Connect 支持 delete功能的大致实现思路，不做详细源码分析。朋友们需根据自身">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Trino之实现Redis连接器支持delete操作">
+<meta property="og:url" content="http://senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="导读：Trino 是由 Presto SQL 更名而得，是一个分布式SQL查询引擎。Trino 目前提供了丰富的 Connectors 用于访问不同的数据源。本文接下来将讨论如何在现有的 redis connector 的基础上进行改造使其支持 delete 操作。 1、基础知识本文只提供笔者对于 Redis Connect 支持 delete功能的大致实现思路，不做详细源码分析。朋友们需根据自身">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-03-16T08:26:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:48:34.913Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Trino">
+<meta name="twitter:card" content="summary">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#1%E3%80%81%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86"><span class="toc-number">1.</span> <span class="toc-text">1、基础知识</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#2%E3%80%81Delete-%E5%8A%9F%E8%83%BD%E5%85%B7%E4%BD%93%E5%AE%9E%E7%8E%B0"><span class="toc-number">2.</span> <span class="toc-text">2、Delete 功能具体实现</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">3.</span> <span class="toc-text">最后</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-trino_实现Redis连接器支持delete操作" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Trino之实现Redis连接器支持delete操作
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="article-date">
+	  <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Trino/" rel="tag">Trino</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <p><strong>导读：</strong>Trino 是由 Presto SQL 更名而得，是一个分布式SQL查询引擎。Trino 目前提供了丰富的 Connectors 用于访问不同的数据源。本文接下来将讨论如何在现有的 redis connector 的基础上进行改造使其支持 delete 操作。</p>
+<h1 id="1、基础知识"><a href="#1、基础知识" class="headerlink" title="1、基础知识"></a>1、基础知识</h1><p>本文只提供笔者对于 Redis Connect 支持 delete功能的大致实现思路，不做详细源码分析。朋友们需根据自身实际情况调整优化，以下代码均未在生产环境实践应用。</p>
+<pre><code>// 官方文档大致讲述了redis connect 的构成以及使用的方式，这里就不做细表，文档如下：
+https://trino.io/docs/current/connector/redis.html
+// Trino 的 github 地址，拉取后我们可以参考借鉴 Kudu 模块实现 delete 功能 
+https://github.com/trinodb/trino
+</code></pre>
+<h1 id="2、Delete-功能具体实现"><a href="#2、Delete-功能具体实现" class="headerlink" title="2、Delete 功能具体实现"></a>2、Delete 功能具体实现</h1><p><strong>2.1 重写ConnectorMetadata 3 个与 delete 有关的方法</strong></p>
+<p>RedisMetadata 实现了 ConnectorMetadata。 ConnectorMetadata 接口中如果实现类不重写覆盖这三个方法，则连接器本身是不支持 delete 操作的。这三个方法按被调用顺序排列如下：</p>
+<ul>
+<li>  getDeleteRowIdColumnHandle</li>
+<li>  beginDelete</li>
+<li>  finishDelete</li>
+</ul>
+<p><strong>2.1.1 先看<br>getDeleteRowIdColumnHandle 方法</strong></p>
+<pre><code>/**
+ * Get the column handle that will generate row IDs for the delete operation.
+ * These IDs will be passed to the &#123;@code deleteRows()&#125; method of the
+ * &#123;@link io.trino.spi.connector.UpdatablePageSource&#125; that created them.
+ */
+default ColumnHandle getDeleteRowIdColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
+&#123;
+    throw new TrinoException(NOT_SUPPORTED, &quot;This connector does not support deletes&quot;);
+&#125;
+</code></pre>
+<p>该方法目的是获取将为删除操作生成行 id 的 column handle，这些 ID 将被传递给 UpdatablePageSource#deleteRows() 。这里我参考了 KuduConnector 的做法，在 RedisColumnHandle 中创建一个固定的 ROW_ID_HANDLE。代码如下：</p>
+<pre><code>public final class RedisColumnHandle implements DecoderColumnHandle, Comparable&lt;RedisColumnHandle&gt; &#123;
+//... 此处省略其他代码
+          public static final String ROW_ID_NAME = &quot;row_id&quot;;
+      public static final int ROW_ID_POSITION = -1;
+      public static final RedisColumnHandle ROW_ID_HANDLE = new RedisColumnHandle(ROW_ID_POSITION, ROW_ID_NAME, VarcharType.VARCHAR, null
+            , null, null, true, false, false, false);
+ &#125;
+</code></pre>
+<p><strong>2.1.2 接下来处理 beginDelete 和 finishDelete 方法</strong></p>
+<p>重写 beginDelete 方法并将tableHandle转换为RedisTableHandle 返回</p>
+<pre><code>@Override
+    public ConnectorTableHandle beginDelete(ConnectorSession session, ConnectorTableHandle tableHandle) &#123;
+        RedisTableHandle handle = (RedisTableHandle)tableHandle;
+        return handle;
+    &#125;
+</code></pre>
+<p>finishDelete 则是删除后做的操作，由于删除后无后续操作，此处我就简单进行打印。</p>
+<pre><code>@Override
+    public void finishDelete(ConnectorSession session, ConnectorTableHandle tableHandle, Collection&lt;Slice&gt; fragments) &#123;
+        System.out.println(&quot;finishDelete&quot;);
+    &#125;
+</code></pre>
+<p><strong>2.2 RedisPageSourceProvider 与 RedisUpdatablePageSource</strong></p>
+<p><strong>2.2.1 创建 RedisPageSourceProvider</strong></p>
+<p>完成了上面三个方法实现后，接下来我们需要创建一个 RedisPageSourceProvider，其实现</p>
+<p>ConnectorPageSourceProvider，具体代码如下：</p>
+<pre><code>public class RedisPageSourceProvider
+        implements ConnectorPageSourceProvider
+&#123;
+    private final RedisRecordSetProvider recordSetProvider;
+
+    @Inject
+    public RedisPageSourceProvider(RedisRecordSetProvider recordSetProvider,RedisJedisManager jedisManager)
+    &#123;
+        this.recordSetProvider = requireNonNull(recordSetProvider, &quot;recordSetProvider is null&quot;);
+    &#125;
+
+    @Override
+    public ConnectorPageSource createPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            List&lt;ColumnHandle&gt; columns,
+            TupleDomain&lt;ColumnHandle&gt; dynamicFilter)
+    &#123;
+        RedisRecordSet recordSet = (RedisRecordSet) recordSetProvider.getRecordSet(transaction, session, split, table, columns);
+       // 此处为关键
+      if (columns.contains(RedisColumnHandle.ROW_ID_HANDLE)) &#123;
+            return new RedisUpdatablePageSource(recordSet,recordSetProvider.getJedisManager());
+        &#125;
+        return new RecordPageSource(recordSet);
+    &#125;
+&#125;
+</code></pre>
+<p>判断列组中如果包含我们前面创建的 ROW_ID_HANDLE，则会创建一个新的 RedisUpdatablePageSource 对象，该对象内部可编写具体的删除处理逻辑。因此在创建RedisUpdatablePageSource 时我们将 JedisManager 一并传入，用于与 redis 交互。</p>
+<p><strong>2.2.2 注册 RedisPageSourceProvider</strong></p>
+<p>这里与上一篇 insert 操作创建 RedisPageSinkProvider 流程一致，我们也需要在 RedisConnectorModule 中将我们刚创建的 RedisPageSourceProvider 绑定注册。</p>
+<pre><code>public class RedisConnectorModule implements Module &#123;
+  binder.bind(RedisPageSourceProvider.class).in(Scopes.SINGLETON);
+&#125;
+</code></pre>
+<p>在 RedisConnector 类中新增 redisPageSourceProvider 属性，并提供 get 方法。</p>
+<pre><code>public class RedisConnector implements Connector &#123;
+   // 此处省略部分代码
+  private final RedisPageSourceProvider redisPageSourceProvider;
+  
+  @Override
+    public ConnectorPageSourceProvider getPageSourceProvider() &#123;
+        return redisPageSourceProvider;
+    &#125;
+&#125;
+</code></pre>
+<p>这里有一个注意点，原本的 redis 连接器本身内置并注册了 RedisRecordSetProvider。在运行时有可能出现 Connector ‘redis’ returned both page source and record set providers 异常。追踪源码发现：</p>
+<pre><code>// ConnectorManager 的内部类 MaterializedConnector 中有这么一段代码
+ConnectorPageSourceProvider connectorPageSourceProvider = null;
+            try &#123;
+                connectorPageSourceProvider = connector.getPageSourceProvider();
+                requireNonNull(connectorPageSourceProvider, format(&quot;Connector &#39;%s&#39; returned a null page source provider&quot;, catalogName));
+            &#125;
+            catch (UnsupportedOperationException ignored) &#123;
+            &#125;
+
+            try &#123;
+                ConnectorRecordSetProvider connectorRecordSetProvider = connector.getRecordSetProvider();
+                requireNonNull(connectorRecordSetProvider, format(&quot;Connector &#39;%s&#39; returned a null record set provider&quot;, catalogName));
+                verify(connectorPageSourceProvider == null, &quot;Connector &#39;%s&#39; returned both page source and record set providers&quot;, catalogName);
+                connectorPageSourceProvider = new RecordPageSourceProvider(connectorRecordSetProvider);
+            &#125;
+            catch (UnsupportedOperationException ignored) &#123;
+            &#125;
+            this.pageSourceProvider = Optional.ofNullable(connectorPageSourceProvider);
+</code></pre>
+<p>当连接器的<br>connectorPageSourceProvider 和<br>connectorRecordSetProvider 同时不为空时就会报出该异常。解决的方式只需改动如下一处地方的代码：</p>
+<pre><code>// 将 RedisConnector 类中的 getRecordSetProvider 修改为抛出UnsupportedOperationException
+@Override
+    public ConnectorRecordSetProvider getRecordSetProvider() &#123;
+        throw new UnsupportedOperationException();
+    &#125;
+</code></pre>
+<p><strong>2.2.3 创建 RedisUpdatablePageSource</strong></p>
+<p>这里核心的删除逻辑写在 deleteRows() 中，关于 Page、Block 和 Slice 等概念可参考文章<a target="_blank" rel="noopener" href="https://www.toutiao.com/i6937925202529567268/?group_id=6937925202529567268">Presto核心数据结构：Slice Block Page</a></p>
+<pre><code>public class RedisUpdatablePageSource
+        implements UpdatablePageSource &#123;
+    private final RecordPageSource inner;
+    private final Jedis jedis;
+
+    Logger log = Logger.get(RedisPageSink.class);
+   
+   // 初始化
+    public RedisUpdatablePageSource(RedisRecordSet recordSet, RedisJedisManager jedisManager) &#123;
+        this.inner = new RecordPageSource(recordSet);
+        RedisConnectorConfig redisConnectorConfig = jedisManager.getRedisConnectorConfig();
+        Set&lt;HostAddress&gt; hostAddressSet = redisConnectorConfig.getNodes();
+        HostAddress hostAddress;
+        if (hostAddressSet.size() &gt; 0) &#123;
+            hostAddress = new ArrayList&lt;&gt;(redisConnectorConfig.getNodes()).get(0);
+            log.info(&quot;当前连接的 redis 地址为：&quot; + hostAddress.getHostText() + &quot;:&quot; + hostAddress.getPort());
+        &#125; else &#123;
+            throw new RuntimeException(&quot;中获取不到 redis 节点的地址信息&quot;);
+        &#125;
+        JedisPool jedisPool = jedisManager.getJedisPool(HostAddress.fromParts(hostAddress.getHostText(), hostAddress.getPort()));
+        this.jedis = jedisPool.getResource();
+    &#125;
+        
+   // 删除逻辑
+    @Override
+    public void deleteRows(Block rowIds) &#123;
+        for (int i = 0; i &lt; rowIds.getPositionCount(); i++) &#123;
+            int len = rowIds.getSliceLength(i);
+            Slice slice = rowIds.getSlice(i, 0, len);
+            String deleteKey = new String(slice.getBytes());
+            // 删除键
+            jedis.del(deleteKey);
+        &#125;
+    &#125;
+
+    @Override
+    public void close() &#123;
+       // 关闭连接
+        jedis.close();
+        inner.close();
+    &#125;
+
+//.. 此处省略部分代码
+&#125;
+</code></pre>
+<p><strong>2.3 自此 Redis Connector 就已具备删除功能</strong></p>
+<pre><code>delete from redis.default.test where redis_key = &#39;test&#39;
+</code></pre>
+<p>关于 Redis Connector 实现 insert 功能可查看 <a target="_blank" rel="noopener" href="https://www.toutiao.com/i6937841679273656871/?group_id=6937841679273656871">Trino——实现Redis连接器支持Insert操作</a></p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p><strong>以上就是笔者 redis connect 实现 delete 功能的大致实现思路，希望对各有有所帮助。由于篇幅有限就不做详细的源码解析，朋友们需根据自身实际情况调整优化。</strong></p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" title="Trino之实现Redis连接器支持delete操作" target="_blank" rel="external">http://senlizishi.github.io/2021/03/16/trino_实现Redis连接器支持delete操作/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" title="Apollo之迁移Springboot配置"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="Trino之核心数据结构：Slice Block Page"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

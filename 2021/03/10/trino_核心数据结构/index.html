@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Trino之核心数据结构：Slice Block Page | Hexo</title>
+  <meta name="description" content="本文翻译自：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;60813087  导读：在Presto中，我们需要了解一些非常重要的数据结构，Slice、Block 和 Page是其中的三个，我将在本文中介绍这些数据结构。 Slice从用户的角度来看，Slice是一个对开发者更友好的虚拟内存，它定义了一组getter和setter，所以你可以像使用结构化数据一样使用内存:  Slice的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Trino之核心数据结构：Slice Block Page">
+<meta property="og:url" content="http://senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="本文翻译自：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;60813087  导读：在Presto中，我们需要了解一些非常重要的数据结构，Slice、Block 和 Page是其中的三个，我将在本文中介绍这些数据结构。 Slice从用户的角度来看，Slice是一个对开发者更友好的虚拟内存，它定义了一组getter和setter，所以你可以像使用结构化数据一样使用内存:  Slice的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/21f06fd370fb488083281a543081e79c?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/50a59e672a064f0f93ea7bbf750418fa?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/3bcdd3bedd8d4b0f9339d75a14947bf8?from=pc">
+<meta property="article:published_time" content="2021-03-10T08:42:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:44:28.876Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Trino">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p3.toutiaoimg.com/origin/pgc-image/21f06fd370fb488083281a543081e79c?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Slice"><span class="toc-number">1.</span> <span class="toc-text">Slice</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Block"><span class="toc-number">2.</span> <span class="toc-text">Block</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Page"><span class="toc-number">3.</span> <span class="toc-text">Page</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-trino_核心数据结构" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Trino之核心数据结构：Slice Block Page
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="article-date">
+	  <time datetime="2021-03-10T08:42:00.000Z" itemprop="datePublished">2021-03-10</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Trino/" rel="tag">Trino</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>本文翻译自：<br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/60813087">https://zhuanlan.zhihu.com/p/60813087</a></p>
+</blockquote>
+<p><strong>导读：</strong>在Presto中，我们需要了解一些非常重要的数据结构，Slice、Block 和 Page是其中的三个，我将在本文中介绍这些数据结构。</p>
+<h1 id="Slice"><a href="#Slice" class="headerlink" title="Slice"></a>Slice</h1><p>从用户的角度来看，Slice是一个对开发者更友好的虚拟内存，它定义了一组getter和setter，所以你可以像使用结构化数据一样使用内存:</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/21f06fd370fb488083281a543081e79c?from=pc" alt="Presto核心数据结构：Slice Block Page"></p>
+<p>Slice的典型用法是表示字符串：</p>
+<pre><code>// use it as utf8 encoded string
+Slice slice = Slices.utf8Slice(&quot;hello&quot;);
+Slice subSlice = SliceUtf8.substring(slice, 1, 2);
+</code></pre>
+<p>你可以看到我们像使用字符串一样使用Slice, Presto更喜欢Slice而不是String的原因是:</p>
+<ul>
+<li>  字符串的构建成本很高（String concatenation, StringBuilder 等）</li>
+<li>  Slice是可变的，而String不是，所以当我们需要进行字符串计算时，Slice的效率更高</li>
+<li>  字符串在内存中编码为UTF16，而Slice使用UTF8，这在内存中效率更高</li>
+<li>  UTF16使用最少两个字节来表示一个字符，而UTF8使用最少一个字节，所以如果字符串内容主要是ascii字符，UTF8可以节省大量内存</li>
+</ul>
+<p>另外一种使用 Slice 的方法（在 Presto 中 ）是用于表示 raw bytes (SQL 中的 VARBINARY 类型 )：</p>
+<pre><code>// use it as raw bytes
+block.getSlice().getBytes()
+</code></pre>
+<p>你可以从一个 Block 中获取一个 Slice 就像原始类型Int, Long等。</p>
+<h1 id="Block"><a href="#Block" class="headerlink" title="Block"></a>Block</h1><p>Page 是由 Block 组成，因此我们先介绍 Block。Block 可以看成一个array，array 中的数据都具有相同类型（int,long,Slice等）。每个数据都占据着一个 position，总 position 数表示该 Block 持有的数据的总行数（Block 只保存这些行中的一列）</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/50a59e672a064f0f93ea7bbf750418fa?from=pc" alt="Presto核心数据结构：Slice Block Page"></p>
+<p>Block 定义了一些 APIs，其中之一是 getXXX 方法，让我们以 getInt 作为例子：</p>
+<pre><code>/**
+    * Gets a little endian int at &#123;@code offset&#125; in the value at &#123;@code position&#125;.
+    */
+default int getInt(int position, int offset)
+&#123;
+    throw new UnsupportedOperationException(getClass().getName());
+&#125;
+</code></pre>
+<p>通常，一个块只支持一个getXxx方法，因为一个 Block 中的所有数据都属于一个具有某种类型的列。</p>
+<p>Block定义的另一个方法是copyPositions，它不是从Block中获取一个值，而是获取一个由位置列表指定的值列表作为一个新块，我猜想这在映射中使用。</p>
+<pre><code>/**
+ * Returns a block containing the specified positions.
+ * All specified positions must be valid for this block.
+ * &lt;p&gt;
+ * The returned block must be a compact representation of the original block.
+ */
+Block copyPositions(List&lt;Integer&gt; positions);
+</code></pre>
+<p>除了Block, Presto还定义了BlockEncoding，它决定了Block如何序列化和反序列化:</p>
+<pre><code>public interface BlockEncoding
+&#123;
+    ...
+
+    /**
+     * Read a block from the specified input.  The returned
+     * block should begin at the specified position.
+     */
+    Block readBlock(SliceInput input);
+
+    /**
+     * Write the specified block to the specified output
+     */
+    void writeBlock(SliceOutput sliceOutput, Block block);
+    ...
+&#125;
+</code></pre>
+<p>让我们使用一个最简单的 BlockEncoding : IntArrayBlockEncoding 作为例子，它的 readBlock 看起来是这样的：</p>
+<pre><code>int positionCount = block.getPositionCount();
+sliceOutput.appendInt(positionCount);
+
+encodeNullsAsBits(sliceOutput, block);
+
+for (int position = 0; position &lt; positionCount; position++) &#123;
+    if (!block.isNull(position)) &#123;
+        sliceOutput.writeInt(block.getInt(position, 0));
+    &#125;
+&#125;
+</code></pre>
+<p>就像我们从代码中所看到的，它首先对 position 进行编码，然后将数据isNull编码为位图，最后把所有的整数都写进输出。看起来与网络协议代码非常相似。</p>
+<h1 id="Page"><a href="#Page" class="headerlink" title="Page"></a>Page</h1><p>Page 是由块组成</p>
+<pre><code>public class Page
+&#123;
+    private final Block[] blocks;
+    private final int positionCount;
+    ...
+&#125;
+</code></pre>
+<p>除了 Blocks，Page 还有另外一个概念叫做 channel：每一个 Block 都是 Page 的一个 channel，blocks 的总数就是 channel 的总数。这里让我们做一下总结，当有一些 rows 要被发送时，Presto 将会</p>
+<ul>
+<li>  把每一列放在单独的 Block 中</li>
+<li>  把这些 Block 放到一个 Page 里</li>
+<li>  发送 Page</li>
+</ul>
+<p>Page是一种数据结构，它保存数据并在 Presto 物理执行操作符之间传输: upstream 操作符产生输出通过 getOutput():</p>
+<pre><code>/**
+ * Gets an output page from the operator.  If no output data is currently
+ * available, return null.
+ */
+Page getOutput();
+</code></pre>
+<p>Downstream 操作符获得输入通过 addInput() 方法：</p>
+<pre><code>/**
+ * Adds an input page to the operator.  This method will only be called if
+ * &#123;@code needsInput()&#125; returns true.
+ */
+void addInput(Page page);
+</code></pre>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/3bcdd3bedd8d4b0f9339d75a14947bf8?from=pc" alt="Presto核心数据结构：Slice Block Page"></p>
+<p>和Block一样，Page也需要序列化和反序列化，序列化发生在数据需要在worker之间传输的时候，当Page被序列化时，它将首先使用相应的BlockEncoding对块进行编码，接着如果一个压缩器（compressor ）可用，它将尝试压缩已编码的块数据，如果压缩工作良好(编码率低于:0.8)，它将使用压缩后的数据，否则使用解压缩数据。编码后的块数据将与一些统计信息一起放入一个名为SerializedPage的类中:压缩前和压缩后的页面字节大小。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>今天我们介绍了Presto的三种核心数据结构:Slice、Block 和Page。简而言之，Slice是更便于开发人员使用的虚拟内存，块表示一个列，页表示一个行组。</p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="Trino之核心数据结构：Slice Block Page" target="_blank" rel="external">http://senlizishi.github.io/2021/03/10/trino_核心数据结构/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" title="Trino之实现Redis连接器支持delete操作"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/" title="Selenium在Java的集成"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

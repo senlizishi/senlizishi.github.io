@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Apollo之服务端与客户端原理概述 | Hexo</title>
+  <meta name="description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apollo之服务端与客户端原理概述">
+<meta property="og:url" content="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc">
+<meta property="article:published_time" content="2021-09-15T09:42:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:02:58.455Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Apollo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF"><span class="toc-number">1.</span> <span class="toc-text">服务端</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-number">2.</span> <span class="toc-text">客户端</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-apollo_服务端与客户端原理概述" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Apollo之服务端与客户端原理概述
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="article-date">
+	  <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Apollo/" rel="tag">Apollo</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>本文参考</p>
+<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5480.html">http://c.biancheng.net/view/5480.html</a></p>
+<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5482.html">http://c.biancheng.net/view/5482.html</a></p>
+</blockquote>
+<h1 id="服务端"><a href="#服务端" class="headerlink" title="服务端"></a>服务端</h1><p><strong>1、服务端实时推送设计</strong></p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p>新配置发布的大致流程</p>
+<ul>
+<li>  用户在 Portal 中进行配置的编辑和发布。</li>
+<li>  Portal 会调用 Admin Service 提供的接口进行发布操作。</li>
+<li>  Admin Service 收到请求后，发送 <strong>ReleaseMessage</strong> 给各个 Config Service，通知 Config Service 配置发生变化。</li>
+<li>  Config Service 收到 ReleaseMessage 后，通知对应的客户端，基于 Http 长连接实现。</li>
+</ul>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p><strong>2. 发送 ReleaseMessage 的实现方式</strong></p>
+<p>ReleaseMessage 消息是<strong>通过 Mysql 实现了一个简单的消息队列</strong>。之所以没有采用消息中间件，是为了让 Apollo 在部署的时候尽量简单，尽可能减少外部依赖</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p>发送 ReleaseMessage 的实现方式</p>
+<ul>
+<li>  Admin Service 在配置发布后会往 ReleaseMessage 表插入一条消息记录。</li>
+<li>  Config Service 会启动一个线程定时扫描 ReleaseMessage 表，来查看是否有新的消息记录。</li>
+<li>  Config Service 发现有新的消息记录，就会通知到所有的消息监听器。</li>
+<li>  消息监听器得到配置发布的信息后，就会通知对应的客户端。</li>
+</ul>
+<p><strong>3. Config Service 通知客户端的实现方式</strong></p>
+<p>通知采用基于 Http 长连接实现，主要分为下面几个步骤：</p>
+<ul>
+<li>  客户端会发起一个 Http 请求到 Config Service 的 notifications/v2 接口。</li>
+<li>  notifications/v2 接口通过 Spring DeferredResult 把请求挂起，不会立即返回。</li>
+<li>  如果在 60s 内没有该客户端关心的配置发布，那么会返回 Http 状态码 304 给客户端。</li>
+<li>  如果发现配置有修改，则会调用 DeferredResult 的 setResult 方法，传入有配置变化的 namespace 信息，同时该请求会立即返回。</li>
+<li>  客户端从返回的结果中获取到配置变化的 namespace 后，会立即请求 Config Service 获取该 namespace 的最新配置。</li>
+</ul>
+<h1 id="客户端"><a href="#客户端" class="headerlink" title="客户端"></a>客户端</h1><p><strong>1、设计原理</strong></p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p>Apollo 客户端的实现原理</p>
+<ul>
+<li>  客户端和服务端保持了一个<strong>长连接</strong>，编译配置的实时更新推送。</li>
+<li>  定时拉取配置是客户端本地的一个定时任务，默认为每 5 分钟拉取一次，也可以通过在运行时指定 System Property：apollo.refreshInterval 来覆盖，单位是分钟，<strong>推送+定时拉取=双保险</strong>。</li>
+<li>  客户端从 Apollo 配置中心服务端获取到应用的最新配置后，会保存在内存中。</li>
+<li>  客户端会把从服务端获取到的配置在本地文件系统<strong>缓存</strong>一份，当服务或者网络不可用时，可以使用本地的配置，也就是我们的本地开发模式 env=Local。</li>
+</ul>
+<p><strong>2、与 Spring 集成后通过 @Value 获取配置原理</strong></p>
+<p>Spring 从 3.1 版本开始增加了 ConfigurableEnvironment 和 PropertySource：</p>
+<ul>
+<li>  ConfigurableEnvironment 实现了 Environment 接口，并且包含了多个 PropertySource</li>
+<li>  PropertySource 可以理解为很多个 Key-Value 的属性配置，在运行时的结构形如下图所示。</li>
+</ul>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p>Spring 配置结构</p>
+<p>需要注意的是，PropertySource 之间是有优先级顺序的，如果有一个 Key 在多个 property source 中都存在，那么位于前面的 property source 优先。<br>集成的原理就是在应用启动阶段，Apollo 从远端获取配置，然后组装成 PropertySource 并插入到第一个即可，如下图所示。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
+<p><strong>3、动态刷新配置的实现原理</strong></p>
+<p>Apollo Client 中定义了 SpringValueProcessor 类，其实现了 BeanPostProcessor 用于处理值修改。</p>
+<pre><code>public class SpringValueProcessor extends ApolloProcessor implements BeanFactoryPostProcessor, BeanFactoryAware &#123;
+  
+  private PlaceholderHelper placeholderHelper = new PlaceholderHelper();
+    private BeanFactory beanFactory;
+  public SpringValueRegistry springValueRegistry = new SpringValueRegistry();
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException &#123;
+        Class clazz = bean.getClass();
+        for (Field field : findAllField(clazz)) &#123;
+            processField(bean, beanName, field);
+        &#125;
+        return bean;
+    &#125;
+
+    /**
+   * 核心处理
+   */
+    private void processField(Object bean, String beanName, Field field) &#123;
+        // register @Value on field
+        Value value = field.getAnnotation(Value.class);
+        if (value == null) &#123;
+            return;
+        &#125;
+      
+        Set&lt;String&gt; keys = placeholderHelper.extractPlaceholderKeys(value.value());
+      
+        if (keys.isEmpty()) &#123;
+            return;
+        &#125;
+      
+        for (String key : keys) &#123;
+            SpringValue springValue = new SpringValue(key, value.value(), bean, beanName, field, false);
+                  springValueRegistry.register(beanFactory, key, springValue);
+                  logger.debug(&quot;Monitoring &#123;&#125;&quot;, springValue);
+        &#125;
+    &#125;
+  
+&#125;
+</code></pre>
+<p>通过实现 BeanPostProcessor 来处理每个 bean 中的值，然后将这个配置信息<strong>封装成一个 SpringValue 存储到 springValueRegistry 中</strong></p>
+<p>SpringValue 代码如下所示。</p>
+<pre><code>public class SpringValue &#123;
+    private MethodParameter methodParameter;
+    private Field field;
+    private Object bean;
+    private String beanName;
+    private String key;
+    private String placeholder;
+    private Class&lt;?&gt; targetType;
+    private Type genericType;
+    private boolean isJson;
+&#125;
+</code></pre>
+<p>SpringValueRegistry 就是利用 Map 来存储，代码如下所示。</p>
+<pre><code>public class SpringValueRegistry &#123;
+    private final Map&lt;BeanFactory, Multimap&lt;String, SpringValue&gt;&gt; registry = Maps.newConcurrentMap();
+    private final Object LOCK = new Object();
+
+    // 注册
+    public void register(BeanFactory beanFactory, String key, SpringValue springValue) &#123;
+        if (!registry.containsKey(beanFactory)) &#123;
+            synchronized (LOCK) &#123;
+                if (!registry.containsKey(beanFactory)) &#123;
+                    registry.put(beanFactory, LinkedListMultimap.&lt;String, SpringValue&gt;create());
+                &#125;
+            &#125;
+        &#125;
+        registry.get(beanFactory).put(key, springValue);
+    &#125;
+
+    // 获取
+    public Collection&lt;SpringValue&gt; get(BeanFactory beanFactory, String key) &#123;
+        Multimap&lt;String, SpringValue&gt; beanFactorySpringValues = registry.get(beanFactory);
+        if (beanFactorySpringValues == null) &#123;
+            return null;
+        &#125;
+        return beanFactorySpringValues.get(key);
+    &#125;
+&#125;
+</code></pre>
+<p>当  AutoUpdateConfigChangeListener 监听到变化就会调用 onChange 更新值</p>
+<pre><code>public class AutoUpdateConfigChangeListener implements ConfigChangeListener&#123;
+  
+    private final SpringValueRegistry springValueRegistry;
+  
+      @Override
+    public void onChange(ConfigChangeEvent changeEvent) &#123;
+      Set&lt;String&gt; keys = changeEvent.changedKeys();
+      if (CollectionUtils.isEmpty(keys)) &#123;
+        return;
+      &#125;
+      for (String key : keys) &#123;
+        // 1. check whether the changed key is relevant
+        Collection&lt;SpringValue&gt; targetValues = springValueRegistry.get(beanFactory, key);
+        if (targetValues == null || targetValues.isEmpty()) &#123;
+          continue;
+        &#125;
+
+        // 2. update the value 更新值
+        for (SpringValue val : targetValues) &#123;
+          updateSpringValue(val);
+        &#125;
+      &#125;
+    &#125;
+
+&#125;
+</code></pre>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" title="Apollo之服务端与客户端原理概述" target="_blank" rel="external">http://senlizishi.github.io/2021/09/15/apollo_服务端与客户端原理概述/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" title="Apollo之配置中心架构剖析"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

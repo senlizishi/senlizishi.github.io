@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Calcite的基本概念 | Hexo</title>
+  <meta name="description" content="本文转自： https:&#x2F;&#x2F;lixiyan4633.gitee.io&#x2F;2020&#x2F;03&#x2F;18&#x2F;calcite%E6%95%99%E7%A8%8B01-calcite%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5&#x2F;  背景Apache Calcite是一个面向Hadoop新的查询引擎，它提供了标准的SQL语言，多种查询和优化。calcite之前叫做opti">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Calcite的基本概念">
+<meta property="og:url" content="http://senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="本文转自： https:&#x2F;&#x2F;lixiyan4633.gitee.io&#x2F;2020&#x2F;03&#x2F;18&#x2F;calcite%E6%95%99%E7%A8%8B01-calcite%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5&#x2F;  背景Apache Calcite是一个面向Hadoop新的查询引擎，它提供了标准的SQL语言，多种查询和优化。calcite之前叫做opti">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/d83a4be9fdb846a48c3e9fd9aee305e7?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/ec87b80279dc4acf8f7fe5b0ad27c55b?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/5c15ed5d479c43639fe317395b4bdaaa?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/3430a869cc7d460c8daf66fedec990ee?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/1c32200cd1b045eabaa2f04d6b12aff4?from=pc">
+<meta property="article:published_time" content="2021-01-04T23:08:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:34:02.547Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Calcite">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/d83a4be9fdb846a48c3e9fd9aee305e7?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Calcite%E7%9A%84%E6%9E%B6%E6%9E%84"><span class="toc-number">2.</span> <span class="toc-text">Calcite的架构</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Calcite%E7%9A%84%E7%9B%B8%E5%85%B3%E6%A6%82%E5%BF%B5"><span class="toc-number">3.</span> <span class="toc-text">Calcite的相关概念</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-calcite_基本概念" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Calcite的基本概念
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" class="article-date">
+	  <time datetime="2021-01-04T23:08:00.000Z" itemprop="datePublished">2021-01-05</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Calcite/" rel="tag">Calcite</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>本文转自：</p>
+<p><a target="_blank" rel="noopener" href="https://lixiyan4633.gitee.io/2020/03/18/calcite%E6%95%99%E7%A8%8B01-calcite%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/">https://lixiyan4633.gitee.io/2020/03/18/calcite%E6%95%99%E7%A8%8B01-calcite%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/</a></p>
+</blockquote>
+<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>Apache Calcite是一个面向Hadoop新的查询引擎，它提供了标准的SQL语言，多种查询和优化。calcite之前叫做optiq，是作为Hive的SQL引擎，为hive提供成本规模的优化功能即CBO,（Cost Based Optimizatio）,2014年5月作为独立孵化项目开源。关于Calcite 的架构有三个特点：flexible, embeddable, and extensible，就是灵活性、组件可插拔、可扩展，它的 SQL Parser 层、Optimizer 层等都可以单独使用，这也是 Calcite 受总多开源框架欢迎的原因之一。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/d83a4be9fdb846a48c3e9fd9aee305e7?from=pc" alt="Calcite的基本概念"></p>
+<h1 id="Calcite的架构"><a href="#Calcite的架构" class="headerlink" title="Calcite的架构"></a>Calcite的架构</h1><p>关于calcite的架构，相对于传统数据库，他将数据存储和数据处理算法和元信息存储忽略了，这样使得calcite更加兼容，适合统一查询服务。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/ec87b80279dc4acf8f7fe5b0ad27c55b?from=pc" alt="Calcite的基本概念"></p>
+<p>由上图可以看到，calcite最核心的就是optimizer优化器，一个optimizer engine包含三个组成部分：</p>
+<ul>
+<li>  rules:也就是匹配规则，calcite目前内置上百种rule来优化relations expression,也支持自定义的rules</li>
+<li>  Metadata providers:主要向优化器提供信息,有助于指导优化器向着目标（减少整体cost）进行优化，信息可以包括行数，table哪一列是唯一列，也包括计算relNode树，执行subexpression cost的函数。</li>
+<li>  Planner engines:触发rules来达到指定目标，比如cost-base expression optimizer(CBO)的目标是减少cost（减少数据行数，CPU cost,IO cost等）。</li>
+</ul>
+<p>对SQL执行完整流程，分为4部分</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/5c15ed5d479c43639fe317395b4bdaaa?from=pc" alt="Calcite的基本概念"></p>
+<ul>
+<li>  Parser: 解析，calcite通过javaCC将SQL解析成未经校验的AST(Abstract Syntax Tree,即抽象语法树)。</li>
+<li>  Validate: 验证，主要负责校验上一步parser是否合法，如验证SQL的schema信息，字段，函数等是否存在，SQL是否合法，此步骤完成后生成RealNode。</li>
+<li>  Optimize：优化，也是整个核心所在，将逻辑计划RelNode转化为物理计划，主要涉及SQL优化：基于规则优化（RBO），基于代价优化（CBO）,optimizer按道理是可以选的。此步骤得到物理计划</li>
+<li>  Execute：执行阶段，将物理计划转成程序，变成自己平台的可执行代码。</li>
+</ul>
+<h1 id="Calcite的相关概念"><a href="#Calcite的相关概念" class="headerlink" title="Calcite的相关概念"></a>Calcite的相关概念</h1><p><strong>3.1 catalog</strong></p>
+<ul>
+<li>  schema: 主要定义schema与表的结合，有点像database，但是sechma不一定是强制的，比如同名表T1就需要加上A.T1,B.T1.</li>
+<li>  table：对应数据库的表</li>
+<li>  RelDataType：代表表的数据定义，对应表的数据列名和类型。</li>
+</ul>
+<p><strong>Schema</strong></p>
+<pre><code>public interface Schema &#123;
+
+  Table getTable(String name);
+
+  Set&lt;String&gt; getTableNames();
+
+  RelProtoDataType getType(String name);
+
+  Set&lt;String&gt; getTypeNames();
+
+  Collection&lt;Function&gt; getFunctions(String name);
+
+  Set&lt;String&gt; getFunctionNames();
+
+  Schema getSubSchema(String name);
+
+  Set&lt;String&gt; getSubSchemaNames();
+
+  Expression getExpression(SchemaPlus parentSchema, String name);
+
+  boolean isMutable();
+
+  Schema snapshot(SchemaVersion version);
+
+  /** Table type. */
+  enum TableType &#123;&#125;
+&#125;
+</code></pre>
+<p><strong>Table</strong></p>
+<pre><code>public interface Table &#123;
+  RelDataType getRowType(RelDataTypeFactory typeFactory);
+
+  Statistic getStatistic();
+
+  Schema.TableType getJdbcTableType();
+
+  boolean isRolledUp(String column);
+
+  boolean rolledUpColumnValidInsideAgg(String column, SqlCall call,
+      SqlNode parent, CalciteConnectionConfig config);
+&#125;
+</code></pre>
+<p><strong>RelDataType</strong></p>
+<p>代表表的数据定义，对应表的数据列名和类型。</p>
+<p><strong>3.2 SQL Parse(SQL -&gt; SQL Node)</strong></p>
+<p>Calcite使用javaCC作为SQL解析，javaCC通过Calcite中定义的Parse.jj文件，生成一系列的java代码，生成的代码会把SQL转换成AST的数据结构（SQL Node类型）</p>
+<p>与 Javacc 相似的工具还有 ANTLR，JavaCC 中的 jj 文件也跟 ANTLR 中的 G4文件类似，Apache Spark 中使用这个工具做类似的事情。</p>
+<p>javaCC要实现一个SQL parser，他的功能有两点，这里都需要在 jj 文件中定义</p>
+<ol>
+<li><p> 设计词法和语义，定义SQL中的具体元素。</p>
+</li>
+<li><p>实现词法分析器（Lexer）和语法分析器（Parse）,完成对SQL的解析，完成相应的转换。</p>
+<p> //org.apache.calcite.prepare.CalcitePrepareImpl<br> //…<br> //解析sql-&gt;SqlNode<br> SqlParser parser = createParser(query.sql,  parserConfig);</p>
+<pre><code>   SqlNode sqlNode;
+   try &#123;
+     sqlNode = parser.parseStmt();
+     statementType = getStatementType(sqlNode.getKind());
+   &#125; catch (SqlParseException e) &#123;
+     throw new RuntimeException(
+         &quot;parse failed: &quot; + e.getMessage(), e);
+   &#125;
+</code></pre>
+<p> //…</p>
+</li>
+</ol>
+<p>经过上述代码sql经过parser.parseStmt解析之后，会生成一个SqlNode,Debug后的对象如图所示</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/3430a869cc7d460c8daf66fedec990ee?from=pc" alt="Calcite的基本概念"></p>
+<p><strong>3.3 验证和转换 （SQL Node -&gt; RelNode）</strong></p>
+<p>经过上面的解析，会将SQL翻译成SQL 的抽象语法树 AST,SQL Node就是抽象语法树的节点Node,而Rel代表关系表达式（Relation Expression）,所以从sql node -&gt; rel node 的过程，是一个转换，一个校验的过程。</p>
+<pre><code>//org.apache.calcite.prepare. Prepare
+//function prepareSql
+RelRoot root =
+        sqlToRelConverter.convertQuery(sqlQuery, needsValidation, true);
+</code></pre>
+<p><strong>3.3.1 校验Validate</strong></p>
+<p>语法检查前我们要先知道元信息，这个检查会包括表名，字段名，字段类型，函数名，进行语法检查的实现如下：</p>
+<pre><code>//org.apache.calcite.sql.validate.SqlValidatorImpl
+ public SqlNode validate(SqlNode topNode) &#123;
+    SqlValidatorScope scope = new EmptyScope(this);
+    scope = new CatalogScope(scope, ImmutableList.of(&quot;CATALOG&quot;));
+    final SqlNode topNode2 = validateScopedExpression(topNode, scope);
+    final RelDataType type = getValidatedNodeType(topNode2);
+    Util.discard(type);
+    return topNode2;
+  &#125;
+</code></pre>
+<p>在对SQL node的校验过程中，会对AST的语法进行补充，例如：</p>
+<pre><code>//校验前
+select province,avg(cast(age as double)) from t_user group by province
+//校验后
+SELECT `T_USER`.`PROVINCE`, AVG(CAST(`T_USER`.`AGE` AS DOUBLE))
+FROM `TEST_PRO`.`T_USER` AS `T_USER`
+GROUP BY `T_USER`.`PROVINCE`
+</code></pre>
+<p><strong>3.3.2 SQL Node-&gt;Rel Node</strong></p>
+<p>在经过上面进行合法的补充了一定语义的AST树之后，而validate中已经准备好各种映射信息后，就开始具体的RelNode的转换了。</p>
+<pre><code>//org.apache.calcite.sql2rel.SqlToRelConverter
+ protected RelRoot convertQueryRecursive(SqlNode query, boolean top,
+      RelDataType targetRowType) &#123;
+    final SqlKind kind = query.getKind();
+    switch (kind) &#123;
+    case SELECT:
+      return RelRoot.of(convertSelect((SqlSelect) query, top), kind);
+    case INSERT:
+      return RelRoot.of(convertInsert((SqlInsert) query), kind);
+    case DELETE:
+      return RelRoot.of(convertDelete((SqlDelete) query), kind);
+    case UPDATE:
+      return RelRoot.of(convertUpdate((SqlUpdate) query), kind);
+    case MERGE:
+      return RelRoot.of(convertMerge((SqlMerge) query), kind);
+    case UNION:
+    case INTERSECT:
+    case EXCEPT:
+      return RelRoot.of(convertSetOp((SqlCall) query), kind);
+    case WITH:
+      return convertWith((SqlWith) query, top);
+    case VALUES:
+      return RelRoot.of(convertValues((SqlCall) query, targetRowType), kind);
+    default:
+      throw new AssertionError(&quot;not a query: &quot; + query);
+    &#125;
+  &#125;
+</code></pre>
+<p>测试SQL</p>
+<pre><code>select province,avg(cast(age as double)) from t_user group by province
+</code></pre>
+<p>得到的语法树</p>
+<pre><code>Plan after converting SqlNode to RelNode
+LogicalAggregate(group=[&#123;0&#125;], EXPR$1=[AVG($1)])
+  LogicalProject(PROVINCE=[$3], $f1=[CAST($2):DOUBLE])
+    LogicalTableScan(table=[[TEST_PRO, T_USER]])
+</code></pre>
+<p><strong>3.4 优化 Optimizer</strong></p>
+<p>在calcite中有两种优化器</p>
+<ul>
+<li>  HepPlanner(RBO)：它是一个启发式的优化器，按照规则进行匹配，知道达到次数限制，或者遍历一遍，不在出现rule match为止。</li>
+<li>  VolcanoPlanner(RBO+CBO)：他会一直迭代rule,知道找到最小的cost的plan</li>
+</ul>
+<p>这里看下calcite 优化器的实现，RelOptPlanner是Calcite的基类，其子类实现如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/1c32200cd1b045eabaa2f04d6b12aff4?from=pc" alt="Calcite的基本概念"></p>
+<p><strong>3.4.1 基于规则的优化（RBO）</strong></p>
+<p>基于规则的优化器（Rule-Based Optimizer，RBO）：根据优化规则对关系表达式进行转换，这里说的是，一个表达式A经过优化 得到另一个表达式B，得到B的同时A被裁掉，经过一系列转换得到最终的结果。</p>
+<p>RBO有着一套严格顺序的优化规则，同样一条SQL，无论读取表中数据是什么样的，最后生成的执行计划都是相同的，所以SQL的性能可能和SQL本身的书写有很大的关系。</p>
+<p><strong>3.4.2 基于代价的优化 （CBO）</strong></p>
+<p>基于代价的优化器(Cost-Based Optimizer，CBO)：也是根据优化规则对表达式进行转换，这里不同的是，表达式A在转换表达式B后，会被保存下来，根据不同的规则生成多个不同的表达式，CBO会根据统计模型和代价模型，在多个表达式选择一个cost最小的计划作为整个执行计划。</p>
+<p>由上可知，CBO有两个依赖，一个是统计模型，一个是代价模型，目前大多数的计算引擎都趋向CBO，但是CBO比较有难度，因为不能明确预知数据量大小，所以CBO主要用于离线的场景。</p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="Calcite的基本概念" target="_blank" rel="external">http://senlizishi.github.io/2021/01/05/calcite_基本概念/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/" title="Calcite详解JDBC查询流程的实现"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

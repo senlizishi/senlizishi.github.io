@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Selenium在Java的集成 | Hexo</title>
+  <meta name="description" content="导读：Selenium 是一个用于Web应用程序测试的工具，Selenium测试直接运行在浏览器中，就像真正的用户在操作一样。Selenium 支持全部主流的浏览器，支持主流的编程语言，包括：Java、Python、C#、PHP、Ruby、JavaScript等，基于标准的 WebDriver 语法规范，本文接下来主要讨论如何在 Java 中集成 Selenium 及应用。  在项目中添加依赖&amp;l">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Selenium在Java的集成">
+<meta property="og:url" content="http://senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="导读：Selenium 是一个用于Web应用程序测试的工具，Selenium测试直接运行在浏览器中，就像真正的用户在操作一样。Selenium 支持全部主流的浏览器，支持主流的编程语言，包括：Java、Python、C#、PHP、Ruby、JavaScript等，基于标准的 WebDriver 语法规范，本文接下来主要讨论如何在 Java 中集成 Selenium 及应用。  在项目中添加依赖&amp;l">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/3ef367ffe7cb4fb2ade98de85f18a011?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/b037900a6c5e4a808af1f8645a61507a?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/22cb5bb8961c49bb90e428acbe8079ce?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/afa336754121483386e3902869985735?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/dd8d4e6143cd4cfeb0ca91a031be0066?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/25f5281570bd4853ba9bc42a77d17657?from=pc">
+<meta property="article:published_time" content="2021-03-04T08:54:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:41:52.422Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Selenium">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p3.toutiaoimg.com/origin/pgc-image/3ef367ffe7cb4fb2ade98de85f18a011?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%9C%A8%E9%A1%B9%E7%9B%AE%E4%B8%AD%E6%B7%BB%E5%8A%A0%E4%BE%9D%E8%B5%96"><span class="toc-number">1.</span> <span class="toc-text">在项目中添加依赖</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%B7%BB%E5%8A%A0%E6%B5%8F%E8%A7%88%E5%99%A8%E9%A9%B1%E5%8A%A8"><span class="toc-number">2.</span> <span class="toc-text">添加浏览器驱动</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%9C%A8%E9%A1%B9%E7%9B%AE%E4%B8%AD%E5%BA%94%E7%94%A8"><span class="toc-number">3.</span> <span class="toc-text">在项目中应用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">4.</span> <span class="toc-text">最后</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-selenium_如何在Java中集成" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Selenium在Java的集成
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/" class="article-date">
+	  <time datetime="2021-03-04T08:54:00.000Z" itemprop="datePublished">2021-03-04</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/Spider/">Spider</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Selenium/" rel="tag">Selenium</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <p><strong>导读：</strong>Selenium 是一个用于Web应用程序测试的工具，Selenium测试直接运行在浏览器中，就像真正的用户在操作一样。Selenium 支持全部主流的浏览器，支持主流的编程语言，包括：Java、Python、C#、PHP、Ruby、JavaScript等，基于标准的 WebDriver 语法规范，本文接下来主要讨论如何在 Java 中集成 Selenium 及应用。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/3ef367ffe7cb4fb2ade98de85f18a011?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<h1 id="在项目中添加依赖"><a href="#在项目中添加依赖" class="headerlink" title="在项目中添加依赖"></a>在项目中添加依赖</h1><pre><code>&lt;dependencies&gt;
+        &lt;!-- selenium-java --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.seleniumhq.selenium&lt;/groupId&gt;
+            &lt;artifactId&gt;selenium-java&lt;/artifactId&gt;
+            &lt;version&gt;3.4.0&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+</code></pre>
+<h1 id="添加浏览器驱动"><a href="#添加浏览器驱动" class="headerlink" title="添加浏览器驱动"></a>添加浏览器驱动</h1><p>由于 selenium 升级到3.0之后，对不同的浏览器驱动进行了规范。所以如果想使用 selenium驱动不同的浏览器，必须单独下载并设置不同的浏览器驱动。下面我们以 Chrome 浏览器为例：</p>
+<p>1、查看当前 chrome 浏览器版本</p>
+<p>打开 Chrome 浏览器 访问 chrome://version/</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/b037900a6c5e4a808af1f8645a61507a?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<p>2、访问下面链接下载对应版本的Chrome浏览器驱动</p>
+<pre><code>http://chromedriver.storage.googleapis.com/index.html 
+</code></pre>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/22cb5bb8961c49bb90e428acbe8079ce?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<p>3、解压到指定目录</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/afa336754121483386e3902869985735?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<h1 id="在项目中应用"><a href="#在项目中应用" class="headerlink" title="在项目中应用"></a>在项目中应用</h1><p>模拟用户在chrome浏览器中打开百度，并输入词条 “ChromeDriver” 后点击 “百度一下” 按钮查询结果。</p>
+<pre><code>@Test
+public void testSearch() throws InterruptedException &#123;
+    // 设置浏览器驱动
+    System.setProperty(&quot;webdriver.chrome.driver&quot;, &quot;D:\\Program Files\\chromeDriver\\chromedriver.exe&quot;);
+   WebDriver driver = new ChromeDriver();
+   // 打开一个新的Chrome浏览器窗口  
+   driver.get(&quot;https://www.baidu.com/&quot;);
+    Thread.sleep(3000);
+    // 通过 name 获取到百度页面上的文本框元素
+    WebElement searchBox = driver.findElement(By.name(&quot;wd&quot;));
+    // 模拟键盘输入ChromeDriver
+    searchBox.sendKeys(&quot;ChromeDriver&quot;);
+    // 模拟回车动作，提交查询
+    searchBox.submit();
+    Thread.sleep(5000);
+  // 关闭驱动
+    driver.quit();
+&#125;
+</code></pre>
+<p><strong>运行效果图：</strong></p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/dd8d4e6143cd4cfeb0ca91a031be0066?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<p>打开百度页面</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/25f5281570bd4853ba9bc42a77d17657?from=pc" alt="如何在 Java 中集成 Selenium 及应用"></p>
+<p>查询结果</p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>selenium-java 提供了丰富的 API，如：模拟鼠标、截图、窗口切换等，详细可查阅以下地址，这里就不再赘述。</p>
+<pre><code>// 常用 API 解析
+http://www.testclass.net/selenium_java/
+// 官网
+https://www.selenium.dev/
+</code></pre>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/03/04/selenium_%E5%A6%82%E4%BD%95%E5%9C%A8Java%E4%B8%AD%E9%9B%86%E6%88%90/" title="Selenium在Java的集成" target="_blank" rel="external">http://senlizishi.github.io/2021/03/04/selenium_如何在Java中集成/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/03/10/trino_%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="Trino之核心数据结构：Slice Block Page"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/02/01/calcite_JavaCC%E5%BA%94%E7%94%A8%E6%A6%82%E8%BF%B0/" title="Calcite之JavaCC应用概述"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

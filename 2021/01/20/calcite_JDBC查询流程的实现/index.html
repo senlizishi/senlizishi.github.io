@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Calcite详解JDBC查询流程的实现 | Hexo</title>
+  <meta name="description" content="原文地址：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;144170868  导读：这篇文章会详细分析Calcite JDBC查询的整个流程实现，理解了这整个流程就对Calcite的核心功能和Calcite能做什么都会有深入的了解。 @Test public void singleSourceTest() throws SQLException &amp;#123;     Properti">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Calcite详解JDBC查询流程的实现">
+<meta property="og:url" content="http://senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="原文地址：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;144170868  导读：这篇文章会详细分析Calcite JDBC查询的整个流程实现，理解了这整个流程就对Calcite的核心功能和Calcite能做什么都会有深入的了解。 @Test public void singleSourceTest() throws SQLException &amp;#123;     Properti">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/aac51f39fb1548c7809d8edc2aa7bb49?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/9c0ee741bf0240deba3654d3c7902de8?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/fe1973f725e34991b0d89f206de86fa8?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/a91ec38ab1b449598045bd055e9006e4?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/a22c00acb09e415e88ec8e779c7bf790?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/02db82ad9e8d417a96df818b5ead59b7?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/123f143bc8fb41c5a3e99a68d959a000?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/00eed1d2b6924c5cadceed1d0210efad?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/3a37c858ec6a4a37a31a99c914b6196d?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/51847cefccb04eb88eef4a924e12811d?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/c3868e7f53ff4e79a5014ad49d5bbf67?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/4d678c3478944174ab29e19f00344114?from=pc">
+<meta property="og:image" content="https://p3.toutiaoimg.com/origin/pgc-image/4cd0cf2bef884f2a8f15e27fda253959?from=pc">
+<meta property="article:published_time" content="2021-01-20T03:07:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:15:12.362Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Calcite">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p3.toutiaoimg.com/origin/pgc-image/aac51f39fb1548c7809d8edc2aa7bb49?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Calcite-JDBC%E7%9A%84%E5%AE%9E%E7%8E%B0%E7%B1%BB"><span class="toc-number">1.</span> <span class="toc-text">Calcite JDBC的实现类</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Calcite%E7%9A%84JDBC-Driver"><span class="toc-number">2.</span> <span class="toc-text">Calcite的JDBC Driver</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%8E%B7%E5%8F%96Calcite%E7%9A%84JDBC-Conection"><span class="toc-number">3.</span> <span class="toc-text">获取Calcite的JDBC Conection</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%88%9B%E5%BB%BAStatement"><span class="toc-number">4.</span> <span class="toc-text">创建Statement</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%89%A7%E8%A1%8CexecuteQuery%E6%96%B9%E6%B3%95%E5%88%9B%E5%BB%BAResultSet%E8%BF%87%E7%A8%8B"><span class="toc-number">5.</span> <span class="toc-text">执行executeQuery方法创建ResultSet过程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Sql%E8%A7%A3%E6%9E%90"><span class="toc-number">6.</span> <span class="toc-text">Sql解析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SqlValidator%E9%AA%8C%E8%AF%81"><span class="toc-number">7.</span> <span class="toc-text">SqlValidator验证</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#SqlNode%E8%BD%AC%E6%8D%A2%E4%B8%BARelNode"><span class="toc-number">8.</span> <span class="toc-text">SqlNode转换为RelNode</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Planner-%E4%BC%98%E5%8C%96-RelNode-%E6%A0%91"><span class="toc-number">9.</span> <span class="toc-text">Planner 优化 RelNode 树</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%94%9F%E6%88%90Java-Plan"><span class="toc-number">10.</span> <span class="toc-text">生成Java Plan</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8ResultSet"><span class="toc-number">11.</span> <span class="toc-text">使用ResultSet</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">12.</span> <span class="toc-text">最后</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-calcite_JDBC查询流程的实现" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Calcite详解JDBC查询流程的实现
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/" class="article-date">
+	  <time datetime="2021-01-20T03:07:00.000Z" itemprop="datePublished">2021-01-20</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Calcite/" rel="tag">Calcite</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>原文地址：<br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/144170868">https://zhuanlan.zhihu.com/p/144170868</a></p>
+</blockquote>
+<p><strong>导读：</strong>这篇文章会详细分析Calcite JDBC查询的整个流程实现，理解了这整个流程就对Calcite的核心功能和Calcite能做什么都会有深入的了解。</p>
+<pre><code>@Test
+public void singleSourceTest() throws SQLException &#123;
+    Properties config = new Properties();
+    config.put(&quot;model&quot;, TestUtil.resourcePath(&quot;singleSource.json&quot;));
+    config.put(&quot;lex&quot;, &quot;MYSQL&quot;);
+    config.put(&quot;forceDecorrelate&quot;, &quot;false&quot;);
+    config.put(&quot;caseSensitive&quot;, &quot;false&quot;);
+    String sql = &quot;select s.name,c.name from student as s join colleage as c on s.cid = c.id&quot;;
+
+    try (Connection con = DriverManager.getConnection(&quot;jdbc:calcite:&quot;, config)) &#123;
+        try (Statement stmt = con.createStatement()) &#123;
+            try (ResultSet rs = stmt.executeQuery(sql)) &#123;
+                printRs(rs);
+            &#125;
+        &#125;
+    &#125;
+&#125;
+</code></pre>
+<h1 id="Calcite-JDBC的实现类"><a href="#Calcite-JDBC的实现类" class="headerlink" title="Calcite JDBC的实现类"></a>Calcite JDBC的实现类</h1><p><img src="https://p3.toutiaoimg.com/origin/pgc-image/aac51f39fb1548c7809d8edc2aa7bb49?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>Calcite不仅实现了它的核心功能，也为开发者提供了一个称为Avatica的构建JDBC和ODBC Driver的框架，如果希望实现自己的JDBC Driver可以详细学习一下这个框架。 从上图可知，Calcite core模块中的JDBC的类实现都是基于Avatica框架。我们在使用Calcite进行JDBC查询时Connection，Statement和ResultSet实例其实就是CalciteJdbc41Connection，CalciteJdbc41Statement，CalciteResultSet。</p>
+<h1 id="Calcite的JDBC-Driver"><a href="#Calcite的JDBC-Driver" class="headerlink" title="Calcite的JDBC Driver"></a>Calcite的JDBC Driver</h1><p>在使用Calcite的JDBC Driver时，我们无需手动注册。如下图所示，Calcite核心模块会利用SPI方式注册。</p>
+<p>关于 SPI 可参考之前的一篇文章 <a target="_blank" rel="noopener" href="https://www.toutiao.com/i6914582432591299084/?group_id=6914582432591299084">详解 SPI 机制——ServiceLoader.load</a></p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/9c0ee741bf0240deba3654d3c7902de8?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>Avatica框架在创建JDBC的接口实例的时候要使用一个工场类来创建对应的实例。Calcite的Driver实现中通过getFactoryClassName方法获得这个工场类。</p>
+<pre><code>@Override protected String getFactoryClassName(JdbcVersion jdbcVersion) &#123;
+    switch (jdbcVersion) &#123;
+    case JDBC_30:
+    case JDBC_40:
+      throw new IllegalArgumentException(&quot;JDBC version not supported: &quot;
+          + jdbcVersion);
+    case JDBC_41:
+    default:
+      return &quot;org.apache.calcite.jdbc.CalciteJdbc41Factory&quot;;
+    &#125;
+  &#125;
+</code></pre>
+<p>如下图所示，通过CalciteJdbc41Factory提供的方法，可以获得Connection, Statement, ResultSet等实例对象。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/fe1973f725e34991b0d89f206de86fa8?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<h1 id="获取Calcite的JDBC-Conection"><a href="#获取Calcite的JDBC-Conection" class="headerlink" title="获取Calcite的JDBC Conection"></a>获取Calcite的JDBC Conection</h1><p>当我们通过DriverManager获取Calcite的Connection的时候，大致过程如下：</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/a91ec38ab1b449598045bd055e9006e4?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>DriverManager会调用Calcite的Driver的connect方法来创建Calcite Connection实例：</p>
+<pre><code>public Connection connect(String url, Properties info) throws SQLException &#123;
+    if (!acceptsURL(url)) &#123;
+      return null;
+    &#125;
+    final String prefix = getConnectStringPrefix();
+    assert url.startsWith(prefix);
+    final String urlSuffix = url.substring(prefix.length());
+    final Properties info2 = ConnectStringParser.parse(urlSuffix, info);
+    final AvaticaConnection connection =
+        factory.newConnection(this, factory, url, info2);
+    handler.onConnectionInit(connection);
+    return connection;
+  &#125;
+</code></pre>
+<p>上面的connect方法实现中，Calcite的Connection是通过前面说的CalciteJdbc41Factory创建的，Connection实例的类是CalciteJdbc41Connection。 另外在返回Connection之前，Calcite还会根据配置的model来解析model格式(json或yaml)生成JdbcSchema。</p>
+<pre><code>&#123;
+    &quot;defaultSchema&quot;: &quot;db1&quot;,
+    &quot;schemas&quot;: [
+        &#123;
+            &quot;factory&quot;: &quot;org.apache.calcite.adapter.jdbc.JdbcSchema$Factory&quot;,
+            &quot;name&quot;: &quot;db1&quot;,
+            &quot;operand&quot;: &#123;
+                &quot;jdbcDriver&quot;: &quot;com.mysql.cj.jdbc.Driver&quot;,
+                &quot;jdbcPassword&quot;: &quot;changeme&quot;,
+                &quot;jdbcUrl&quot;: &quot;jdbc:mysql://localhost:3306/test&quot;,
+                &quot;jdbcUser&quot;: &quot;root&quot;
+            &#125;,
+            &quot;type&quot;: &quot;custom&quot;
+        &#125;
+    ],
+    &quot;version&quot;: &quot;1.0&quot;
+&#125;
+</code></pre>
+<p>JdbcSchema在创建的过程主要是根据model中jdbc的信息建立与后端数据库的连接池。</p>
+<p>这里补充一下，在 Calcite 中 Schema 可以理解为 MySQL 中的库， Schema 中拥有多个 Table 则与 MySQL 库存多表一致</p>
+<h1 id="创建Statement"><a href="#创建Statement" class="headerlink" title="创建Statement"></a>创建Statement</h1><p><img src="https://p3.toutiaoimg.com/origin/pgc-image/a22c00acb09e415e88ec8e779c7bf790?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>当我们调用connection的createStatement方法创建Statement实例的时候，Calcite的执行流程如上图。整个过程也很简单，Caclite的connection对象也是委托CalciteJdbc41Factory工场类来创建Statement对象，这个Statement是CalciteJdbc41Statement实例。</p>
+<h1 id="执行executeQuery方法创建ResultSet过程"><a href="#执行executeQuery方法创建ResultSet过程" class="headerlink" title="执行executeQuery方法创建ResultSet过程"></a>执行executeQuery方法创建ResultSet过程</h1><p>当我们获得Statement对象后，调用executeQuery(sql)方法时。Calcite在这一步的时候，内部会做很多事情。这里也是整个Calcite JDBC调用工作最核心的地方。 在开始分析这一步的工作之前，假设后端数据库是mysql，要查询的sql如下:</p>
+<pre><code>SELECT &quot;ENAME&quot;, &quot;EMPNO&quot;
+FROM &quot;SCOTT&quot;.&quot;EMP&quot;
+ORDER BY &quot;EMPNO&quot; NULLS LAST
+</code></pre>
+<p>在获得ResultSet对象之前，executeQuery方法内部的执行过程大致分为下面几个阶段：</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/02db82ad9e8d417a96df818b5ead59b7?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<ul>
+<li>  SQL 解析：calcite首先会使用它实现的SqlParser解析sql字符串，生成SqlNode为节点的AST(抽象语法树)。</li>
+<li>  生成逻辑关系表达式：得到SqlNode的AST后，Calcite会使用SqlToRelConverter将SqlNode转换为RelNode组成的逻辑关系表达式树。</li>
+<li>  优化：Calcite会使用planner（优化器）优化逻辑关系表达式，生成最优的物理关系表达式树（带有具体的算法的算子）。</li>
+<li>  生成 Linq4j 表达式：在获得物理关系表达式后，Calcite的EnumerableRelImplentor可以通过物理关系表达式树转换为Linq4j表达式树，通过Linq4j表达式树可以生成一个Java Class。这个Java Class的实例知道如何与后端数据库进行JDBC连接，并且如果是多数据源查询并且需要join、sort、filter等，它也知道这些操作要如何处理。</li>
+<li>  编译：面生成的Java Class会通过运行时编译（Calcite使用Janino编译器），编译后生成对象实例，这个实例实现了Iterator接口。会保存在要返回的ResultSet中，后面ResultSet调用相应的方法取数据时，最终是调用这个实例对象获取数据</li>
+</ul>
+<p>下图较详细的显示了整个executeQuery的流程。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/123f143bc8fb41c5a3e99a68d959a000?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<h1 id="Sql解析"><a href="#Sql解析" class="headerlink" title="Sql解析"></a>Sql解析</h1><pre><code>final CalciteConnectionConfig config = context.config();
+      final SqlParser.ConfigBuilder parserConfig = createParserConfig()
+          .setQuotedCasing(config.quotedCasing())
+          .setUnquotedCasing(config.unquotedCasing())
+          .setQuoting(config.quoting())
+          .setConformance(config.conformance())
+          .setCaseSensitive(config.caseSensitive());
+      final SqlParserImplFactory parserFactory =
+          config.parserFactory(SqlParserImplFactory.class, null);
+      if (parserFactory != null) &#123;
+        parserConfig.setParserFactory(parserFactory);
+      &#125;
+      SqlParser parser = createParser(query.sql,  parserConfig);
+      SqlNode sqlNode;
+      try &#123;
+        sqlNode = parser.parseStmt();
+        statementType = getStatementType(sqlNode.getKind());
+      &#125; catch (SqlParseException e) &#123;
+        throw new RuntimeException(
+            &quot;parse failed: &quot; + e.getMessage(), e);
+      &#125;
+/** Factory method for SQL parser with a given configuration. */
+  protected SqlParser createParser(String sql,
+      SqlParser.ConfigBuilder parserConfig) &#123;
+    return SqlParser.create(sql, parserConfig.build());
+  &#125;
+
+  /** Factory method for SQL parser configuration. */
+  protected SqlParser.ConfigBuilder createParserConfig() &#123;
+    return SqlParser.configBuilder();
+  &#125;
+</code></pre>
+<p>上面的代码片段显示了Calcite的JDBC如何创建SqlParser，并且通过SqlParser将sql转换成SqlNode的AST，Calcite的Parser是通过JavaCC实现的，要如何扩展Parser可以参考官方文档。如果需要单独使用Calcite的SqlParser可以按照上面的方式获得。当例子的sql经过解析后，变为如下结构：</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/00eed1d2b6924c5cadceed1d0210efad?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>AST 语法树</p>
+<h1 id="SqlValidator验证"><a href="#SqlValidator验证" class="headerlink" title="SqlValidator验证"></a>SqlValidator验证</h1><p>Calcite在获得SqlNode之后要将它转换为RelNode树，用关系代数来表示查询过程。在转换之前，还会使用SqlValidator验证SQL中的标识对象是否合法，比如表是否存在，字段是否存在，数据类型等是否正确。SqlVlidator验证需要的数据是通过CalciteCatalogReader去后端数据库获取的。</p>
+<pre><code>private SqlValidator createSqlValidator(Context context,
+      CalciteCatalogReader catalogReader) &#123;
+    final SqlOperatorTable opTab0 =
+        context.config().fun(SqlOperatorTable.class,
+            SqlStdOperatorTable.instance());
+    final SqlOperatorTable opTab =
+        ChainedSqlOperatorTable.of(opTab0, catalogReader);
+    final JavaTypeFactory typeFactory = context.getTypeFactory();
+    final CalciteConnectionConfig connectionConfig = context.config();
+    final SqlValidator.Config config = SqlValidator.Config.DEFAULT
+        .withLenientOperatorLookup(connectionConfig.lenientOperatorLookup())
+        .withSqlConformance(connectionConfig.conformance())
+        .withDefaultNullCollation(connectionConfig.defaultNullCollation())
+        .withIdentifierExpansion(true);
+    return new CalciteSqlValidator(opTab, catalogReader, typeFactory,
+        config);
+  &#125;
+</code></pre>
+<h1 id="SqlNode转换为RelNode"><a href="#SqlNode转换为RelNode" class="headerlink" title="SqlNode转换为RelNode"></a>SqlNode转换为RelNode</h1><pre><code>final SqlToRelConverter.ConfigBuilder builder =
+        SqlToRelConverter.configBuilder()
+            .withTrimUnusedFields(true)
+            .withExpand(THREAD_EXPAND.get())
+            .withExplain(sqlQuery.getKind() == SqlKind.EXPLAIN);
+    final SqlToRelConverter sqlToRelConverter =
+        getSqlToRelConverter(validator, catalogReader, builder.build());
+    . . . . . . .
+
+    RelRoot root =
+        sqlToRelConverter.convertQuery(sqlQuery, needsValidation, true);
+</code></pre>
+<p>经过SqlToRelConverter转换后，生成下面形式的RelNode树（也可称为逻辑图）。目前生成的RelNode树中都是逻辑表达式节点，<strong>它们只用于表示SQL的关系表达式形式而不能真正的执行</strong>，因为它们都没有具体算子的实现算法。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/3a37c858ec6a4a37a31a99c914b6196d?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>以 “select c.* from flink_k8s.k8s_cluster c inner join<br>tw_datahub_test.v2_dwd_game_uid_reg_log reg on reg.uid=c.id where c.id=1 and reg.uid=21792015” 这条多表 join 复杂语句为例，在控制台中打印 RelNode 树类似于如下：</p>
+<pre><code>10:37:55.005 [main] DEBUG org.apache.calcite.sql2rel - Plan after converting SqlNode to RelNode
+LogicalProject(id=[$0], name=[$1], cluster_master_url=[$2], cluster_kube_config=[$3], cluster_properties=[$4], type=[$5], status=[$6], delete_status=[$7], creator_uid=[$8], created_at=[$9], updated_at=[$10], deleted_at=[$11], description=[$12])
+  LogicalFilter(condition=[AND(=($0, 1), =($13, 21792015))])
+    LogicalJoin(condition=[=($13, $0)], joinType=[inner])
+      JdbcTableScan(table=[[flink_k8s, k8s_cluster]])
+      JdbcTableScan(table=[[tw_datahub_test, v2_dwd_game_uid_reg_log]])
+
+10:37:55.048 [main] DEBUG org.apache.calcite.sql2rel - Plan after trimming unused fields
+LogicalProject(id=[$0], name=[$1], cluster_master_url=[$2], cluster_kube_config=[$3], cluster_properties=[$4], type=[$5], status=[$6], delete_status=[$7], creator_uid=[$8], created_at=[$9], updated_at=[$10], deleted_at=[$11], description=[$12])
+  LogicalFilter(condition=[AND(=($0, 1), =($13, 21792015))])
+    LogicalJoin(condition=[=($13, $0)], joinType=[inner])
+      JdbcTableScan(table=[[flink_k8s, k8s_cluster]])
+      LogicalProject(uid=[$0])
+        JdbcTableScan(table=[[tw_datahub_test, v2_dwd_game_uid_reg_log]])
+</code></pre>
+<h1 id="Planner-优化-RelNode-树"><a href="#Planner-优化-RelNode-树" class="headerlink" title="Planner 优化 RelNode 树"></a>Planner 优化 RelNode 树</h1><p><img src="https://p3.toutiaoimg.com/origin/pgc-image/51847cefccb04eb88eef4a924e12811d?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>在优化阶段Calcite会创建优化器，<strong>优化器会根据定义好好的 Rule 对前面生成的逻辑 RelNode 树进行优化，生成物理表达式树（物理图）</strong>。目前Calcite实现了两个优化器：HepPlanner和VolcanoPlanner。</p>
+<ul>
+<li>  HepPlanner是基于规则的启发式优化器</li>
+<li>  Volcano是基于代价的优化器。</li>
+</ul>
+<p>在JDBC查询过程中Calcite使用的是VolcanoPlanner。通过优化器优化后RelNode树变成下面形式。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/c3868e7f53ff4e79a5014ad49d5bbf67?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>JdbcToEnumerableConverter可以通过它的子节点生成要<strong>下推</strong>到后端数据库的SQL字符串。如果是多个数据源join查询时，比如下面的例子：</p>
+<pre><code>SELECT s.name,c.name 
+FROM db1.student AS s join db2.colleage AS c on s.cid = c.id
+</code></pre>
+<p>优化后的RelNode树如下所示，有两个JdbcToEnumerableConverter分别生成对应数据源的查询sql，返回的数据通过EnumerableHashJoin算子的算法join起来，形成例子中单条sql查询语句的结果。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/4d678c3478944174ab29e19f00344114?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<h1 id="生成Java-Plan"><a href="#生成Java-Plan" class="headerlink" title="生成Java Plan"></a>生成Java Plan</h1><p>通过优化获得了Jdbc的物理表达式树（物理图）后，要将这些表达式生成Java代码后才能真正将执行计划跑起来。在生成Java代码之前，将Jdbc的物理表达式的根节点变为EnumerableCalc，JdbcToEnumerableConverter变为它的子节点。</p>
+<p><img src="https://p3.toutiaoimg.com/origin/pgc-image/4cd0cf2bef884f2a8f15e27fda253959?from=pc" alt="详解 Calcite JDBC查询流程的实现"></p>
+<p>由上图可知，EnumerableCalc和JdbcToEnumerableConverter都实现了EnumerableRel接口，所以它们可以连接起来，并且都实现了implement方法。 Calcaite如何通过这些物理关系表达式算子生成可执行的Java代码？<strong>在EnumerableRel的每个算子的implement方法中会将这个算子要实现的算法写成Linq4j的表达式，然后通过这些Linq4j表达式生成Java Class</strong>。</p>
+<pre><code>public Result implement(EnumerableRelImplementor implementor, Prefer pref) &#123;
+        final BlockBuilder builder0 = new BlockBuilder(false);
+        final JdbcRel child = (JdbcRel) getInput();
+        . . . . . .
+        final JdbcConvention jdbcConvention =
+            (JdbcConvention) child.getConvention();
+        SqlString sqlString = generateSql(jdbcConvention.dialect);
+        String sql = sqlString.getSql();
+        . . . . . .
+        final Expression sql_ =
+            builder0.append(&quot;sql&quot;, Expressions.constant(sql));
+        . . . . .. 
+  &#125;
+</code></pre>
+<p>比如上面的代码块是 JdbcToEnumerableConverter 的 implement方法的一小块，implememnt 中都是像上面的代码一样生成linq4j的表达式，linq4j有很多不同的表达式代表一个java程序的不同元素，正确的生成这些元素并且拼装起来可以生成正确的java代码。所以上一小节生成的物理表达式树的每个节点的implemnt被调用后就会生成linq4j表达式树，根据linq4j能生成可执行的java代码：</p>
+<pre><code>public static Bindable toBindable(Map&lt;String, Object&gt; parameters,
+      CalcitePrepare.SparkHandler spark, EnumerableRel rel,
+      EnumerableRel.Prefer prefer) &#123;
+    EnumerableRelImplementor relImplementor =
+        new EnumerableRelImplementor(rel.getCluster().getRexBuilder(),
+            parameters);
+
+    final ClassDeclaration expr = relImplementor.implementRoot(rel, prefer);
+    String s = Expressions.toString(expr.memberDeclarations, &quot;\n&quot;, false);
+    ......
+  &#125;
+</code></pre>
+<p>上面的代码是EnumerableInterpretable的toBindable方法的片段，jdbc流程中在获得上一小节讲解的物理表达式树后，经过上面的代码生成一个EnumerableRelImplementor对象，通过调用它的implementRoot方法会调用物理表达式树根节点(这里是EnumerableCalc)的implement方法，父节点又会迭代调用子节点的implement方法。最终返会获得生成的linq4j表达式树。通过上面代码片段的Expressions.toString方法可以生成java代码字符串，比如如下就是生成的Java类：</p>
+<pre><code>public class Baz implements org.apache.calcite.runtime.Bindable &#123;
+
+    public org.apache.calcite.linq4j.Enumerable bind(final org.apache.calcite.DataContext root) &#123;
+        //of方法调用ResultSetEnumerable的构造方法
+        //ResultSetEnumerable对象保存of的参数:后端数据库连接池，sql查询字符串，行映射方法
+        final org.apache.calcite.runtime.ResultSetEnumerable enumerable =
+                org.apache.calcite.runtime.ResultSetEnumerable.of(
+                        (javax.sql.DataSource) root.getRootSchema().getSubSchema(&quot;SCOTT&quot;)
+                                .unwrap(javax.sql.DataSource.class),
+                        &quot;SELECT \&quot;ENAME\&quot;, \&quot;EMPNO\&quot;\nFROM \&quot;SCOTT\&quot;.\&quot;EMP\&quot;\nORDER BY \&quot;EMPNO\&quot; NULLS LAST&quot;,
+                        new org.apache.calcite.linq4j.function.Function1() &#123;
+                            public org.apache.calcite.linq4j.function.Function0 apply(
+                                    final java.sql.ResultSet resultSet) &#123;
+                                return new org.apache.calcite.linq4j.function.Function0() &#123;
+                                    public Object apply() &#123;
+                                        try &#123;
+                                            final Object[] values = new Object[2];
+                                            values[0] = resultSet.getObject(1);
+                                            values[1] = resultSet.getShort(2);
+                                            if (resultSet.wasNull()) &#123;
+                                                values[1] = null;
+                                            &#125;
+                                            return values;
+                                        &#125; catch (java.sql.SQLException e) &#123;
+                                            throw new RuntimeException(e);
+                                        &#125;
+                                    &#125;
+                                &#125;;
+                            &#125;
+                            public Object apply(final Object resultSet) &#123;
+                                return apply((java.sql.ResultSet) resultSet);
+                            &#125;
+                        &#125;);
+        //设置jdbc查询超时时间
+        enumerable.setTimeout(root);
+        return new org.apache.calcite.linq4j.AbstractEnumerable() &#123;
+            public org.apache.calcite.linq4j.Enumerator&lt;String&gt; enumerator() &#123;
+                return new org.apache.calcite.linq4j.Enumerator&lt;String&gt;() &#123;
+                    //内部使用上面生成的ResultSetEnumerable生成的枚举器
+                    public final org.apache.calcite.linq4j.Enumerator&lt;Object[]&gt; inputEnumerator =
+                            enumerable.enumerator();
+                    .............
+                &#125;;
+            &#125;
+        &#125;;
+    &#125;
+    public Class getElementType() &#123;
+        return java.lang.String.class;
+    &#125;
+&#125;
+</code></pre>
+<p>得到生成的java代码后，<strong>Calcite会调用Janino编译器动态编译这个java类</strong>，并且实例化这个类的一个对象。 后面在创建CalciteResultSet的时候会调用这个对象的bind方法,这个方法<strong>返回一个Eumerable对象，通过这个对象可以迭代JDBC查询的结果</strong>。这个Eumerable对象的实际工作是委托给ResultSetEnumerable的enumerator()方法生成的枚举器实现的。</p>
+<pre><code>public Enumerator&lt;T&gt; enumerator() &#123;
+    if (preparedStatementEnricher == null) &#123;
+      return enumeratorBasedOnStatement();
+    &#125; else &#123;
+      return enumeratorBasedOnPreparedStatement();
+    &#125;
+  &#125;
+
+  private Enumerator&lt;T&gt; enumeratorBasedOnStatement() &#123;
+    Connection connection = null;
+    Statement statement = null;
+    try &#123;
+      connection = dataSource.getConnection(); //获取实际数据库的jdbc连接
+      statement = connection.createStatement(); //生成jdbc statement
+      setTimeoutIfPossible(statement);
+      if (statement.execute(sql)) &#123; 
+        final ResultSet resultSet = statement.getResultSet(); //执行sql获得实际的ResultSet
+        statement = null;
+        connection = null;
+        return new ResultSetEnumerator&lt;&gt;(resultSet, rowBuilderFactory); //用ResultSetEnumerator对象包装ResultSet
+      &#125; else &#123;
+        Integer updateCount = statement.getUpdateCount();
+        return Linq4j.singletonEnumerator((T) updateCount);
+      &#125;
+    &#125; catch (SQLException e) &#123;
+      throw Static.RESOURCE.exceptionWhilePerformingQueryOnJdbcSubSchema(sql)
+          .ex(e);
+    &#125; finally &#123;
+      closeIfPossible(connection, statement);
+    &#125;
+  &#125;
+</code></pre>
+<p>通过上面ResultSetEnumerable的enumerator()方法实现代码可以知道，在生成枚举器的时候就开始执行真正的数据库查询，获得实际的ResultSet，用ResultSetEnumerator包装起来，通过ResultSetEnumerator就能操作ResultSet。 在executeSql方法的最后，会返回CalciteResultSet，它与实际的ResultSet关系如下：</p>
+<h1 id="使用ResultSet"><a href="#使用ResultSet" class="headerlink" title="使用ResultSet"></a>使用ResultSet</h1><p>经过执行statement的executeSql方法获得CalciteResultSet后，就可以使用next方法获取查询数据。CalciteResultSet的next方法实现如下：</p>
+<pre><code>public boolean next() throws SQLException &#123;
+    // TODO: for timeout, see IteratorResultSet.next
+    checkOpen();
+    if (null != statement &amp;&amp; statement.cancelFlag.get()) &#123;
+      throw AvaticaConnection.HELPER.createException(&quot;Statement canceled&quot;);
+    &#125;
+    if (cursor.next()) &#123; //调用cursor的next方法，cursor是IteraterCursor
+      ++row;
+      beforeFirst = false;
+      return true;
+    &#125; else &#123;
+      row = 0;
+      afterLast = true;
+      return false;
+    &#125;
+  &#125;
+</code></pre>
+<p>CalciteResultSet的next方法会调用cursor的next方法。cursor又会调用Enumerable的next方法，这样一层层最后调用实际ResultSet对象的next方法。对于其他的ResultSet方法实现也大致一样。</p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>以上就是Calcite JDBC的实现流程，通过理解以上流程可以更好地理解Calcite的核心功能是如何使用的。</p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/01/20/calcite_JDBC%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0/" title="Calcite详解JDBC查询流程的实现" target="_blank" rel="external">http://senlizishi.github.io/2021/01/20/calcite_JDBC查询流程的实现/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/01/21/calcite_%E8%87%AA%E5%AE%9A%E4%B9%89%E5%8F%82%E6%95%B0/" title="Calcite之自定义函数"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/01/05/calcite_%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5/" title="Calcite的基本概念"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

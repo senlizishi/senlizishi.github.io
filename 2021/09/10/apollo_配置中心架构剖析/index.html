@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Apollo之配置中心架构剖析 | Hexo</title>
+  <meta name="description" content="本文转自: https:&#x2F;&#x2F;mp.weixin.qq.com&#x2F;s&#x2F;-hUaQPzfsl9Lm3IqQW3VDQ  导读：Apollo（阿波罗）是携程框架部研发并开源的一款生产级的配置中心产品，它能够集中管理应用在不同环境、不同集群的配置，配置修改后能够实时推送到应用端，并且具备规范的权限、流程治理等特性，适用于微服务配置管理场景 架构和模块下图是Apollo的作者宋顺给出的架构图  下面是Apo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Apollo之配置中心架构剖析">
+<meta property="og:url" content="http://senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="本文转自: https:&#x2F;&#x2F;mp.weixin.qq.com&#x2F;s&#x2F;-hUaQPzfsl9Lm3IqQW3VDQ  导读：Apollo（阿波罗）是携程框架部研发并开源的一款生产级的配置中心产品，它能够集中管理应用在不同环境、不同集群的配置，配置修改后能够实时推送到应用端，并且具备规范的权限、流程治理等特性，适用于微服务配置管理场景 架构和模块下图是Apollo的作者宋顺给出的架构图  下面是Apo">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/e96f04a1d67e495ebe83ff25c3a10c2b.png?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/14fc0dbcc3bf4e8397014050ee7fb7ad.png?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/fa6814551d1e46c2b10925ca3824cf3b.png?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/45134456074b479198f00958ac8913da.png?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/7c69f0cac63d4c149f9cc259de472837.png?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/388bc87c018c4e52874e5154b443f96e.png?from=pc">
+<meta property="article:published_time" content="2021-09-10T03:29:00.000Z">
+<meta property="article:modified_time" content="2021-11-16T07:07:02.236Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Apollo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/e96f04a1d67e495ebe83ff25c3a10c2b.png?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/senlizishi.github.io/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/senlizishi.github.io/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/senlizishi.github.io/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/senlizishi.github.io/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/senlizishi.github.io/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/senlizishi.github.io/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/senlizishi.github.io/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/senlizishi.github.io/tags/Apollo/" style="font-size: 13.67px;">Apollo</a> <a href="/senlizishi.github.io/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/senlizishi.github.io/tags/Selenium/" style="font-size: 13px;">Selenium</a> <a href="/senlizishi.github.io/tags/Trino/" style="font-size: 13.33px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/senlizishi.github.io/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE%E6%8A%80%E6%9C%AF/">大数据技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/" class="title">Trino之实现Redis连接器支持delete操作</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-03-16T08:26:00.000Z" itemprop="datePublished">2021-03-16</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E5%92%8C%E6%A8%A1%E5%9D%97"><span class="toc-number">1.</span> <span class="toc-text">架构和模块</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90"><span class="toc-number">2.</span> <span class="toc-text">架构剖析</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">3.</span> <span class="toc-text">结论</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-apollo_配置中心架构剖析" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Apollo之配置中心架构剖析
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="article-date">
+	  <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/senlizishi.github.io/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/senlizishi.github.io/tags/Apollo/" rel="tag">Apollo</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <blockquote>
+<p>本文转自: <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/-hUaQPzfsl9Lm3IqQW3VDQ">https://mp.weixin.qq.com/s/-hUaQPzfsl9Lm3IqQW3VDQ</a></p>
+</blockquote>
+<p><strong>导读：</strong>Apollo（阿波罗）是携程框架部研发并开源的一款生产级的配置中心产品，它能够集中管理应用在不同环境、不同集群的配置，配置修改后能够实时推送到应用端，并且具备规范的权限、流程治理等特性，适用于微服务配置管理场景</p>
+<h1 id="架构和模块"><a href="#架构和模块" class="headerlink" title="架构和模块"></a>架构和模块</h1><p>下图是Apollo的作者宋顺给出的架构图</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/e96f04a1d67e495ebe83ff25c3a10c2b.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<p>下面是Apollo的七个模块，其中四个模块是和功能相关的核心模块，另外三个模块是辅助服务发现的模块：</p>
+<p><strong>四个核心模块及其主要功能</strong></p>
+<p><strong>1、ConfigService</strong></p>
+<ul>
+<li>  提供配置获取接口</li>
+<li>  提供配置推送接口</li>
+<li>  服务于Apollo客户端</li>
+</ul>
+<p><strong>2、AdminService</strong></p>
+<ul>
+<li>  提供配置管理接口</li>
+<li>  提供配置修改发布接口</li>
+<li>  服务于管理界面Portal</li>
+</ul>
+<p><strong>3、Client</strong></p>
+<ul>
+<li>  为应用获取配置，支持实时更新</li>
+<li>  通过MetaServer获取ConfigService的服务列表</li>
+<li>  使用客户端软负载SLB方式调用ConfigService</li>
+</ul>
+<p><strong>4、Portal</strong></p>
+<ul>
+<li>  配置管理界面</li>
+<li>  通过MetaServer获取AdminService的服务列表</li>
+<li>  使用客户端软负载SLB方式调用AdminService</li>
+</ul>
+<p><strong>三个辅助服务发现模块</strong></p>
+<p><strong>1、Eureka</strong></p>
+<ul>
+<li>  用于服务发现和注册</li>
+<li>  Config/AdminService注册实例并定期报心跳</li>
+<li>  和ConfigService住在一起部署</li>
+</ul>
+<p><strong>2、MetaServer</strong></p>
+<ul>
+<li>  Portal通过域名访问MetaServer获取AdminService的地址列表</li>
+<li>  Client通过域名访问MetaServer获取ConfigService的地址列表</li>
+<li>  相当于一个Eureka Proxy</li>
+<li>  逻辑角色，和ConfigService住在一起部署</li>
+</ul>
+<p><strong>3、NginxLB</strong></p>
+<ul>
+<li>  和域名系统配合，协助Portal访问MetaServer获取AdminService地址列表</li>
+<li>  和域名系统配合，协助Client访问MetaServer获取ConfigService地址列表</li>
+<li>  和域名系统配合，协助用户访问Portal进行配置管理</li>
+</ul>
+<h1 id="架构剖析"><a href="#架构剖析" class="headerlink" title="架构剖析"></a>架构剖析</h1><p><strong>Apollo架构V1</strong></p>
+<p>如果不考虑分布式微服务架构中的服务发现问题，Apollo的最简架构如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/14fc0dbcc3bf4e8397014050ee7fb7ad.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<p>要点：</p>
+<ol>
+<li> ConfigService 是一个独立的微服务，服务于Client进行配置获取。</li>
+<li> Client 和 ConfigService 保持<strong>长连接</strong>，通过一种<strong>推拉结合</strong>(push &amp; pull)的模式，在实现配置实时更新的同时，保证配置更新不丢失。</li>
+<li> AdminService 是一个独立的微服务，服务于 Portal 进行配置管理。Portal通过调用 AdminService 进行配置管理和发布。</li>
+<li> ConfigService 和 AdminService 共享 ConfigDB，ConfigDB 中存放项目在某个环境中的配置信息。ConfigService/AdminService/ConfigDB 三者在每个环境(DEV/FAT/UAT/PRO)中都要部署一份。</li>
+<li> Protal 有一个独立的 PortalDB，存放用户权限、项目和配置的元数据信息。Protal只需部署一份，它可以管理多套环境。</li>
+</ol>
+<p><strong>Apollo架构V2</strong></p>
+<p>为了保证高可用，ConfigService 和 AdminService 都是无状态以集群方式部署的，这个时候就存在一个服务发现问题：Client 怎么找到 ConfigService？Portal 怎么找到 AdminService？为了解决这个问题，Apollo在其架构中<strong>引入了Eureka服务注册中心组件，实现微服务间的服务注册和发现</strong>，更新后的架构如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/fa6814551d1e46c2b10925ca3824cf3b.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<p>要点：</p>
+<ol>
+<li> Config/AdminService启动后都会注册到Eureka服务注册中心，并定期发送保活心跳。</li>
+<li> Eureka采用集群方式部署，使用分布式一致性协议保证每个实例的状态最终一致。</li>
+</ol>
+<p><strong>Apollo架构V3</strong></p>
+<p>我们知道 Eureka 是自带服务发现的Java客户端的，如果Apollo只支持Java客户端接入，不支持其它语言客户端接入的话，那么 Client 和 Portal 只需要引入Eureka 的 Java 客户端，就可以实现服务发现功能。发现目标服务后，通过客户端软负载(SLB，例如 Ribbon)就可以路由到目标服务实例。这是一个经典的微服务架构，基于 Eureka 实现服务注册发现+客户端Ribbon 配合实现软路由，如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/45134456074b479198f00958ac8913da.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<p><strong>Apollo架构V4</strong></p>
+<p>在携程，应用场景不仅有Java，还有很多遗留的.Net应用。Apollo的作者也考虑到开源到社区以后，很多客户应用是非Java的。但是Eureka(包括Ribbon软负载)原生仅支持Java客户端，如果要为多语言开发Eureka/Ribbon客户端，这个工作量很大也不可控。为此，Apollo的作者引入了MetaServer这个角色，它其实是一个Eureka的Proxy，将Eureka的服务发现接口以更简单明确的HTTP接口的形式暴露出来，方便Client/Protal通过简单的HTTPClient就可以查询到Config/AdminService的地址列表。获取到服务实例地址列表之后，再以简单的客户端软负载(Client SLB)策略路由定位到目标实例，并发起调用。</p>
+<p>现在还有一个问题，MetaServer 本身也是无状态以集群方式部署的，那么 Client/Protal 该如何发现 MetaServer 呢？一种传统的做法是借助硬件或者软件负载均衡器，例如在携程采用的是扩展后的NginxLB（也称Software Load Balancer），由运维为MetaServer集群配置一个域名，指向NginxLB集群，NginxLB再对MetaServer进行负载均衡和流量转发。Client/Portal通过域名+NginxLB间接访问MetaServer集群。</p>
+<p>引入MetaServer和NginxLB之后的架构如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/7c69f0cac63d4c149f9cc259de472837.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<p><strong>Apollo架构V5</strong></p>
+<p>V4 版本已经是比较完整的 Apollo 架构全貌，现在还剩下最后一个环节：Portal 也是无状态以集群方式部署的，用户如何发现和访问 Portal？答案也是简单的传统做法，用户通过域名+NginxLB间接访问 Portal 集群。</p>
+<p>所以V5版本是包括用户端的最终的Apollo架构全貌，如下图所示：</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/388bc87c018c4e52874e5154b443f96e.png?from=pc" alt="Apollo配置中心架构剖析"></p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><ol>
+<li> ConfgService/AdminService/Client/Portal是Apollo的四个核心微服务模块，相互协作完成配置中心业务功能，Eureka/MetaServer/NginxLB是辅助微服务之间进行服务发现的模块。</li>
+<li> Apollo采用微服务架构设计，架构和部署都有一些复杂，但是每个服务职责单一，易于扩展。另外，Apollo只需要一套Portal就可以集中管理多套环境(DEV/FAT/UAT/PRO)中的配置，这个是它的架构的一大亮点。</li>
+<li> 服务发现是微服务架构的基础，在Apollo的微服务架构中，既采用Eureka注册中心式的服务发现，也采用NginxLB集中Proxy式的服务发现。</li>
+</ol>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" title="Apollo之配置中心架构剖析" target="_blank" rel="external">http://senlizishi.github.io/2021/09/10/apollo_配置中心架构剖析/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/senlizishi.github.io/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" title="Apollo之服务端与客户端原理概述"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/senlizishi.github.io/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" title="Apollo之实现LoggingLevel动态调整"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/senlizishi.github.io/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/senlizishi.github.io/js/plugin.min.js"></script>
+
+
+<script src="/senlizishi.github.io/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/senlizishi.github.io/',
+        CONTENT_URL: '/senlizishi.github.io/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/senlizishi.github.io/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>
