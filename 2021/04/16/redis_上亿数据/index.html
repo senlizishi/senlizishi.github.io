@@ -17,28 +17,26 @@
   <meta http-equiv="window-target" content="_top" />
   
   
-  <title>Apollo之服务端与客户端原理概述 | Hexo</title>
-  <meta name="description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+  <title>Redis上亿数据内存压缩的思路 | Hexo</title>
+  <meta name="description" content="导读：Redis 是一个开源的使用 ANSI C 语言编写、遵守 BSD 协议、支持网络、可基于内存、分布式、可选持久性的键值对(Key-Value)存储数据库。可用作数据库、缓存和消息中间件等。接下来本文将讨论当其作为缓存需存储大量数据导致占用很大内存时进行压缩的方法。 最初的存储假设有一张设备表，由于业务需求需要将表内几亿条数据缓存到 Redis 中，表中有以下这些字段：    id –big">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Apollo之服务端与客户端原理概述">
-<meta property="og:url" content="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+<meta property="og:title" content="Redis上亿数据内存压缩的思路">
+<meta property="og:url" content="http://senlizishi.github.io/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/index.html">
 <meta property="og:site_name" content="SapphireCoder Space">
-<meta property="og:description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+<meta property="og:description" content="导读：Redis 是一个开源的使用 ANSI C 语言编写、遵守 BSD 协议、支持网络、可基于内存、分布式、可选持久性的键值对(Key-Value)存储数据库。可用作数据库、缓存和消息中间件等。接下来本文将讨论当其作为缓存需存储大量数据导致占用很大内存时进行压缩的方法。 最初的存储假设有一张设备表，由于业务需求需要将表内几亿条数据缓存到 Redis 中，表中有以下这些字段：    id –big">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc">
-<meta property="article:published_time" content="2021-09-15T09:42:00.000Z">
-<meta property="article:modified_time" content="2021-11-16T07:02:58.455Z">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/877de27db68845c4a69fbc27e927bd00?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/66c61bb6281940989827909f3c4e47d5?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/b2f228ae68514b289906601c854d3059?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/983d738739ad4cc0a3651e35434c1e08?from=pc">
+<meta property="article:published_time" content="2021-04-16T09:29:00.000Z">
+<meta property="article:modified_time" content="2021-11-17T06:19:41.784Z">
 <meta property="article:author" content="SapphireCoder">
-<meta property="article:tag" content="Apollo">
+<meta property="article:tag" content="Redis">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/877de27db68845c4a69fbc27e927bd00?from=pc">
   <!-- Canonical links -->
-  <link rel="canonical" href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+  <link rel="canonical" href="http://senlizishi.github.io/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/index.html">
   
     <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
   
@@ -279,21 +277,21 @@
   <div class="slimContent">
     <nav id="toc" class="article-toc">
       <h3 class="toc-title">文章目录</h3>
-      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF"><span class="toc-number">1.</span> <span class="toc-text">服务端</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-number">2.</span> <span class="toc-text">客户端</span></a></li></ol>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%88%9D%E7%9A%84%E5%AD%98%E5%82%A8"><span class="toc-number">1.</span> <span class="toc-text">最初的存储</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%A6%96%E6%AC%A1%E4%BC%98%E5%8C%96%E2%80%94%E2%80%94%E8%8A%82%E7%9C%81%E5%AD%97%E8%8A%82"><span class="toc-number">2.</span> <span class="toc-text">首次优化——节省字节</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%BF%9B%E4%B8%80%E6%AD%A5%E4%BC%98%E5%8C%96%E2%80%94%E2%80%94-ziplist-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84-Bucket-Snappy%E5%8E%8B%E7%BC%A9"><span class="toc-number">3.</span> <span class="toc-text">进一步优化—— ziplist 数据结构 + Bucket + Snappy压缩</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">4.</span> <span class="toc-text">最后</span></a></li></ol>
     </nav>
   </div>
 </aside>
 
 <main class="main" role="main">
   <div class="content">
-  <article id="post-apollo_服务端与客户端原理概述" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+  <article id="post-redis_上亿数据" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
     
     <div class="article-header">
       
         
   
     <h1 class="article-title" itemprop="name">
-      Apollo之服务端与客户端原理概述
+      Redis上亿数据内存压缩的思路
     </h1>
   
 
@@ -301,8 +299,8 @@
       <div class="article-meta">
         <span class="article-date">
     <i class="icon icon-calendar-check"></i>
-	<a href="/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="article-date">
-	  <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+	<a href="/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/" class="article-date">
+	  <time datetime="2021-04-16T09:29:00.000Z" itemprop="datePublished">2021-04-16</time>
 	</a>
 </span>
         
@@ -314,181 +312,77 @@
         
   <span class="article-tag">
     <i class="icon icon-tags"></i>
-	<a class="article-tag-link-link" href="/tags/Apollo/" rel="tag">Apollo</a>
+	<a class="article-tag-link-link" href="/tags/Redis/" rel="tag">Redis</a>
   </span>
 
 
         
 
-        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/#comments" class="article-comment-link">评论</a></span>
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/#comments" class="article-comment-link">评论</a></span>
         
       </div>
     </div>
     <div class="article-entry marked-body" itemprop="articleBody">
       
-        <blockquote>
-<p>本文参考</p>
-<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5480.html">http://c.biancheng.net/view/5480.html</a></p>
-<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5482.html">http://c.biancheng.net/view/5482.html</a></p>
+        <p><strong>导读：</strong>Redis 是一个开源的使用 ANSI C 语言编写、遵守 BSD 协议、支持网络、可基于内存、分布式、可选持久性的键值对(Key-Value)存储数据库。可用作数据库、缓存和消息中间件等。接下来本文将讨论当其作为缓存需存储大量数据导致占用很大内存时进行压缩的方法。</p>
+<h1 id="最初的存储"><a href="#最初的存储" class="headerlink" title="最初的存储"></a>最初的存储</h1><p>假设有一张设备表，由于业务需求需要将表内几亿条数据缓存到 Redis 中，表中有以下这些字段：</p>
+<ul>
+<li>  id –bigint</li>
+<li>  os –varchar</li>
+<li>  imei –varchar</li>
+<li>  muid –varchar</li>
+<li>  target_object –json</li>
+<li>  create_time –datetime</li>
+<li>  update_time –datetime</li>
+</ul>
+<p>首先这里我选择采用 hash 键的方式把设备数据存储进 reids 中，设计如下：</p>
+<ul>
+<li>  key 是将库名与表名及对象 id 拼接的字符串（如：schema:table:id）</li>
+<li>  value 则是一个 hash 对象，存放该设备对象的属性及对应属性的值</li>
+</ul>
+<p>虽然这种存储方式可读性很高，每一个 Hash 键对应了关系型数据库中的一条设备数据。但是缺点也是很明显的，当数据量级很大时会占用很多的内存。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/877de27db68845c4a69fbc27e927bd00?from=pc" alt="Redis上亿数据内存压缩的思路"></p>
+<h1 id="首次优化——节省字节"><a href="#首次优化——节省字节" class="headerlink" title="首次优化——节省字节"></a>首次优化——节省字节</h1><p>首次优化我选择先从节省所需存储的字节入手进行优化，大致可改进的地方如：</p>
+<ul>
+<li>  去除不必要的字段，如在后续业务中不会使用到，则可选择不存入 reids</li>
+<li>  优化存储，比如 os 字段存储 ios 或者 android等需占用比较多的字节，这时可以建立一个映射关系使用 1 代替 ios，2 代替 android 实现节省</li>
+<li>  缩短 redis key，如适当缩写库名和表名</li>
+</ul>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/66c61bb6281940989827909f3c4e47d5?from=pc" alt="Redis上亿数据内存压缩的思路"></p>
+<h1 id="进一步优化——-ziplist-数据结构-Bucket-Snappy压缩"><a href="#进一步优化——-ziplist-数据结构-Bucket-Snappy压缩" class="headerlink" title="进一步优化—— ziplist 数据结构 + Bucket + Snappy压缩"></a>进一步优化—— ziplist 数据结构 + Bucket + Snappy压缩</h1><p>经历最初优化虽然节省了一定的内存，但是压缩效果还并不是特别理想。在一阵搜索资料后发现了一个有意思的压缩思路，原文地址如下：</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/luckcs/articles/6820494.html">https://www.cnblogs.com/luckcs/articles/6820494.html</a></p>
 </blockquote>
-<h1 id="服务端"><a href="#服务端" class="headerlink" title="服务端"></a>服务端</h1><p><strong>1、服务端实时推送设计</strong></p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>新配置发布的大致流程</p>
+<p><strong>1、大致思路：</strong>原先数据库中每一条设备记录在 redis 中存储为一个 Hash 键，现改为创建一定数量的 Bucket 桶（理解为也是创建 Hash 键，bucket_id 就是键的 key），每个 Bucket 的 value 值是 Hash 对象，Hash 对象中存储着多条设备记录，其中 key 为每一条设备记录的唯一标识，value 则存业务要用到的值（多个值可考虑 json 字符串形式）。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/b2f228ae68514b289906601c854d3059?from=pc" alt="Redis上亿数据内存压缩的思路"></p>
+<p>这里我们可以拿设备数据中的某一个值进行CRC32 之后取余计算得出该设备信息要存放到哪一个 bucket 中，在后面文章实践中会给出具体计算思路。</p>
+<p><strong>2、补充一下 ziplist 数据结构的知识点：</strong>Redis 中用到的主要数据结构有如简单动态字符串（SDS）、链表、字典（hashtable）、压缩列表（ziplist）等。Redis并没有直接使用这些数据结构来实现键值对数据库，而是基于这些数据结构创建了一个对象系统，这个系统包含字符串对象、列表对象、Hash 对象、集合对象和有序集合对象这五种类型的对象。</p>
+<p>其中 Hash 键的底层实现可以是 hashtable 或 ziplist，这里我们主要关注<strong>压缩列表（ziplist）</strong>，压缩列表是Redis为了<strong>节约内存</strong>而开发的，是由一系列特殊编码的连续内存块组成的顺序型（sequential）数据结构。关于 ziplist 具体实现细节这里不做细表，感兴趣的朋友可以查看相关资料。这里我们主要关注的是当满足以下两个条件时，Hash 对象就会使用 ziplist 编码</p>
 <ul>
-<li>  用户在 Portal 中进行配置的编辑和发布。</li>
-<li>  Portal 会调用 Admin Service 提供的接口进行发布操作。</li>
-<li>  Admin Service 收到请求后，发送 <strong>ReleaseMessage</strong> 给各个 Config Service，通知 Config Service 配置发生变化。</li>
-<li>  Config Service 收到 ReleaseMessage 后，通知对应的客户端，基于 Http 长连接实现。</li>
+<li>  Hash 对象保存的所有键值对的键和值的字符串长度都小于64字节</li>
+<li>  Hash 对象保存的键值对数量小于512个</li>
 </ul>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p><strong>2. 发送 ReleaseMessage 的实现方式</strong></p>
-<p>ReleaseMessage 消息是<strong>通过 Mysql 实现了一个简单的消息队列</strong>。之所以没有采用消息中间件，是为了让 Apollo 在部署的时候尽量简单，尽可能减少外部依赖</p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>发送 ReleaseMessage 的实现方式</p>
-<ul>
-<li>  Admin Service 在配置发布后会往 ReleaseMessage 表插入一条消息记录。</li>
-<li>  Config Service 会启动一个线程定时扫描 ReleaseMessage 表，来查看是否有新的消息记录。</li>
-<li>  Config Service 发现有新的消息记录，就会通知到所有的消息监听器。</li>
-<li>  消息监听器得到配置发布的信息后，就会通知对应的客户端。</li>
-</ul>
-<p><strong>3. Config Service 通知客户端的实现方式</strong></p>
-<p>通知采用基于 Http 长连接实现，主要分为下面几个步骤：</p>
-<ul>
-<li>  客户端会发起一个 Http 请求到 Config Service 的 notifications/v2 接口。</li>
-<li>  notifications/v2 接口通过 Spring DeferredResult 把请求挂起，不会立即返回。</li>
-<li>  如果在 60s 内没有该客户端关心的配置发布，那么会返回 Http 状态码 304 给客户端。</li>
-<li>  如果发现配置有修改，则会调用 DeferredResult 的 setResult 方法，传入有配置变化的 namespace 信息，同时该请求会立即返回。</li>
-<li>  客户端从返回的结果中获取到配置变化的 namespace 后，会立即请求 Config Service 获取该 namespace 的最新配置。</li>
-</ul>
-<h1 id="客户端"><a href="#客户端" class="headerlink" title="客户端"></a>客户端</h1><p><strong>1、设计原理</strong></p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>Apollo 客户端的实现原理</p>
-<ul>
-<li>  客户端和服务端保持了一个<strong>长连接</strong>，编译配置的实时更新推送。</li>
-<li>  定时拉取配置是客户端本地的一个定时任务，默认为每 5 分钟拉取一次，也可以通过在运行时指定 System Property：apollo.refreshInterval 来覆盖，单位是分钟，<strong>推送+定时拉取=双保险</strong>。</li>
-<li>  客户端从 Apollo 配置中心服务端获取到应用的最新配置后，会保存在内存中。</li>
-<li>  客户端会把从服务端获取到的配置在本地文件系统<strong>缓存</strong>一份，当服务或者网络不可用时，可以使用本地的配置，也就是我们的本地开发模式 env=Local。</li>
-</ul>
-<p><strong>2、与 Spring 集成后通过 @Value 获取配置原理</strong></p>
-<p>Spring 从 3.1 版本开始增加了 ConfigurableEnvironment 和 PropertySource：</p>
-<ul>
-<li>  ConfigurableEnvironment 实现了 Environment 接口，并且包含了多个 PropertySource</li>
-<li>  PropertySource 可以理解为很多个 Key-Value 的属性配置，在运行时的结构形如下图所示。</li>
-</ul>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>Spring 配置结构</p>
-<p>需要注意的是，PropertySource 之间是有优先级顺序的，如果有一个 Key 在多个 property source 中都存在，那么位于前面的 property source 优先。<br>集成的原理就是在应用启动阶段，Apollo 从远端获取配置，然后组装成 PropertySource 并插入到第一个即可，如下图所示。</p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p><strong>3、动态刷新配置的实现原理</strong></p>
-<p>Apollo Client 中定义了 SpringValueProcessor 类，其实现了 BeanPostProcessor 用于处理值修改。</p>
-<pre><code>public class SpringValueProcessor extends ApolloProcessor implements BeanFactoryPostProcessor, BeanFactoryAware &#123;
-  
-  private PlaceholderHelper placeholderHelper = new PlaceholderHelper();
-    private BeanFactory beanFactory;
-  public SpringValueRegistry springValueRegistry = new SpringValueRegistry();
-
-    @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException &#123;
-        Class clazz = bean.getClass();
-        for (Field field : findAllField(clazz)) &#123;
-            processField(bean, beanName, field);
-        &#125;
-        return bean;
-    &#125;
-
-    /**
-   * 核心处理
-   */
-    private void processField(Object bean, String beanName, Field field) &#123;
-        // register @Value on field
-        Value value = field.getAnnotation(Value.class);
-        if (value == null) &#123;
-            return;
-        &#125;
-      
-        Set&lt;String&gt; keys = placeholderHelper.extractPlaceholderKeys(value.value());
-      
-        if (keys.isEmpty()) &#123;
-            return;
-        &#125;
-      
-        for (String key : keys) &#123;
-            SpringValue springValue = new SpringValue(key, value.value(), bean, beanName, field, false);
-                  springValueRegistry.register(beanFactory, key, springValue);
-                  logger.debug(&quot;Monitoring &#123;&#125;&quot;, springValue);
-        &#125;
-    &#125;
-  
-&#125;
+<p>如果不能满足这两个条件的 Hash 对象则采用 hashtable编码。所以为了节省内存，这里我们要<strong>保证我们的 Hash 对象采用的是 ziplist 编码</strong>，需要符合上面的两个条件。这两个条件的上限值是可以修改的，可根据实际情况修改配置文件中的 <strong>hash-max-ziplist-value</strong> 选项和 <strong>hash-max-ziplist-entries</strong> 选项。</p>
+<p><strong>3、实践：</strong>首先我们进行预估计算，假设 redis 要存十亿的数据。如果想继续用 ziplist 进行压缩的话，我们需保证 Hash 对象保存的键值对数量小于512个，并且键值的长度小于64字节，这两个条件。</p>
+<pre><code>// 计算所需的大致 bucket 数，估Bucket数量需要多预估一点，以防触发临界值问题
+bucket_count = 10亿 / 512 约等于 200W
+// 这里我使用 muid 进行CRC32 之后取余来计算 bucket_id
+bucket_id = CRC32(muid) % 200W
 </code></pre>
-<p>通过实现 BeanPostProcessor 来处理每个 bean 中的值，然后将这个配置信息<strong>封装成一个 SpringValue 存储到 springValueRegistry 中</strong></p>
-<p>SpringValue 代码如下所示。</p>
-<pre><code>public class SpringValue &#123;
-    private MethodParameter methodParameter;
-    private Field field;
-    private Object bean;
-    private String beanName;
-    private String key;
-    private String placeholder;
-    private Class&lt;?&gt; targetType;
-    private Type genericType;
-    private boolean isJson;
-&#125;
+<p>这样存储的 key 就变成了 schema:table:bucketId， value 存储的 Hash 对象中 key 这里我采用 os 拼接 muid 前 4 位再拼接 muid 经过 CRC32 得出的值来作为唯一标示（各位可根据自身实际情况定制），value 则存放 target_object 转为字符串形式，由于 target_object 值比较长，这里我采用的是Snappy 对其进行压缩。</p>
+<p>Snappy 是由 C++ 实现的一个用来压缩和解压缩的开发包，其目标不是最大限度压缩或者兼容其他压缩格式，而是旨在提供高速压缩速度和合理的压缩率。</p>
+<pre><code>// maven 依赖
+&lt;dependency&gt;
+            &lt;groupId&gt;org.xerial.snappy&lt;/groupId&gt;
+            &lt;artifactId&gt;snappy-java&lt;/artifactId&gt;
+            &lt;version&gt;1.1.8&lt;/version&gt;
+&lt;/dependency&gt;
 </code></pre>
-<p>SpringValueRegistry 就是利用 Map 来存储，代码如下所示。</p>
-<pre><code>public class SpringValueRegistry &#123;
-    private final Map&lt;BeanFactory, Multimap&lt;String, SpringValue&gt;&gt; registry = Maps.newConcurrentMap();
-    private final Object LOCK = new Object();
-
-    // 注册
-    public void register(BeanFactory beanFactory, String key, SpringValue springValue) &#123;
-        if (!registry.containsKey(beanFactory)) &#123;
-            synchronized (LOCK) &#123;
-                if (!registry.containsKey(beanFactory)) &#123;
-                    registry.put(beanFactory, LinkedListMultimap.&lt;String, SpringValue&gt;create());
-                &#125;
-            &#125;
-        &#125;
-        registry.get(beanFactory).put(key, springValue);
-    &#125;
-
-    // 获取
-    public Collection&lt;SpringValue&gt; get(BeanFactory beanFactory, String key) &#123;
-        Multimap&lt;String, SpringValue&gt; beanFactorySpringValues = registry.get(beanFactory);
-        if (beanFactorySpringValues == null) &#123;
-            return null;
-        &#125;
-        return beanFactorySpringValues.get(key);
-    &#125;
-&#125;
-</code></pre>
-<p>当  AutoUpdateConfigChangeListener 监听到变化就会调用 onChange 更新值</p>
-<pre><code>public class AutoUpdateConfigChangeListener implements ConfigChangeListener&#123;
-  
-    private final SpringValueRegistry springValueRegistry;
-  
-      @Override
-    public void onChange(ConfigChangeEvent changeEvent) &#123;
-      Set&lt;String&gt; keys = changeEvent.changedKeys();
-      if (CollectionUtils.isEmpty(keys)) &#123;
-        return;
-      &#125;
-      for (String key : keys) &#123;
-        // 1. check whether the changed key is relevant
-        Collection&lt;SpringValue&gt; targetValues = springValueRegistry.get(beanFactory, key);
-        if (targetValues == null || targetValues.isEmpty()) &#123;
-          continue;
-        &#125;
-
-        // 2. update the value 更新值
-        for (SpringValue val : targetValues) &#123;
-          updateSpringValue(val);
-        &#125;
-      &#125;
-    &#125;
-
-&#125;
-</code></pre>
+<p>经过上面的压缩方案改造后<strong>明显减少了很多的 Hash 键，且每个 Hash 键均是 ziplist 编码</strong>， 存储变为如下，经过测试后压缩了 30% 左右。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/983d738739ad4cc0a3651e35434c1e08?from=pc" alt="Redis上亿数据内存压缩的思路"></p>
+<p><strong>4、美中不足</strong></p>
+<p>虽然上面的压缩方案减少了 redis 的内存占用，但是存在着一些问题，如键过期，也就是如果设置键过期也只能是 Bucket 级过期，而不能精确到每一条设备信息过期。又如查询时，需要经过一系列计算得出 key 名后再去取值等，所以各位还需结合实际情况进行取舍。</p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>以上就是笔者对于 redis 内存压缩的思路，希望对各位有所帮助。</p>
 
       
     </div>
@@ -498,7 +392,7 @@
     
     <li class="post-copyright-link hidden-xs">
       <strong>本文链接：</strong>
-      <a href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" title="Apollo之服务端与客户端原理概述" target="_blank" rel="external">http://senlizishi.github.io/2021/09/15/apollo_服务端与客户端原理概述/</a>
+      <a href="http://senlizishi.github.io/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/" title="Redis上亿数据内存压缩的思路" target="_blank" rel="external">http://senlizishi.github.io/2021/04/16/redis_上亿数据/</a>
     </li>
     
     <li class="post-copyright-license">
@@ -542,9 +436,13 @@
   
   <ul class="pager pull-left">
     
+    <li class="prev">
+      <a href="/2021/07/28/nginx_formdata/" title="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
     
     <li class="next">
-      <a href="/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" title="Apollo之配置中心架构剖析"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+      <a href="/2021/04/08/selenium_ronet/" title="解决滚动滑块验证之RotNet图像旋转角度预测"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
     </li>
     
     

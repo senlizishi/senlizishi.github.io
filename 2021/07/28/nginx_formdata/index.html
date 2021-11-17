@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>Nginx借助lua-resty-upload库获取Post(form-data)的请求参数 | Hexo</title>
+  <meta name="description" content="导读：本文将讨论如何实现 Nginx 接收 Post 请求（数据格式为 form-data），并将 RequestBody 按照规定的 format 格式写入到 Nginx 的日志中。下面将分为以下几点展开讨论：    Post 请求中 form-data 和 x-www-form 格式的区别   Lua 在 Nginx 中的应用及 lua-resty-upload 库   Lua 脚本具体实现">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数">
+<meta property="og:url" content="http://senlizishi.github.io/2021/07/28/nginx_formdata/index.html">
+<meta property="og:site_name" content="SapphireCoder Space">
+<meta property="og:description" content="导读：本文将讨论如何实现 Nginx 接收 Post 请求（数据格式为 form-data），并将 RequestBody 按照规定的 format 格式写入到 Nginx 的日志中。下面将分为以下几点展开讨论：    Post 请求中 form-data 和 x-www-form 格式的区别   Lua 在 Nginx 中的应用及 lua-resty-upload 库   Lua 脚本具体实现">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://p9.toutiaoimg.com/origin/pgc-image/9cb90d97495a4b15913417a7b0d1a57e?from=pc">
+<meta property="og:image" content="https://p9.toutiaoimg.com/origin/pgc-image/3ec35b02696a4c8ebe7e4f0bdf7d5d1d?from=pc">
+<meta property="og:image" content="https://p9.toutiaoimg.com/origin/pgc-image/043d56433ad847e588d17a76eb233961?from=pc">
+<meta property="og:image" content="https://p9.toutiaoimg.com/origin/pgc-image/7a9d44fd0f24407d9d93f9e80ba6845f?from=pc">
+<meta property="article:published_time" content="2021-07-28T04:47:00.000Z">
+<meta property="article:modified_time" content="2021-11-17T06:16:32.609Z">
+<meta property="article:author" content="SapphireCoder">
+<meta property="article:tag" content="Nginx">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://p9.toutiaoimg.com/origin/pgc-image/9cb90d97495a4b15913417a7b0d1a57e?from=pc">
+  <!-- Canonical links -->
+  <link rel="canonical" href="http://senlizishi.github.io/2021/07/28/nginx_formdata/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body class="main-center theme-blue no-sidebar" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/senlizishi" target="_blank">
+          <img class="img-circle img-rotate" src="/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">SapphireCoder</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Java &amp; Bigdata &amp; Spider</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Guangzhou, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="搜索" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="想要查找什么..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav ">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">首页</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">归档</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">分类</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">标签</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">关于</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget-body tagcloud">
+      <a href="/tags/Apollo/" style="font-size: 13.75px;">Apollo</a> <a href="/tags/Calcite/" style="font-size: 14px;">Calcite</a> <a href="/tags/Nginx/" style="font-size: 13px;">Nginx</a> <a href="/tags/Redis/" style="font-size: 13px;">Redis</a> <a href="/tags/Selenium/" style="font-size: 13.5px;">Selenium</a> <a href="/tags/Trino/" style="font-size: 13.25px;">Trino</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="title">Apollo之服务端与客户端原理概述</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" class="title">Apollo之配置中心架构剖析</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-10T03:29:00.000Z" itemprop="datePublished">2021-09-10</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/2021/09/09/apollo_%E5%AE%9E%E7%8E%B0LoggingLevel%E5%8A%A8%E6%80%81%E8%B0%83%E6%95%B4/" class="title">Apollo之实现LoggingLevel动态调整</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-09T07:37:00.000Z" itemprop="datePublished">2021-09-09</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" class="title">Apollo之迁移Springboot配置</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-09-08T06:46:00.000Z" itemprop="datePublished">2021-09-08</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+              </p>
+              <p class="item-title">
+                <a href="/2021/07/28/nginx_formdata/" class="title">Nginx借助lua-resty-upload库获取Post(form-data)的请求参数</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2021-07-28T04:47:00.000Z" itemprop="datePublished">2021-07-28</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<aside class="sidebar sidebar-toc collapse" id="collapseToc" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    <nav id="toc" class="article-toc">
+      <h3 class="toc-title">文章目录</h3>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Post-%E8%AF%B7%E6%B1%82%E4%B8%AD-form-data-%E5%92%8C-x-www-form-%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-number">1.</span> <span class="toc-text">Post 请求中 form-data 和 x-www-form 格式的区别</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Lua-%E5%9C%A8-Nginx-%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E5%8F%8A-lua-resty-upload-%E5%BA%93"><span class="toc-number">2.</span> <span class="toc-text">Lua 在 Nginx 中的应用及 lua-resty-upload 库</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Lua-%E8%84%9A%E6%9C%AC%E5%85%B7%E4%BD%93%E5%AE%9E%E7%8E%B0"><span class="toc-number">3.</span> <span class="toc-text">Lua 脚本具体实现</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE-Nginx-%E6%97%A5%E5%BF%97%E6%A0%BC%E5%BC%8F"><span class="toc-number">4.</span> <span class="toc-text">配置 Nginx 日志格式</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE-Nginx-Server"><span class="toc-number">5.</span> <span class="toc-text">配置 Nginx Server</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%94%A8-POSTMAN-%E6%A8%A1%E6%8B%9F-Post-form-data-%E8%AF%B7%E6%B1%82"><span class="toc-number">6.</span> <span class="toc-text">用 POSTMAN 模拟 Post form-data 请求</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">7.</span> <span class="toc-text">最后</span></a></li></ol>
+    </nav>
+  </div>
+</aside>
+
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-nginx_formdata" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Nginx借助lua-resty-upload库获取Post(form-data)的请求参数
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/2021/07/28/nginx_formdata/" class="article-date">
+	  <time datetime="2021-07-28T04:47:00.000Z" itemprop="datePublished">2021-07-28</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/tags/Nginx/" rel="tag">Nginx</a>
+  </span>
+
+
+        
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2021/07/28/nginx_formdata/#comments" class="article-comment-link">评论</a></span>
+        
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <p><strong>导读：</strong>本文将讨论如何实现 Nginx 接收 Post 请求（数据格式为 form-data），并将 RequestBody 按照规定的 format 格式写入到 Nginx 的日志中。下面将分为以下几点展开讨论：</p>
+<ul>
+<li>  Post 请求中 form-data 和 x-www-form 格式的区别</li>
+<li>  Lua 在 Nginx 中的应用及 lua-resty-upload 库</li>
+<li>  Lua 脚本具体实现</li>
+<li>  配置 Nginx 日志格式</li>
+<li>  配置 Nginx Server</li>
+<li>  用 POSTMAN 模拟请求并观察日志输出</li>
+</ul>
+<h1 id="Post-请求中-form-data-和-x-www-form-格式的区别"><a href="#Post-请求中-form-data-和-x-www-form-格式的区别" class="headerlink" title="Post 请求中 form-data 和 x-www-form 格式的区别"></a>Post 请求中 form-data 和 x-www-form 格式的区别</h1><p>下面这篇文章很详细地描述了两者数据格式间的区别.</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/k5210202/p/13819449.html">https://www.cnblogs.com/k5210202/p/13819449.html</a></p>
+</blockquote>
+<p>这里我们重点关注 <strong>form-data</strong> 数据格式。form-data 是一种重视数据的方式，通常我们在 value 值中会发送大量的文本信息或者直接传送一个文件，数据直接编码为二进制发送，不会产生多余的字节，比较适合大文本的传输。下面是一个典型的 form-data 数据格式：</p>
+<pre><code>POST /users/ HTTP/1.1
+Host: localhost:8000
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW--,
+Content-Disposition: form-data; name=&quot;country&quot;
+
+中国
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+Content-Disposition: form-data; name=&quot;city&quot;
+
+北京
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+</code></pre>
+<p><strong>解析：</strong>在header头信息中，Content-Type: multipart/form-data; boundary=<br>—-WebKitFormBoundary7MA4YWxkTrZu0gW 分别指定了格式和 <strong>boundary(分割字符串)，在body中使用了这个 boundary 指定的字符串作为分割，从而可以轻易地还原为key:value的形式</strong>。</p>
+<h1 id="Lua-在-Nginx-中的应用及-lua-resty-upload-库"><a href="#Lua-在-Nginx-中的应用及-lua-resty-upload-库" class="headerlink" title="Lua 在 Nginx 中的应用及 lua-resty-upload 库"></a>Lua 在 Nginx 中的应用及 lua-resty-upload 库</h1><p>为了灵活实现上述场景，这里我使用 OpenResty 提供的 lua-nginx-module 方案实现 Nginx Lua 扩展。关于 Lua 在 Nginx 中的应用在下面的文章中已详细描述，这里笔者就不再赘述。</p>
+<pre><code>https://www.cnblogs.com/wangzhaobo/p/12768707.html
+</code></pre>
+<p>获取 Post 请求采用默认的 <strong>“x-www-form-urlencoded”</strong> 数据格式的请求参数比较简单，我们只需要通过以下代码即可实现：</p>
+<pre><code>local args, err = ngx.req.get_post_args()
+</code></pre>
+<p>而要实现对于 <strong>“multipart/form-data”</strong> 格式的 POST 参数获取，我们需借助 <strong>lua-resty-upload</strong> 库。以下是该 Lua 库的 github 地址以及实现的理念。</p>
+<pre><code>https://github.com/openresty/lua-resty-upload
+</code></pre>
+<p><img src="https://p9.toutiaoimg.com/origin/pgc-image/9cb90d97495a4b15913417a7b0d1a57e?from=pc" alt="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数"></p>
+<h1 id="Lua-脚本具体实现"><a href="#Lua-脚本具体实现" class="headerlink" title="Lua 脚本具体实现"></a>Lua 脚本具体实现</h1><p>该 Lua 脚本主要由三个方法组成：</p>
+<ul>
+<li>  split() 方法用于切割字符串</li>
+<li>  post_form_data() 核心方法，将数据处理成键值对存放到 Lua Table 中</li>
+<li>  table2json() 将 Lua Table 转换为 json 字符串形式</li>
+</ul>
+<hr>
+<pre><code>package.path  = &#39;/usr/local/nginx/conf/?.lua;;&#39; .. package.path
+
+local args = &#123;&#125;
+local upload = require &quot;resty.upload&quot;;
+local cjson = require &quot;cjson&quot;
+local chunk_size = 4096
+local form, err = upload:new(chunk_size)
+
+function split(s, delim)
+
+    if type(delim) ~= &quot;string&quot; or string.len(delim) &lt;= 0 then
+        return nil
+    end
+ 
+    local start = 1
+    local t = &#123;&#125;
+
+    while true do
+        local pos = string.find (s, delim, start, true)
+        
+        if not pos then
+            break
+        end
+ 
+        table.insert (t, string.sub (s, start, pos - 1))
+        start = pos + string.len (delim)
+    end
+
+    table.insert (t, string.sub (s, start))
+ 
+    return t
+end
+
+
+function post_form_data(form,err)
+
+  if not form then
+    ngx.say(ngx.ERR, &quot;failed to new upload: &quot;, err)
+    ngx.exit(500)
+  end
+
+  form:set_timeout(1000)
+
+  local paramTable = &#123;[&quot;s&quot;]=1&#125;
+  local tempkey = &quot;&quot;
+  while true do
+    local typ, res, err = form:read()
+    if not typ then
+        ngx.say(&quot;failed to read: &quot;, err)
+        return &#123;&#125;
+    end
+    local key = &quot;&quot;
+    local value = &quot;&quot;
+    if typ == &quot;header&quot; then
+        local key_res = split(res[2],&quot;;&quot;)
+       key_res = key_res[2]
+        key_res = split(key_res,&quot;=&quot;)
+        key = (string.gsub(key_res[2],&quot;\&quot;&quot;,&quot;&quot;))
+        paramTable[key] = &quot;&quot;
+        tempkey = key
+    end    
+    if typ == &quot;body&quot; then
+        value = res
+        if paramTable.s ~= nil then paramTable.s = nil end
+        paramTable[tempkey] = value
+    end
+    if typ == &quot;eof&quot; then
+        break
+    end
+  end
+  return paramTable
+ end
+
+args = post_form_data(form,err)        
+
+function table2json(t)
+        local function serialize(tbl)
+                local tmp = &#123;&#125;
+                for k, v in pairs(tbl) do
+                        local k_type = type(k)
+                        local v_type = type(v)
+                        local key = (k_type == &quot;string&quot; and &quot;\&quot;&quot; .. k .. &quot;\&quot;:&quot;)
+                            or (k_type == &quot;number&quot; and &quot;&quot;)
+                        local value = (v_type == &quot;table&quot; and serialize(v))
+                            or (v_type == &quot;boolean&quot; and tostring(v))
+                            or (v_type == &quot;string&quot; and &quot;\&quot;&quot; .. v .. &quot;\&quot;&quot;)
+                            or (v_type == &quot;number&quot; and v)
+                        tmp[#tmp + 1] = key and value and tostring(key) .. tostring(value) or nil
+                end
+                if table.maxn(tbl) == 0 then
+                        return &quot;&#123;&quot; .. table.concat(tmp, &quot;,&quot;) .. &quot;&#125;&quot;
+                else
+                        return &quot;[&quot; .. table.concat(tmp, &quot;,&quot;) .. &quot;]&quot;
+                end
+        end
+        assert(type(t) == &quot;table&quot;)
+        return serialize(t)
+end
+
+ngx.var.request_body_data = table2json(args);
+ngx.say(&#39;&#123;&quot;code&quot;:0,&quot;message&quot;:&quot;&quot;&#125;&#39;);
+</code></pre>
+<hr>
+<h1 id="配置-Nginx-日志格式"><a href="#配置-Nginx-日志格式" class="headerlink" title="配置 Nginx 日志格式"></a>配置 Nginx 日志格式</h1><p>这里按实际需求定义了一个 Nginx 日志 Format（这里有一个细节，由于 $request_body 是默认变量，所以笔者将自己处理完的请求体内容存于 $request_body_data 变量中）。</p>
+<pre><code>http &#123;
+   ... 省略其他内容
+  log_format  yw_log        escape=json &#39;&#123;&#39;
+        &#39;&quot;timestamp&quot;:&quot;$time_iso8601&quot;,&#39;
+        &#39;&quot;host&quot;:&quot;$host&quot;,&#39;
+        &#39;&quot;remote_addr&quot;:&quot;$remote_addr&quot;,&#39;
+        &#39;&quot;request_method&quot;:&quot;$request_method&quot;,&#39;
+        &#39;&quot;request_uri&quot;:&quot;$request_uri&quot;,&#39;
+        &#39;&quot;request_status&quot;:&quot;$status&quot;,&#39;
+        &#39;&quot;request_length&quot;:$request_length,&#39;
+        &#39;&quot;request_time&quot;:$request_time,&#39;
+        &#39;&quot;request_body&quot;:&quot;$request_body_data&quot;&#39;
+        &#39;&#125;&#39;;
+&#125;
+</code></pre>
+<h1 id="配置-Nginx-Server"><a href="#配置-Nginx-Server" class="headerlink" title="配置 Nginx Server"></a>配置 Nginx Server</h1><p>配置一个 uri，并指定我们编写好的 Lua 脚本运行的时机，最后指定日志输出的位置。</p>
+<pre><code>     location ~ ^/api/yw/(\w+) &#123;
+            # lua_need_request_body on;
+            set $request_body_data &#39;&#39;;
+            content_by_lua_file conf/lua-script/mulformData.lua;
+            set  $log_name &quot;$1&quot;;
+            access_log  /data/logs/nginx/$&#123;log_name&#125;.log  yw_log;
+        &#125;
+</code></pre>
+<p><img src="https://p9.toutiaoimg.com/origin/pgc-image/3ec35b02696a4c8ebe7e4f0bdf7d5d1d?from=pc" alt="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数"></p>
+<p>这里笔者踩了一个坑，就是被注释掉的这句 “<strong>lua_need_request_body on</strong>” 。 假设开启的话，那么当我们编写的 mulformData.lua 脚本执行到 upload:new(chunk_size) 这句代码时就会出现如下错误：</p>
+<pre><code>Failed to new upload: request body already exists
+</code></pre>
+<p>因为开启 lua_need_request_body 会导致你的 Lua 代码被执行前，请求体就被 ngx_lua 自动读取完毕了，所以报了 request body already exists。解决方案则是将其注释即可，默认 off。</p>
+<h1 id="用-POSTMAN-模拟-Post-form-data-请求"><a href="#用-POSTMAN-模拟-Post-form-data-请求" class="headerlink" title="用 POSTMAN 模拟 Post form-data 请求"></a>用 POSTMAN 模拟 Post form-data 请求</h1><p><img src="https://p9.toutiaoimg.com/origin/pgc-image/043d56433ad847e588d17a76eb233961?from=pc" alt="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数"></p>
+<p>我们查看 Nginx 日志结果输出，自此我们便成功的得到了请求参数，并按我们想要的格式写入到 Nginx 的日志中。</p>
+<p><img src="https://p9.toutiaoimg.com/origin/pgc-image/7a9d44fd0f24407d9d93f9e80ba6845f?from=pc" alt="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数"></p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>以上就是关于笔者实现 Nginx 借助 lua-resty-upload 库获取 Post(form-data) 的请求参数并按指定格式写入到 Nginx 日志中的实践，分享出来希望对各位有所帮助。</p>
+<blockquote>
+<p>参考文章</p>
+<p><a target="_blank" rel="noopener" href="http://www.bubuko.com/infodetail-3556484.html">http://www.bubuko.com/infodetail-3556484.html</a></p>
+<p><a target="_blank" rel="noopener" href="http://t.zoukankan.com/lidabo-p-4177146.html">http://t.zoukankan.com/lidabo-p-4177146.html</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/k5210202/p/13819449.html">https://www.cnblogs.com/k5210202/p/13819449.html</a></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/openresty/lua-resty-upload">https://github.com/openresty/lua-resty-upload</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/wangzhaobo/p/12768707.html">https://www.cnblogs.com/wangzhaobo/p/12768707.html</a></p>
+</blockquote>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="http://senlizishi.github.io/2021/07/28/nginx_formdata/" title="Nginx借助lua-resty-upload库获取Post(form-data)的请求参数" target="_blank" rel="external">http://senlizishi.github.io/2021/07/28/nginx_formdata/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/senlizishi" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/senlizishi" target="_blank"><span class="text-dark">SapphireCoder</span><small class="ml-1x">Java &amp; Bigdata &amp; Spider</small></a></h3>
+        <div>格物致知，返观内照，宁静致远，知行合一</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/2021/09/08/apollo_%E6%8A%8ASpringboot%E9%A1%B9%E7%9B%AE%E9%85%8D%E7%BD%AE%E8%BF%81%E7%A7%BB%E8%87%B3Apollo%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%AD%E5%BF%83/" title="Apollo之迁移Springboot配置"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/" title="Redis上亿数据内存压缩的思路"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+    <li class="toggle-toc">
+      <a class="toggle-btn collapsed" data-toggle="collapse" href="#collapseToc" aria-expanded="false" title="文章目录" role="button">
+        <span>[&nbsp;</span><span>文章目录</span>
+        <i class="text-collapsed icon icon-anchor"></i>
+        <i class="text-in icon icon-close"></i>
+        <span>]</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+	
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/senlizishi" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    <div class="copyright">
+    	
+        <div class="publishby">
+        	Theme by <a href="https://github.com/cofess" target="_blank"> cofess </a>base on <a href="https://github.com/cofess/hexo-theme-pure" target="_blank">pure</a>.
+        </div>
+    </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/js/plugin.min.js"></script>
+
+
+<script src="/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(未命名)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+
+
+
+
+   
+
+
+
+
+   
+
+
+
+
+
+
+</body>
+</html>

@@ -17,28 +17,28 @@
   <meta http-equiv="window-target" content="_top" />
   
   
-  <title>Apollo之服务端与客户端原理概述 | Hexo</title>
-  <meta name="description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+  <title>解决滚动滑块验证之RotNet图像旋转角度预测 | Hexo</title>
+  <meta name="description" content="导读：在自动化操作某些网站的时候可能会遇到在登录账号时需要进行滑块验证的反爬机制。其中滚动滑块要求用户将图片转正，这相对于其他滑块机制来说是比较难解决的。本文将分享一个笔者关于解决这类滚动滑块的思路，希望对各位有所帮助  RotNet这里首先要提到 GitHub 上的一个项目 RotNet。该库包含训练和测试卷积神经网络(CNNs)所需的代码，用于预测图像的旋转角度，以纠正其方向。这对于我们解决图">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Apollo之服务端与客户端原理概述">
-<meta property="og:url" content="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+<meta property="og:title" content="解决滚动滑块验证之RotNet图像旋转角度预测">
+<meta property="og:url" content="http://senlizishi.github.io/2021/04/08/selenium_ronet/index.html">
 <meta property="og:site_name" content="SapphireCoder Space">
-<meta property="og:description" content="本文参考 http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5480.html http:&#x2F;&#x2F;c.biancheng.net&#x2F;view&#x2F;5482.html  服务端1、服务端实时推送设计  新配置发布的大致流程    用户在 Portal 中进行配置的编辑和发布。   Portal 会调用 Admin Service 提供的接口进行发布操作。   Admin Service 收到请求后，发">
+<meta property="og:description" content="导读：在自动化操作某些网站的时候可能会遇到在登录账号时需要进行滑块验证的反爬机制。其中滚动滑块要求用户将图片转正，这相对于其他滑块机制来说是比较难解决的。本文将分享一个笔者关于解决这类滚动滑块的思路，希望对各位有所帮助  RotNet这里首先要提到 GitHub 上的一个项目 RotNet。该库包含训练和测试卷积神经网络(CNNs)所需的代码，用于预测图像的旋转角度，以纠正其方向。这对于我们解决图">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc">
-<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc">
-<meta property="article:published_time" content="2021-09-15T09:42:00.000Z">
-<meta property="article:modified_time" content="2021-11-16T07:02:58.455Z">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/59a3aba142dd48479888df410fa9a949?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/50a1c9b8aef44bdb9194032e0eecab4d?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/45bd93a06c1e4f40a341c62e553cbd2a?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/32719c753cf74fe18ab1ee870bdc1fd8?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/102760084ac64f9a9a414c39b1935203?from=pc">
+<meta property="og:image" content="https://p6.toutiaoimg.com/origin/pgc-image/84c0813d00e24ae5aec79a039b7d2656?from=pc">
+<meta property="article:published_time" content="2021-04-08T07:25:00.000Z">
+<meta property="article:modified_time" content="2021-11-17T06:25:08.180Z">
 <meta property="article:author" content="SapphireCoder">
-<meta property="article:tag" content="Apollo">
+<meta property="article:tag" content="Selenium">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc">
+<meta name="twitter:image" content="https://p6.toutiaoimg.com/origin/pgc-image/59a3aba142dd48479888df410fa9a949?from=pc">
   <!-- Canonical links -->
-  <link rel="canonical" href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/index.html">
+  <link rel="canonical" href="http://senlizishi.github.io/2021/04/08/selenium_ronet/index.html">
   
     <link rel="alternate" href="/atom.xml" title="SapphireCoder Space" type="application/atom+xml">
   
@@ -279,21 +279,21 @@
   <div class="slimContent">
     <nav id="toc" class="article-toc">
       <h3 class="toc-title">文章目录</h3>
-      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF"><span class="toc-number">1.</span> <span class="toc-text">服务端</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-number">2.</span> <span class="toc-text">客户端</span></a></li></ol>
+      <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#RotNet"><span class="toc-number">1.</span> <span class="toc-text">RotNet</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF"><span class="toc-number">2.</span> <span class="toc-text">解决思路</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-number">3.</span> <span class="toc-text">最后</span></a></li></ol>
     </nav>
   </div>
 </aside>
 
 <main class="main" role="main">
   <div class="content">
-  <article id="post-apollo_服务端与客户端原理概述" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+  <article id="post-selenium_ronet" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
     
     <div class="article-header">
       
         
   
     <h1 class="article-title" itemprop="name">
-      Apollo之服务端与客户端原理概述
+      解决滚动滑块验证之RotNet图像旋转角度预测
     </h1>
   
 
@@ -301,194 +301,97 @@
       <div class="article-meta">
         <span class="article-date">
     <i class="icon icon-calendar-check"></i>
-	<a href="/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" class="article-date">
-	  <time datetime="2021-09-15T09:42:00.000Z" itemprop="datePublished">2021-09-15</time>
+	<a href="/2021/04/08/selenium_ronet/" class="article-date">
+	  <time datetime="2021-04-08T07:25:00.000Z" itemprop="datePublished">2021-04-08</time>
 	</a>
 </span>
         
   <span class="article-category">
     <i class="icon icon-folder"></i>
-    <a class="article-category-link" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6%E6%8A%80%E6%9C%AF/">中间件技术</a>
+    <a class="article-category-link" href="/categories/Spider/">Spider</a>
   </span>
 
         
   <span class="article-tag">
     <i class="icon icon-tags"></i>
-	<a class="article-tag-link-link" href="/tags/Apollo/" rel="tag">Apollo</a>
+	<a class="article-tag-link-link" href="/tags/Selenium/" rel="tag">Selenium</a>
   </span>
 
 
         
 
-        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/#comments" class="article-comment-link">评论</a></span>
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2021/04/08/selenium_ronet/#comments" class="article-comment-link">评论</a></span>
         
       </div>
     </div>
     <div class="article-entry marked-body" itemprop="articleBody">
       
-        <blockquote>
-<p>本文参考</p>
-<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5480.html">http://c.biancheng.net/view/5480.html</a></p>
-<p><a target="_blank" rel="noopener" href="http://c.biancheng.net/view/5482.html">http://c.biancheng.net/view/5482.html</a></p>
-</blockquote>
-<h1 id="服务端"><a href="#服务端" class="headerlink" title="服务端"></a>服务端</h1><p><strong>1、服务端实时推送设计</strong></p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/43e1ae39e3cd4648bcfe4cd523d1c5e4?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>新配置发布的大致流程</p>
-<ul>
-<li>  用户在 Portal 中进行配置的编辑和发布。</li>
-<li>  Portal 会调用 Admin Service 提供的接口进行发布操作。</li>
-<li>  Admin Service 收到请求后，发送 <strong>ReleaseMessage</strong> 给各个 Config Service，通知 Config Service 配置发生变化。</li>
-<li>  Config Service 收到 ReleaseMessage 后，通知对应的客户端，基于 Http 长连接实现。</li>
-</ul>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/c7f1c02e21cc49d59297c727eb6db28d?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p><strong>2. 发送 ReleaseMessage 的实现方式</strong></p>
-<p>ReleaseMessage 消息是<strong>通过 Mysql 实现了一个简单的消息队列</strong>。之所以没有采用消息中间件，是为了让 Apollo 在部署的时候尽量简单，尽可能减少外部依赖</p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/8fdf3634b9c74778b4575b9a74147bfb?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>发送 ReleaseMessage 的实现方式</p>
-<ul>
-<li>  Admin Service 在配置发布后会往 ReleaseMessage 表插入一条消息记录。</li>
-<li>  Config Service 会启动一个线程定时扫描 ReleaseMessage 表，来查看是否有新的消息记录。</li>
-<li>  Config Service 发现有新的消息记录，就会通知到所有的消息监听器。</li>
-<li>  消息监听器得到配置发布的信息后，就会通知对应的客户端。</li>
-</ul>
-<p><strong>3. Config Service 通知客户端的实现方式</strong></p>
-<p>通知采用基于 Http 长连接实现，主要分为下面几个步骤：</p>
-<ul>
-<li>  客户端会发起一个 Http 请求到 Config Service 的 notifications/v2 接口。</li>
-<li>  notifications/v2 接口通过 Spring DeferredResult 把请求挂起，不会立即返回。</li>
-<li>  如果在 60s 内没有该客户端关心的配置发布，那么会返回 Http 状态码 304 给客户端。</li>
-<li>  如果发现配置有修改，则会调用 DeferredResult 的 setResult 方法，传入有配置变化的 namespace 信息，同时该请求会立即返回。</li>
-<li>  客户端从返回的结果中获取到配置变化的 namespace 后，会立即请求 Config Service 获取该 namespace 的最新配置。</li>
-</ul>
-<h1 id="客户端"><a href="#客户端" class="headerlink" title="客户端"></a>客户端</h1><p><strong>1、设计原理</strong></p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/22fa1a6f0fcd46499ec8a52f954b51e8?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>Apollo 客户端的实现原理</p>
-<ul>
-<li>  客户端和服务端保持了一个<strong>长连接</strong>，编译配置的实时更新推送。</li>
-<li>  定时拉取配置是客户端本地的一个定时任务，默认为每 5 分钟拉取一次，也可以通过在运行时指定 System Property：apollo.refreshInterval 来覆盖，单位是分钟，<strong>推送+定时拉取=双保险</strong>。</li>
-<li>  客户端从 Apollo 配置中心服务端获取到应用的最新配置后，会保存在内存中。</li>
-<li>  客户端会把从服务端获取到的配置在本地文件系统<strong>缓存</strong>一份，当服务或者网络不可用时，可以使用本地的配置，也就是我们的本地开发模式 env=Local。</li>
-</ul>
-<p><strong>2、与 Spring 集成后通过 @Value 获取配置原理</strong></p>
-<p>Spring 从 3.1 版本开始增加了 ConfigurableEnvironment 和 PropertySource：</p>
-<ul>
-<li>  ConfigurableEnvironment 实现了 Environment 接口，并且包含了多个 PropertySource</li>
-<li>  PropertySource 可以理解为很多个 Key-Value 的属性配置，在运行时的结构形如下图所示。</li>
-</ul>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/1ed2df95a343441287c0746b0ec01c79?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p>Spring 配置结构</p>
-<p>需要注意的是，PropertySource 之间是有优先级顺序的，如果有一个 Key 在多个 property source 中都存在，那么位于前面的 property source 优先。<br>集成的原理就是在应用启动阶段，Apollo 从远端获取配置，然后组装成 PropertySource 并插入到第一个即可，如下图所示。</p>
-<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/171d6dd23fef4837b3b4bbe334d03d7a?from=pc" alt="Apollo 服务端与客户端原理概述"></p>
-<p><strong>3、动态刷新配置的实现原理</strong></p>
-<p>Apollo Client 中定义了 SpringValueProcessor 类，其实现了 BeanPostProcessor 用于处理值修改。</p>
-<pre><code>public class SpringValueProcessor extends ApolloProcessor implements BeanFactoryPostProcessor, BeanFactoryAware &#123;
-  
-  private PlaceholderHelper placeholderHelper = new PlaceholderHelper();
-    private BeanFactory beanFactory;
-  public SpringValueRegistry springValueRegistry = new SpringValueRegistry();
-
-    @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException &#123;
-        Class clazz = bean.getClass();
-        for (Field field : findAllField(clazz)) &#123;
-            processField(bean, beanName, field);
-        &#125;
-        return bean;
-    &#125;
-
-    /**
-   * 核心处理
-   */
-    private void processField(Object bean, String beanName, Field field) &#123;
-        // register @Value on field
-        Value value = field.getAnnotation(Value.class);
-        if (value == null) &#123;
-            return;
-        &#125;
-      
-        Set&lt;String&gt; keys = placeholderHelper.extractPlaceholderKeys(value.value());
-      
-        if (keys.isEmpty()) &#123;
-            return;
-        &#125;
-      
-        for (String key : keys) &#123;
-            SpringValue springValue = new SpringValue(key, value.value(), bean, beanName, field, false);
-                  springValueRegistry.register(beanFactory, key, springValue);
-                  logger.debug(&quot;Monitoring &#123;&#125;&quot;, springValue);
-        &#125;
-    &#125;
-  
-&#125;
+        <p><strong>导读：</strong>在自动化操作某些网站的时候可能会遇到在登录账号时需要进行滑块验证的反爬机制。其中滚动滑块要求用户将图片转正，这相对于其他滑块机制来说是比较难解决的。本文将分享一个笔者关于解决这类滚动滑块的思路，希望对各位有所帮助</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/59a3aba142dd48479888df410fa9a949?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<h1 id="RotNet"><a href="#RotNet" class="headerlink" title="RotNet"></a>RotNet</h1><p>这里首先要提到 GitHub 上的一个项目 RotNet。该库包含训练和测试卷积神经网络(CNNs)所需的代码，用于预测图像的旋转角度，以纠正其方向。这对于我们解决图像转正滑块十分有用，更 Nice 的是作者还提供了一些已训练好的模型，并编写了一篇 Blog 详细进行讲解，这对于机器学习领域新手来说十分友好。</p>
+<pre><code>// github 地址
+https://github.com/d4nst/RotNet
+// 作者的 blog
+https://d4nst.github.io/
 </code></pre>
-<p>通过实现 BeanPostProcessor 来处理每个 bean 中的值，然后将这个配置信息<strong>封装成一个 SpringValue 存储到 springValueRegistry 中</strong></p>
-<p>SpringValue 代码如下所示。</p>
-<pre><code>public class SpringValue &#123;
-    private MethodParameter methodParameter;
-    private Field field;
-    private Object bean;
-    private String beanName;
-    private String key;
-    private String placeholder;
-    private Class&lt;?&gt; targetType;
-    private Type genericType;
-    private boolean isJson;
-&#125;
+<h1 id="解决思路"><a href="#解决思路" class="headerlink" title="解决思路"></a>解决思路</h1><p>1、将 RotNet 项目进行简化，并改造成一个 socket 服务端</p>
+<p>这里笔者没有自己进行训练而是选择采用 RotNet 作者所提供已训练好的<br>rotnet_street_view_resnet50.hdf5 模型（注：该模型目前只对于房屋街道场景图片识别准确率较高）。代码则只保留了 test_street_view.py 并将其进行改造优化成一个 <strong>socket 服务端</strong>， images 文件夹则作为图片库存放验证图片。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/50a1c9b8aef44bdb9194032e0eecab4d?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<p>这里需要注意一点，由于 RotNet 是四年前的项目，所以在搭建 python、 tensorflow、Keras 等环境时需要<strong>注意版本问题</strong>，版本太高需自降版本。下面是一些比较核心且需要特别注意的依赖以及对应的版本（笔者亲测可用）。</p>
+<pre><code>pip install --upgrade grpcio
+pip install --upgrade google-auth
+pip install tensorflow==1.13.1
+pip install Keras==2.1.5
+pip install h5py==2.9.0
+pip install opencv-python
 </code></pre>
-<p>SpringValueRegistry 就是利用 Map 来存储，代码如下所示。</p>
-<pre><code>public class SpringValueRegistry &#123;
-    private final Map&lt;BeanFactory, Multimap&lt;String, SpringValue&gt;&gt; registry = Maps.newConcurrentMap();
-    private final Object LOCK = new Object();
+<p>2、由于笔者是采用 Java + selenium 进行开发，所以需要使用 Java 编写一个 Socket 客户端，用于与 RotNet 进行交互，关于 Java 如何搭建客户端这里就不做细表。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/45bd93a06c1e4f40a341c62e553cbd2a?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<p>3、Selenium 获取验证图片并保存</p>
+<p>当我们登录遇到需要将图片转正的验证时，我们需先把图片下下来。把图片下载的方式需看实际场景，如笔者所爬的网站验证图片存在在 <img> 标签的 src 中且是一个 Http URL。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/32719c753cf74fe18ab1ee870bdc1fd8?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<p>因此可以通过编写代码获取 URL，并将图片下载至指定 RotNet 服务可读取的地方。（这里有可能有些网站会存在反爬机制，比如给图片加上干扰项等，这时只能采取截图的形式获取图片）。</p>
+<pre><code>// selenium  获取
+WebElement img = driver.findElement(By.className(&quot;spinner-img&quot;));
+String imageUrl = img.getAttribute(&quot;src&quot;);
+String imageName = UUID.randomUUID().toString() + &quot;.png&quot;;
+boolean isSuccess = ImageUtil.downloadImage(imageUrl, ImageUtil.PNG, new File(verifiPicPath + imageName));
 
-    // 注册
-    public void register(BeanFactory beanFactory, String key, SpringValue springValue) &#123;
-        if (!registry.containsKey(beanFactory)) &#123;
-            synchronized (LOCK) &#123;
-                if (!registry.containsKey(beanFactory)) &#123;
-                    registry.put(beanFactory, LinkedListMultimap.&lt;String, SpringValue&gt;create());
-                &#125;
-            &#125;
+// 下载图片
+public static boolean downloadImage(String imageUrl, String formatName, File localFile) &#123;
+        boolean isSuccess = false;
+        URL url = null;
+        try &#123;
+            url = new URL(imageUrl);
+            isSuccess = ImageIO.write(ImageIO.read(url), formatName, localFile);
+        &#125; catch (MalformedURLException e) &#123;
+            e.printStackTrace();
+        &#125; catch (IOException e) &#123;
+            e.printStackTrace();
         &#125;
-        registry.get(beanFactory).put(key, springValue);
+        return isSuccess;
     &#125;
-
-    // 获取
-    public Collection&lt;SpringValue&gt; get(BeanFactory beanFactory, String key) &#123;
-        Multimap&lt;String, SpringValue&gt; beanFactorySpringValues = registry.get(beanFactory);
-        if (beanFactorySpringValues == null) &#123;
-            return null;
-        &#125;
-        return beanFactorySpringValues.get(key);
-    &#125;
-&#125;
 </code></pre>
-<p>当  AutoUpdateConfigChangeListener 监听到变化就会调用 onChange 更新值</p>
-<pre><code>public class AutoUpdateConfigChangeListener implements ConfigChangeListener&#123;
-  
-    private final SpringValueRegistry springValueRegistry;
-  
-      @Override
-    public void onChange(ConfigChangeEvent changeEvent) &#123;
-      Set&lt;String&gt; keys = changeEvent.changedKeys();
-      if (CollectionUtils.isEmpty(keys)) &#123;
-        return;
-      &#125;
-      for (String key : keys) &#123;
-        // 1. check whether the changed key is relevant
-        Collection&lt;SpringValue&gt; targetValues = springValueRegistry.get(beanFactory, key);
-        if (targetValues == null || targetValues.isEmpty()) &#123;
-          continue;
-        &#125;
-
-        // 2. update the value 更新值
-        for (SpringValue val : targetValues) &#123;
-          updateSpringValue(val);
-        &#125;
-      &#125;
-    &#125;
-
-&#125;
+<p>4、客户端发起 Socket 请求让 RotNet 获取对应的图片并进行识别预测转正角度</p>
+<p>RotNet 会响应回来图片转正的角度，如 225 表示当前图片转正需要旋转 225 度。这里我们看回到一开始那张滚动图，当我们要过验证时需要执行：鼠标点击滑块–拖动滑块–松开鼠标的动作。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/102760084ac64f9a9a414c39b1935203?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<p>通过 F12 对页面元素进行观察发现当我们移动滑块时有两个参数会变：</p>
+<ul>
+<li>  验证图片的 style=”transform rotate” 属性</li>
+<li>  滑块按钮 style = “margin-left” 属性</li>
+</ul>
+<p><strong>重点：</strong>当 RotNet 给我们返回角度时，单独只改变图片 tranfrom rotate 的属性值而不操作滑块按钮是无用的。所以我们还需计算出滑块应滑动的距离，用 Action 模拟移动滑块从而达到图片旋转。这里我通过将滑块移动到最右端，得出滑块最大移动距离为 275 px，而图片最大可旋转为 360 度。 通过计算得出旋转与移动距离比为 1.3 ： 1。 这样当我们取到 RotNet 返回给我们的角度时代入公式即可得到滑块应滑动的距离。</p>
+<pre><code>// 模拟 鼠标点击滑块--拖动滑块--松开鼠标的动作
+Actions actions = new Actions(driver);
+WebElement sildeBtn = driver.findElement(By.className(&quot;slider-btn&quot;));
+actions.clickAndHold(sildeBtn).perform();
+actions.moveByOffset(Integer.parseInt(slidingDistance), 0);
+Thread.sleep(1000);
+ actions.release(sildeBtn).perform();
 </code></pre>
+<p>5、自此登录成功，之后便顺利执行其他登录后的操作。此方法笔者亲测可行，但鉴于网站的不同，可能存在一些其他的反爬机制，各位需要结合实际情况做相应的调整。</p>
+<p><img src="https://p6.toutiaoimg.com/origin/pgc-image/84c0813d00e24ae5aec79a039b7d2656?from=pc" alt="RotNet图像旋转角度预测——解决滚动滑块验证"></p>
+<h1 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h1><p>以上就是笔者解决滚动滑块的思路，希望对各位有所帮助，主要是借助了 RotNet 训练好的模型（对机器学习熟悉且有条件的朋友自己训练模型更佳）进行图像预测转正获取转正所需角度，之后搭建 Socket 客户端与服务端解决跨语言通信的问题，最后使用 Selenium 完成验证操作。</p>
 
       
     </div>
@@ -498,7 +401,7 @@
     
     <li class="post-copyright-link hidden-xs">
       <strong>本文链接：</strong>
-      <a href="http://senlizishi.github.io/2021/09/15/apollo_%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%B8%8E%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0/" title="Apollo之服务端与客户端原理概述" target="_blank" rel="external">http://senlizishi.github.io/2021/09/15/apollo_服务端与客户端原理概述/</a>
+      <a href="http://senlizishi.github.io/2021/04/08/selenium_ronet/" title="解决滚动滑块验证之RotNet图像旋转角度预测" target="_blank" rel="external">http://senlizishi.github.io/2021/04/08/selenium_ronet/</a>
     </li>
     
     <li class="post-copyright-license">
@@ -542,9 +445,13 @@
   
   <ul class="pager pull-left">
     
+    <li class="prev">
+      <a href="/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/" title="Redis上亿数据内存压缩的思路"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;上一篇</span></a>
+    </li>
+    
     
     <li class="next">
-      <a href="/2021/09/10/apollo_%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E5%89%96%E6%9E%90/" title="Apollo之配置中心架构剖析"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+      <a href="/2021/03/31/selenium_proxy%E4%BB%A3%E7%90%86/" title="TinyProxy代理解决Linux上无头浏览器手机安全认证"><span>下一篇&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
     </li>
     
     

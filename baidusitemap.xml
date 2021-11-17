@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://senlizishi.github.io/2021/04/08/selenium_ronet/</loc>
+    <lastmod>2021-11-17</lastmod>
+  </url>
+  <url>
+    <loc>http://senlizishi.github.io/2021/03/31/selenium_proxy%E4%BB%A3%E7%90%86/</loc>
+    <lastmod>2021-11-17</lastmod>
+  </url>
+  <url>
+    <loc>http://senlizishi.github.io/2021/04/16/redis_%E4%B8%8A%E4%BA%BF%E6%95%B0%E6%8D%AE/</loc>
+    <lastmod>2021-11-17</lastmod>
+  </url>
+  <url>
+    <loc>http://senlizishi.github.io/2021/07/28/nginx_formdata/</loc>
+    <lastmod>2021-11-17</lastmod>
+  </url>
+  <url>
     <loc>http://senlizishi.github.io/2021/03/16/trino_%E5%AE%9E%E7%8E%B0Redis%E8%BF%9E%E6%8E%A5%E5%99%A8%E6%94%AF%E6%8C%81delete%E6%93%8D%E4%BD%9C/</loc>
     <lastmod>2021-11-16</lastmod>
   </url>
