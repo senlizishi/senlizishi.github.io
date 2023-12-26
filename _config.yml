@@ -1,5 +1,5 @@
 remote_theme: pages-themes/slate@v0.2.0
-title: Octocat's homepage
+title: BIN's space
 description: Bookmark this to keep an eye on my project updates!
 plugins:
 - jekyll-remote-theme # add this line to the plugins list if you already have one
