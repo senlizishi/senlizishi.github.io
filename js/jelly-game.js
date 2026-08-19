@@ -1,9 +1,14 @@
 (function () {
-  const WIDTH = 960;
-  const HEIGHT = 540;
+  const IS_PORTRAIT = window.innerHeight > window.innerWidth;
+  const WIDTH = IS_PORTRAIT ? 540 : 960;
+  const HEIGHT = IS_PORTRAIT ? 960 : 540;
+  const CENTER_X = WIDTH / 2;
+  const choose = (landscape, portrait) => (IS_PORTRAIT ? portrait : landscape);
   // 窄高的容器让落点和堆叠更有决策压力，避免横向空间过大导致无脑连点。
-  const BOARD = { left: 290, right: 670, top: 66, bottom: 486 };
-  const DANGER_Y = 132;
+  const BOARD = IS_PORTRAIT
+    ? { left: 80, right: 460, top: 190, bottom: 610 }
+    : { left: 290, right: 670, top: 66, bottom: 486 };
+  const DANGER_Y = BOARD.top + 66;
   const TIMED_MODE = false;
   const ROUND_LIMIT = 120;
   const AUDIO_MASTER_VOLUME = 0.95;
@@ -323,11 +328,12 @@
   }
 
   function addAudioSlider(scene, label, y, getValue, setValue) {
-    const left = 715;
+    const panelCenterX = choose(815, CENTER_X);
+    const left = panelCenterX - 100;
     const width = 145;
     const items = scene.audioPanelItems;
-    const labelText = scene.add.text(710, y - 21, label, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#fff7ef' }).setDepth(62);
-    const valueText = scene.add.text(860, y - 21, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#ffe8d7', align: 'right' }).setOrigin(1, 0).setDepth(62);
+    const labelText = scene.add.text(left - 5, y - 21, label, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#fff7ef' }).setDepth(62);
+    const valueText = scene.add.text(panelCenterX + 45, y - 21, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#ffe8d7', align: 'right' }).setOrigin(1, 0).setDepth(62);
     const track = scene.add.rectangle(left + width / 2, y, width, 8, 0x6e5278, 1).setStrokeStyle(1, 0xc890a6, 0.8).setInteractive({ useHandCursor: true }).setDepth(62);
     const fill = scene.add.rectangle(left, y, width, 8, 0xff9b83, 1).setOrigin(0, 0.5).setDepth(63);
     const knob = scene.add.circle(left + width * getValue(), y, 9, 0xfff5e8, 1).setStrokeStyle(2, 0xffb59c, 1).setInteractive({ useHandCursor: true, draggable: true }).setDepth(64);
@@ -351,10 +357,10 @@
   function drawBackdrop(graphics, themeId) {
     const theme = BACKGROUND_THEMES[themeId || CosmeticStore.equippedTheme] || BACKGROUND_THEMES['theme-default'];
     graphics.fillStyle(theme.sky, 1).fillRect(0, 0, WIDTH, HEIGHT);
-    graphics.fillStyle(theme.orbLeft, 0.9).fillCircle(108, 100, 230);
-    graphics.fillStyle(theme.orbRight, 0.72).fillCircle(854, 422, 250);
-    graphics.fillStyle(theme.beamLeft, 0.2).fillTriangle(480, -40, 210, 540, 405, 540);
-    graphics.fillStyle(theme.beamRight, 0.13).fillTriangle(480, -40, 750, 540, 570, 540);
+    graphics.fillStyle(theme.orbLeft, 0.9).fillCircle(WIDTH * 0.11, HEIGHT * 0.18, choose(230, 215));
+    graphics.fillStyle(theme.orbRight, 0.72).fillCircle(WIDTH * 0.89, HEIGHT * 0.8, choose(250, 235));
+    graphics.fillStyle(theme.beamLeft, 0.2).fillTriangle(CENTER_X, -40, WIDTH * 0.22, HEIGHT, WIDTH * 0.42, HEIGHT);
+    graphics.fillStyle(theme.beamRight, 0.13).fillTriangle(CENTER_X, -40, WIDTH * 0.78, HEIGHT, WIDTH * 0.58, HEIGHT);
     graphics.fillStyle(theme.sparkle, themeId === 'theme-starlight' ? 0.82 : 0.62);
     for (let x = 16; x < WIDTH; x += 46) for (let y = 16; y < HEIGHT; y += 46) graphics.fillCircle(x, y, 0.8 + ((x * 13 + y * 7) % 9) / 10);
     if ((themeId || CosmeticStore.equippedTheme) === 'theme-starlight') {
@@ -434,18 +440,18 @@
       const art = this.add.graphics();
       const redrawCosmetics = () => {
         bg.clear(); art.clear(); drawBackdrop(bg);
-        drawJelly(art, 480, 248, 7, 1, 1.12, -0.09, 1);
-        drawJelly(art, 407, 306, 2, 0.95, 0.56, 0.16, 1);
-        drawJelly(art, 556, 314, 4, 0.95, 0.62, -0.18, 1);
+        drawJelly(art, CENTER_X, choose(248, 405), 7, 1, 1.12, -0.09, 1);
+        drawJelly(art, CENTER_X - choose(73, 85), choose(306, 495), 2, 0.95, 0.56, 0.16, 1);
+        drawJelly(art, CENTER_X + choose(76, 85), choose(314, 505), 4, 0.95, 0.62, -0.18, 1);
       };
       redrawCosmetics();
       CosmeticStore.init().then(redrawCosmetics);
       this.tweens.add({ targets: art, y: -8, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.add.text(480, 88, '果冻叠叠乐', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '58px', fontStyle: 'bold', color: '#4b354d', stroke: '#fff7ea', strokeThickness: 8 }).setOrigin(0.5);
-      this.add.text(480, 146, '让软糯果冻滑着、弹着、合在一起', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '21px', color: '#765f68' }).setOrigin(0.5);
-      addButton(this, 480, 438, 220, 54, '开始游戏', () => { JellyAudio.start(); analytics('game_start', { mode: 'jelly_merge' }); this.scene.start('JellyGameScene'); }, { color: 0xff8f76, hover: 0xffa98e, stroke: 0xfff3d6, textColor: '#5f3441' });
-      this.add.text(480, 370, '鼠标 / 手指选择落点 · 点击或空格放下 · A/D 微调', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '16px', color: '#765f68' }).setOrigin(0.5);
-      this.add.text(480, 503, '不规则软胶形状 · 真实重力 · 滑动与弹性碰撞', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#8b7079' }).setOrigin(0.5);
+      this.add.text(CENTER_X, choose(88, 128), '果冻叠叠乐', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('58px', '52px'), fontStyle: 'bold', color: '#4b354d', stroke: '#fff7ea', strokeThickness: 8 }).setOrigin(0.5);
+      this.add.text(CENTER_X, choose(146, 194), '让软糯果冻滑着、弹着、合在一起', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('21px', '19px'), color: '#765f68', align: 'center', wordWrap: { width: choose(900, 470) } }).setOrigin(0.5);
+      addButton(this, CENTER_X, choose(438, 690), choose(220, 260), choose(54, 62), '开始游戏', () => { JellyAudio.start(); analytics('game_start', { mode: 'jelly_merge' }); this.scene.start('JellyGameScene'); }, { color: 0xff8f76, hover: 0xffa98e, stroke: 0xfff3d6, textColor: '#5f3441' });
+      this.add.text(CENTER_X, choose(370, 610), IS_PORTRAIT ? '手指拖动选择落点 · 松手或轻点放下果冻' : '鼠标 / 手指选择落点 · 点击或空格放下 · A/D 微调', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '16px', color: '#765f68', align: 'center', wordWrap: { width: choose(900, 470) } }).setOrigin(0.5);
+      this.add.text(CENTER_X, choose(503, 835), '不规则软胶形状 · 真实重力 · 滑动与弹性碰撞', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#8b7079', align: 'center', wordWrap: { width: choose(900, 470) } }).setOrigin(0.5);
     }
   }
 
@@ -454,34 +460,65 @@
 
     create() {
       this.state = 'playing'; this.score = 0; this.combo = 0; this.mergeCount = 0; this.dropCount = 0; this.maxType = 0; this.elapsed = 0; this.dangerTimers = new Map();
-      this.jellies = []; this.particles = []; this.nextId = 1; this.cursorX = 480; this.active = null;
+      this.jellies = []; this.particles = []; this.nextId = 1; this.cursorX = CENTER_X; this.active = null;
       this.pendingMerges = new Map(); this.mergeBusy = new Set();
       this.backgroundGraphics = this.add.graphics().setDepth(0); drawBackdrop(this.backgroundGraphics);
       this.boardGraphics = this.add.graphics().setDepth(1); this.fxGraphics = this.add.graphics().setDepth(6); this.jellyGraphics = this.add.graphics().setDepth(7); this.drawBoard();
-      this.add.text(24, 20, '果冻叠叠乐', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '26px', fontStyle: 'bold', color: '#4b354d' }).setDepth(20);
-      this.add.text(24, 52, '让同色果冻滑着相遇，越合越大', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#806770' }).setDepth(20);
-      this.scoreText = this.add.text(936, 20, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '20px', fontStyle: 'bold', color: '#4b354d', align: 'right' }).setOrigin(1, 0).setDepth(20);
-      this.bestText = this.add.text(936, 51, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#806770', align: 'right' }).setOrigin(1, 0).setDepth(20);
-      this.timeText = this.add.text(936, 75, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#806770', align: 'right' }).setOrigin(1, 0).setDepth(20);
-      this.nextLabel = this.add.text(750, 105, '下一个', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#806770', align: 'center' }).setOrigin(0.5).setDepth(20);
+      this.add.text(choose(24, 20), choose(20, 24), '果冻叠叠乐', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('26px', '24px'), fontStyle: 'bold', color: '#4b354d' }).setDepth(20);
+      this.add.text(choose(24, 20), choose(52, 57), '让同色果冻滑着相遇，越合越大', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('14px', '13px'), color: '#806770' }).setDepth(20);
+      this.scoreText = this.add.text(WIDTH - choose(24, 20), choose(20, 24), '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('20px', '18px'), fontStyle: 'bold', color: '#4b354d', align: 'right' }).setOrigin(1, 0).setDepth(20);
+      this.bestText = this.add.text(WIDTH - choose(24, 20), choose(51, 52), '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#806770', align: 'right' }).setOrigin(1, 0).setDepth(20);
+      this.timeText = this.add.text(WIDTH - choose(24, 20), choose(75, 76), '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#806770', align: 'right' }).setOrigin(1, 0).setDepth(20);
+      this.nextLabel = this.add.text(choose(750, CENTER_X), choose(105, 116), '下一个', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#806770', align: 'center' }).setOrigin(0.5).setDepth(20);
       this.nextGraphics = this.add.graphics().setDepth(20);
-      this.statusText = this.add.text(480, 514, '移动指针选择落点，点击放下果冻', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#6b515c', align: 'center' }).setOrigin(0.5).setDepth(20);
-      this.helpText = this.add.text(480, 536, 'A / D 或方向键微调 · 空格放下 · R 重置', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#a1848c', align: 'center' }).setOrigin(0.5).setDepth(20);
+      this.statusText = this.add.text(CENTER_X, choose(514, 650), IS_PORTRAIT ? '手指拖动选择落点，松手放下果冻' : '移动指针选择落点，点击放下果冻', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#6b515c', align: 'center', wordWrap: { width: choose(430, 480) } }).setOrigin(0.5).setDepth(20);
+      this.helpText = this.add.text(CENTER_X, choose(536, 680), IS_PORTRAIT ? '按住左右拖动 · 轻点棋盘也可直接放下' : 'A / D 或方向键微调 · 空格放下 · R 重置', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#a1848c', align: 'center' }).setOrigin(0.5).setDepth(20);
       this.audioPanelItems = [];
       this.audioPanelDragHandlers = [];
       this.audioSettingsOpen = false;
       const utilityButtonStyle = { depth: 25, fontSize: '13px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' };
-      this.audioSettingsButton = addButton(this, 760, 514, 70, 35, '音量', () => this.toggleAudioSettings(), utilityButtonStyle);
+      this.audioSettingsButton = addButton(this, choose(760, 158), choose(514, 748), choose(70, 92), choose(35, 42), '音量', () => this.toggleAudioSettings(), utilityButtonStyle);
       this.shopOpen = false;
       this.shopCategory = 'background';
       this.shopBusy = false;
       this.shopItems = [];
       this.shopProductItems = [];
-      this.shopButton = addButton(this, 840, 514, 70, 35, '商城', () => this.openShop(), utilityButtonStyle);
-      addButton(this, 920, 514, 70, 35, '重开', () => this.restart(), utilityButtonStyle);
+      this.shopButton = addButton(this, choose(840, 270), choose(514, 748), choose(70, 92), choose(35, 42), '商城', () => this.openShop(), utilityButtonStyle);
+      addButton(this, choose(920, 382), choose(514, 748), choose(70, 92), choose(35, 42), '重开', () => this.restart(), utilityButtonStyle);
       this.keys = this.input.keyboard.addKeys({ left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT, a: Phaser.Input.Keyboard.KeyCodes.A, d: Phaser.Input.Keyboard.KeyCodes.D, space: Phaser.Input.Keyboard.KeyCodes.SPACE, r: Phaser.Input.Keyboard.KeyCodes.R, esc: Phaser.Input.Keyboard.KeyCodes.ESC });
-      this.input.on('pointermove', (pointer) => this.moveCursor(pointer.x));
-      this.input.on('pointerdown', (pointer) => { JellyAudio.start(); if (!this.audioSettingsOpen && !this.shopOpen && pointer.x >= BOARD.left && pointer.x <= BOARD.right && pointer.y >= BOARD.top && pointer.y <= BOARD.bottom) this.dropActive(); });
+      this.touchGesture = null;
+      const isTouchPointer = (pointer) => pointer.pointerType === 'touch' || (pointer.event && (pointer.event.pointerType === 'touch' || pointer.event.pointerType === 2));
+      const isBoardPointer = (pointer) => pointer.x >= BOARD.left && pointer.x <= BOARD.right && pointer.y >= BOARD.top && pointer.y <= BOARD.bottom;
+      this.input.on('pointermove', (pointer) => {
+        if (isTouchPointer(pointer)) {
+          if (!this.touchGesture || this.touchGesture.id !== pointer.id) return;
+          if (Math.abs(pointer.x - this.touchGesture.startX) > 8 || Math.abs(pointer.y - this.touchGesture.startY) > 8) this.touchGesture.moved = true;
+          this.moveCursor(pointer.x);
+          return;
+        }
+        this.moveCursor(pointer.x);
+      });
+      this.input.on('pointerdown', (pointer) => {
+        JellyAudio.start();
+        if (this.audioSettingsOpen || this.shopOpen || !isBoardPointer(pointer)) return;
+        this.moveCursor(pointer.x);
+        if (isTouchPointer(pointer)) {
+          this.touchGesture = { id: pointer.id, startX: pointer.x, startY: pointer.y, moved: false };
+        } else {
+          this.dropActive();
+        }
+      });
+      this.input.on('pointerup', (pointer) => {
+        if (!isTouchPointer(pointer) || !this.touchGesture || this.touchGesture.id !== pointer.id) return;
+        const gesture = this.touchGesture;
+        this.touchGesture = null;
+        if (!this.audioSettingsOpen && !this.shopOpen && (gesture.moved || isBoardPointer(pointer))) this.dropActive();
+      });
+      this.input.on('pointerupoutside', (pointer) => {
+        if (isTouchPointer(pointer) && this.touchGesture && this.touchGesture.id === pointer.id) {
+          this.touchGesture = null;
+        }
+      });
       this.matter.world.on('collisionstart', (event) => this.handleCollisions(event));
       this.addWalls(); this.nextType = this.pickNextType(); this.spawnActive(); analytics('level_start', { mode: 'jelly_merge' });
       CosmeticStore.init().then(() => this.redrawBackground());
@@ -501,22 +538,24 @@
       if (this.audioSettingsOpen) return;
       this.audioSettingsOpen = true;
       const addPanelItem = (item) => { this.audioPanelItems.push(item); return item; };
-      addPanelItem(this.add.rectangle(815, 351, 278, 238, 0x160e2d, 0.2).setDepth(58));
-      addPanelItem(this.add.rectangle(815, 343, 270, 230, 0x34224f, 0.97).setStrokeStyle(2, 0xe6a9a1, 0.92).setDepth(60));
-      addPanelItem(this.add.text(815, 253, '音量设置', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#fff7ef' }).setOrigin(0.5).setDepth(62));
-      addPanelItem(this.add.text(815, 272, '分别调节音乐与游戏音效', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '11px', color: '#e8c8d0' }).setOrigin(0.5).setDepth(62));
-      addAudioSlider(this, '背景音乐', 306, () => JellyAudio.musicVolume, (value) => JellyAudio.setMusicVolume(value));
-      addAudioSlider(this, '游戏音效', 368, () => JellyAudio.sfxVolume, (value) => JellyAudio.setSfxVolume(value));
-      const musicMute = addButton(this, 910, 306, 70, 27, JellyAudio.musicMuted ? '已静音' : '静音', () => {
+      const panelX = choose(815, CENTER_X);
+      const panelY = choose(343, 480);
+      addPanelItem(this.add.rectangle(panelX, panelY + 8, 278, 238, 0x160e2d, 0.2).setDepth(58));
+      addPanelItem(this.add.rectangle(panelX, panelY, 270, 230, 0x34224f, 0.97).setStrokeStyle(2, 0xe6a9a1, 0.92).setDepth(60));
+      addPanelItem(this.add.text(panelX, panelY - 90, '音量设置', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#fff7ef' }).setOrigin(0.5).setDepth(62));
+      addPanelItem(this.add.text(panelX, panelY - 71, '分别调节音乐与游戏音效', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '11px', color: '#e8c8d0' }).setOrigin(0.5).setDepth(62));
+      addAudioSlider(this, '背景音乐', panelY - 37, () => JellyAudio.musicVolume, (value) => JellyAudio.setMusicVolume(value));
+      addAudioSlider(this, '游戏音效', panelY + 25, () => JellyAudio.sfxVolume, (value) => JellyAudio.setSfxVolume(value));
+      const musicMute = addButton(this, panelX + 95, panelY - 37, 70, 27, JellyAudio.musicMuted ? '已静音' : '静音', () => {
         const enabled = JellyAudio.toggleMusic();
         musicMute.buttonText.setText(enabled ? '静音' : '已静音');
       }, { depth: 65, fontSize: '11px', color: 0x5c3e69, hover: 0x76517e, stroke: 0xd9a2ad, textColor: '#fff7ef' });
-      const sfxMute = addButton(this, 910, 368, 70, 27, JellyAudio.sfxMuted ? '已静音' : '静音', () => {
+      const sfxMute = addButton(this, panelX + 95, panelY + 25, 70, 27, JellyAudio.sfxMuted ? '已静音' : '静音', () => {
         const enabled = JellyAudio.toggleSfx();
         sfxMute.buttonText.setText(enabled ? '静音' : '已静音');
       }, { depth: 65, fontSize: '11px', color: 0x5c3e69, hover: 0x76517e, stroke: 0xd9a2ad, textColor: '#fff7ef' });
       addPanelItem(musicMute); addPanelItem(sfxMute);
-      addPanelItem(addButton(this, 815, 430, 92, 30, '完成', () => this.closeAudioSettings(), { depth: 65, fontSize: '13px', color: 0xff927d, hover: 0xffb29b, stroke: 0xffd1bd, textColor: '#5f3441' }));
+      addPanelItem(addButton(this, panelX, panelY + 87, 92, 30, '完成', () => this.closeAudioSettings(), { depth: 65, fontSize: '13px', color: 0xff927d, hover: 0xffb29b, stroke: 0xffd1bd, textColor: '#5f3441' }));
     }
 
     closeAudioSettings() {
@@ -534,15 +573,15 @@
       this.shopOpen = true;
       analytics('shop_open', { category: this.shopCategory });
       const addShopItem = (item) => { this.shopItems.push(item); return item; };
-      addShopItem(this.add.rectangle(480, 270, 960, 540, 0x20162f, 0.48).setInteractive().setDepth(69));
-      addShopItem(this.add.rectangle(480, 275, 734, 462, 0x34224f, 0.28).setDepth(70));
-      addShopItem(this.add.rectangle(480, 265, 724, 452, 0xfff6eb, 0.99).setStrokeStyle(3, 0x80506e, 0.92).setDepth(71));
-      addShopItem(this.add.text(480, 61, '果冻换装屋', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '30px', fontStyle: 'bold', color: '#56364f' }).setOrigin(0.5).setDepth(72));
-      addShopItem(this.add.text(480, 91, '所有背景与皮肤都可以免费使用 · 点击即可切换', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#8f6b79' }).setOrigin(0.5).setDepth(72));
-      addShopItem(addButton(this, 808, 91, 50, 28, '关闭', () => this.closeShop(), { depth: 74, fontSize: '11px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' }));
-      this.shopStatusText = addShopItem(this.add.text(480, 468, '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#9b5e58', align: 'center' }).setOrigin(0.5).setDepth(74));
-      this.shopBackgroundTab = addShopItem(addButton(this, 390, 126, 170, 36, '背景主题', () => this.setShopCategory('background'), { depth: 74, fontSize: '14px', color: 0xffb29b, hover: 0xffc7b3, stroke: 0xf09b8d, textColor: '#5f3441' }));
-      this.shopJellyTab = addShopItem(addButton(this, 570, 126, 170, 36, '果冻皮肤', () => this.setShopCategory('jelly'), { depth: 74, fontSize: '14px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' }));
+      addShopItem(this.add.rectangle(CENTER_X, HEIGHT / 2, WIDTH, HEIGHT, 0x20162f, 0.48).setInteractive().setDepth(69));
+      addShopItem(this.add.rectangle(CENTER_X, choose(275, 485), choose(734, 510), choose(462, 890), 0x34224f, 0.28).setDepth(70));
+      addShopItem(this.add.rectangle(CENTER_X, choose(265, 475), choose(724, 500), choose(452, 880), 0xfff6eb, 0.99).setStrokeStyle(3, 0x80506e, 0.92).setDepth(71));
+      addShopItem(this.add.text(CENTER_X, choose(61, 55), '果冻换装屋', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('30px', '28px'), fontStyle: 'bold', color: '#56364f' }).setOrigin(0.5).setDepth(72));
+      addShopItem(this.add.text(CENTER_X, choose(91, 91), '所有背景与皮肤都可以免费使用 · 点击即可切换', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('13px', '12px'), color: '#8f6b79', align: 'center', wordWrap: { width: choose(700, 390) } }).setOrigin(0.5).setDepth(72));
+      addShopItem(addButton(this, choose(808, 480), choose(91, 54), 50, 28, '关闭', () => this.closeShop(), { depth: 74, fontSize: '11px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' }));
+      this.shopStatusText = addShopItem(this.add.text(CENTER_X, choose(468, 880), '', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#9b5e58', align: 'center' }).setOrigin(0.5).setDepth(74));
+      this.shopBackgroundTab = addShopItem(addButton(this, choose(390, 165), choose(126, 130), choose(170, 190), 36, '背景主题', () => this.setShopCategory('background'), { depth: 74, fontSize: '14px', color: 0xffb29b, hover: 0xffc7b3, stroke: 0xf09b8d, textColor: '#5f3441' }));
+      this.shopJellyTab = addShopItem(addButton(this, choose(570, 375), choose(126, 130), choose(170, 190), 36, '果冻皮肤', () => this.setShopCategory('jelly'), { depth: 74, fontSize: '14px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' }));
       this.renderShopProducts();
     }
 
@@ -551,8 +590,8 @@
       this.shopCategory = category;
       this.shopBackgroundTab.destroy(); this.shopJellyTab.destroy();
       this.shopItems = this.shopItems.filter((item) => item !== this.shopBackgroundTab && item !== this.shopJellyTab);
-      this.shopBackgroundTab = addButton(this, 390, 126, 170, 36, '背景主题', () => this.setShopCategory('background'), { depth: 74, fontSize: '14px', color: category === 'background' ? 0xffb29b : 0xffffff, hover: 0xffc7b3, stroke: category === 'background' ? 0xf09b8d : 0xc87988, textColor: '#5f3441' });
-      this.shopJellyTab = addButton(this, 570, 126, 170, 36, '果冻皮肤', () => this.setShopCategory('jelly'), { depth: 74, fontSize: '14px', color: category === 'jelly' ? 0xffb29b : 0xffffff, hover: 0xffc7b3, stroke: category === 'jelly' ? 0xf09b8d : 0xc87988, textColor: '#5f3441' });
+      this.shopBackgroundTab = addButton(this, choose(390, 165), choose(126, 130), choose(170, 190), 36, '背景主题', () => this.setShopCategory('background'), { depth: 74, fontSize: '14px', color: category === 'background' ? 0xffb29b : 0xffffff, hover: 0xffc7b3, stroke: category === 'background' ? 0xf09b8d : 0xc87988, textColor: '#5f3441' });
+      this.shopJellyTab = addButton(this, choose(570, 375), choose(126, 130), choose(170, 190), 36, '果冻皮肤', () => this.setShopCategory('jelly'), { depth: 74, fontSize: '14px', color: category === 'jelly' ? 0xffb29b : 0xffffff, hover: 0xffc7b3, stroke: category === 'jelly' ? 0xf09b8d : 0xc87988, textColor: '#5f3441' });
       this.shopItems.push(this.shopBackgroundTab, this.shopJellyTab);
       this.shopStatusText.setText('');
       this.renderShopProducts();
@@ -565,10 +604,28 @@
       const products = STORE_ALL_PRODUCTS.filter((product) => product.category === this.shopCategory);
       const xs = [270, 480, 690];
       products.forEach((product, index) => {
-        const x = xs[index];
+        const x = IS_PORTRAIT ? CENTER_X : xs[index];
         const equipped = CosmeticStore.isEquipped(product);
         const owned = CosmeticStore.isOwned(product.sku);
         const addProductItem = (item) => { this.shopProductItems.push(item); return item; };
+        if (IS_PORTRAIT) {
+          const y = 248 + index * 202;
+          addProductItem(this.add.rectangle(x, y, 460, 180, equipped ? 0xffeadc : 0xffffff, 0.98).setStrokeStyle(equipped ? 3 : 2, equipped ? 0xf28b78 : 0xd7afaa, 0.95).setDepth(73));
+          addProductItem(this.add.text(155, y - 62, product.name, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#5f4051' }).setOrigin(0.5).setDepth(74));
+          addProductItem(this.add.text(155, y - 36, product.description, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '11px', color: '#94737f', align: 'center', wordWrap: { width: 190 } }).setOrigin(0.5).setDepth(74));
+          const preview = addProductItem(this.add.graphics().setDepth(74));
+          if (product.category === 'background') drawThemePreview(preview, 155, y + 30, 176, 82, product.sku);
+          else {
+            preview.fillStyle(0x3b2955, 1).fillRoundedRect(67, y - 11, 176, 82, 12);
+            drawJelly(preview, 155, y + 29, 2, 1, 0.62, -0.08, 1, 1, product.sku);
+            preview.lineStyle(2, 0xe1b7bc, 0.8).strokeRoundedRect(67, y - 11, 176, 82, 12);
+          }
+          addProductItem(this.add.text(378, y - 28, '免费使用', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#5aa17e' }).setOrigin(0.5).setDepth(74));
+          const buttonLabel = equipped ? '使用中' : '立即使用';
+          const action = addProductItem(addButton(this, 378, y + 27, 128, 40, buttonLabel, () => this.handleShopProduct(product), { depth: 75, fontSize: '13px', color: equipped ? 0xd9cfce : 0xff9a83, hover: equipped ? 0xd9cfce : 0xffb29b, stroke: equipped ? 0xb9aaa9 : 0xf0a28e, textColor: equipped ? '#847778' : '#fff8ef' }));
+          if (equipped) action.list[0].disableInteractive();
+          return;
+        }
         addProductItem(this.add.rectangle(x, 304, 188, 292, equipped ? 0xffeadc : 0xffffff, 0.98).setStrokeStyle(equipped ? 3 : 2, equipped ? 0xf28b78 : 0xd7afaa, 0.95).setDepth(73));
         addProductItem(this.add.text(x, 178, product.name, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#5f4051' }).setOrigin(0.5).setDepth(74));
         addProductItem(this.add.text(x, 202, product.description, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '11px', color: '#94737f', align: 'center', wordWrap: { width: 166 } }).setOrigin(0.5).setDepth(74));
@@ -808,26 +865,26 @@
       const rank = window.JellyScoreHistory.indexOf(result) + 1;
       analytics('game_over', { reason, score: this.score, best: window.JellyBestScore, rank, merges: this.mergeCount });
 
-      this.add.rectangle(480, 270, 960, 540, 0x5b5364, 0.42).setDepth(40);
-      this.add.rectangle(480, 270, 520, 430, 0xfff5e8, 0.98).setStrokeStyle(3, 0x694d5b, 0.82).setDepth(41);
-      this.add.text(480, 86, reason === 'time' ? '时间到！' : '果冻堆太高啦', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '32px', fontStyle: 'bold', color: '#4b354d' }).setOrigin(0.5).setDepth(42);
-      this.add.text(480, 122, reason === 'time' ? '两分钟结束，看看你的合并成果' : '危险线以上停留太久', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#806770' }).setOrigin(0.5).setDepth(42);
-      this.add.text(480, 158, `本局 ${this.score} 分  ·  合并 ${this.mergeCount} 次  ·  最高 ${NAMES[this.maxType]}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#6b515c', align: 'center' }).setOrigin(0.5).setDepth(42);
+      this.add.rectangle(CENTER_X, HEIGHT / 2, WIDTH, HEIGHT, 0x5b5364, 0.42).setDepth(40);
+      this.add.rectangle(CENTER_X, choose(270, 480), choose(520, 500), choose(430, 720), 0xfff5e8, 0.98).setStrokeStyle(3, 0x694d5b, 0.82).setDepth(41);
+      this.add.text(CENTER_X, choose(86, 178), reason === 'time' ? '时间到！' : '果冻堆太高啦', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '32px', fontStyle: 'bold', color: '#4b354d' }).setOrigin(0.5).setDepth(42);
+      this.add.text(CENTER_X, choose(122, 224), reason === 'time' ? '两分钟结束，看看你的合并成果' : '危险线以上停留太久', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#806770' }).setOrigin(0.5).setDepth(42);
+      this.add.text(CENTER_X, choose(158, 270), `本局 ${this.score} 分  ·  合并 ${this.mergeCount} 次  ·  最高 ${NAMES[this.maxType]}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#6b515c', align: 'center', wordWrap: { width: choose(500, 440) } }).setOrigin(0.5).setDepth(42);
 
-      this.add.rectangle(480, 268, 410, 178, 0xfffbf3, 0.96).setStrokeStyle(2, 0xe0b2a9, 0.9).setDepth(42);
-      this.add.text(480, 205, `本机本回合排行榜  ·  你的排名 #${rank}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#754351', align: 'center' }).setOrigin(0.5).setDepth(43);
+      this.add.rectangle(CENTER_X, choose(268, 475), choose(410, 440), choose(178, 300), 0xfffbf3, 0.96).setStrokeStyle(2, 0xe0b2a9, 0.9).setDepth(42);
+      this.add.text(CENTER_X, choose(205, 350), `本机本回合排行榜  ·  你的排名 #${rank}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('16px', '15px'), fontStyle: 'bold', color: '#754351', align: 'center' }).setOrigin(0.5).setDepth(43);
       const rows = window.JellyScoreHistory.slice(0, 5);
       rows.forEach((entry, index) => {
         const isCurrent = entry === result;
-        const y = 232 + index * 27;
-        if (isCurrent) this.add.rectangle(480, y + 1, 365, 23, 0xffd9c8, 0.8).setDepth(42);
-        this.add.text(300, y, `#${index + 1}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: isCurrent ? 'bold' : 'normal', color: isCurrent ? '#c9585e' : '#8a6d74' }).setOrigin(0, 0.5).setDepth(43);
-        this.add.text(348, y, isCurrent ? '本局' : '历史记录', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: isCurrent ? 'bold' : 'normal', color: isCurrent ? '#c9585e' : '#8a6d74' }).setOrigin(0, 0.5).setDepth(43);
-        this.add.text(655, y, `${entry.score} 分`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: 'bold', color: isCurrent ? '#c9585e' : '#6b515c', align: 'right' }).setOrigin(1, 0.5).setDepth(43);
+        const y = choose(232 + index * 27, 395 + index * 45);
+        if (isCurrent) this.add.rectangle(CENTER_X, y + 1, choose(365, 400), choose(23, 34), 0xffd9c8, 0.8).setDepth(42);
+        this.add.text(choose(300, 70), y, `#${index + 1}`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: isCurrent ? 'bold' : 'normal', color: isCurrent ? '#c9585e' : '#8a6d74' }).setOrigin(0, 0.5).setDepth(43);
+        this.add.text(choose(348, 125), y, isCurrent ? '本局' : '历史记录', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: isCurrent ? 'bold' : 'normal', color: isCurrent ? '#c9585e' : '#8a6d74' }).setOrigin(0, 0.5).setDepth(43);
+        this.add.text(choose(655, 470), y, `${entry.score} 分`, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', fontStyle: 'bold', color: isCurrent ? '#c9585e' : '#6b515c', align: 'right' }).setOrigin(1, 0.5).setDepth(43);
       });
-      this.add.text(480, 354, '排行榜只记录当前页面内的本机成绩', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#a1848c', align: 'center' }).setOrigin(0.5).setDepth(43);
-      addButton(this, 390, 415, 170, 44, '再来一局', () => this.restart(), { depth: 45, color: 0xff8f76, hover: 0xffa98e, stroke: 0xffc5a6, textColor: '#5f3441' });
-      addButton(this, 570, 415, 170, 44, '返回标题', () => this.scene.start('JellyTitleScene'), { depth: 45, fontSize: '15px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' });
+      this.add.text(CENTER_X, choose(354, 635), '排行榜只记录当前页面内的本机成绩', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#a1848c', align: 'center' }).setOrigin(0.5).setDepth(43);
+      addButton(this, choose(390, 165), choose(415, 755), choose(170, 190), choose(44, 50), '再来一局', () => this.restart(), { depth: 45, color: 0xff8f76, hover: 0xffa98e, stroke: 0xffc5a6, textColor: '#5f3441' });
+      addButton(this, choose(570, 375), choose(415, 755), choose(170, 190), choose(44, 50), '返回标题', () => this.scene.start('JellyTitleScene'), { depth: 45, fontSize: '15px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' });
     }
 
     restart() { this.scene.restart(); }
@@ -875,7 +932,10 @@
         this.timeText.setAlpha(1);
       }
       const nextPalette = paletteFor(this.nextType);
-      this.nextGraphics.clear(); this.nextGraphics.fillStyle(0x25143e, 0.9).fillRoundedRect(715, 116, 70, 70, 16); this.nextGraphics.lineStyle(2, nextPalette.rim, 0.55).strokeRoundedRect(715, 116, 70, 70, 16); drawJelly(this.nextGraphics, 750, 151, this.nextType, 0.95, 0.43, 0, 1);
+      const nextX = choose(715, CENTER_X - 35);
+      const nextY = choose(116, 126);
+      const nextHeight = choose(70, 56);
+      this.nextGraphics.clear(); this.nextGraphics.fillStyle(0x25143e, 0.9).fillRoundedRect(nextX, nextY, 70, nextHeight, 16); this.nextGraphics.lineStyle(2, nextPalette.rim, 0.55).strokeRoundedRect(nextX, nextY, 70, nextHeight, 16); drawJelly(this.nextGraphics, nextX + 35, nextY + nextHeight / 2, this.nextType, 0.95, choose(0.43, 0.38), 0, 1);
     }
   }
 
