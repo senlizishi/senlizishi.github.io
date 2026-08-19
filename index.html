@@ -1,132 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal Introduction</title>
-    <style>
-
-        body {
-            margin: 0;
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
-            color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .container {
-            text-align: center;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s ease-in-out;
-        }
-
-        .profile-pic img {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid #fff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .intro h1 {
-            margin: 20px 0 10px;
-            font-size: 2.5em;
-            font-family: 'Georgia', serif;
-        }
-
-        .intro p {
-            font-size: 1.2em;
-            margin-bottom: 20px;
-            font-family: 'Times New Roman', serif;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 1em;
-            color: #fff;
-            background: #1E90FF;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s, transform 0.3s;
-        }
-
-        button:hover {
-            background: #1C86EE;
-            transform: scale(1.1);
-        }
-
-        .more-info {
-            text-align: center;
-            margin-top: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 15px;
-            color: #333;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s ease-in-out;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .contact-info {
-            margin-top: 15px;
-        }
-
-        .contact-info p {
-            margin: 5px 0;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>果冻叠叠乐</title>
+  <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #120d27; touch-action: none; }
+    canvas { display: block; }
+  </style>
+  <script src="./phaser.min.js"></script>
+  <script src="js/jelly-game.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="profile-pic">
-            <img src="image/bin.jpg" alt="Profile Picture">
-        </div>
-        <div class="intro">
-            <h1>Hi there, I'm BIN</h1>
-            <p>I'm a developer passionate about technology, currently living in Guangzhou, China.</p>
-            <button id="more-btn">About More</button>
-        </div>
-    </div>
-    <div id="more-info" class="more-info hidden">
-        <h2>More About Me</h2>
-        <p>I am currently mainly involved in big data related component development and platform construction.</p>
-        <div class="contact-info">
-            <p><b>Email:</b> weixubin814@gmail.com</p>
-            <p><b>Blog:</b> <a href="https://tinyurl.com/wxbblog" target="_blank">SapphireCoder</a></p>
-        </div>
-    </div>
-    <script>
-        document.getElementById('more-btn').addEventListener('click', function() {
-            var moreInfo = document.getElementById('more-info');
-            if (moreInfo.classList.contains('hidden')) {
-                moreInfo.classList.remove('hidden');
-            } else {
-                moreInfo.classList.add('hidden');
-            }
-        });
-    </script>
+<script>
+window.game = new Phaser.Game({
+  type: Phaser.AUTO,
+  width: 960,
+  height: 540,
+  backgroundColor: '#120d27',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  physics: {
+    default: 'matter',
+    matter: { gravity: { y: 1.12 }, enableSleeping: true, debug: false },
+  },
+  scene: [window.JellyTitleScene, window.JellyGameScene],
+});
+</script>
 </body>
 </html>
