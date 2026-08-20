@@ -947,6 +947,12 @@
     ? { left: 130, top: 158, width: TETRIS_COLS * TETRIS_CELL, height: TETRIS_ROWS * TETRIS_CELL }
     : { left: 360, top: 50, width: TETRIS_COLS * TETRIS_CELL, height: TETRIS_ROWS * TETRIS_CELL };
   const TETRIS_COLORS = [0x52d9ee, 0xffd35c, 0xb68cff, 0x6be58c, 0xff7da7, 0x66a5ff, 0xffa263];
+  const TETRIS_SPEEDS = {
+    slow: { label: '慢速', gravity: 0.48 },
+    normal: { label: '标准', gravity: 0.68 },
+    fast: { label: '快速', gravity: 0.98 },
+  };
+  window.JellyTetrisSpeed = window.JellyTetrisSpeed || 'normal';
   const TETRIS_SHAPES = [
     { name: 'I', color: TETRIS_COLORS[0], matrix: [[1, 1, 1, 1]] },
     { name: 'O', color: TETRIS_COLORS[1], matrix: [[1, 1], [1, 1]] },
@@ -970,25 +976,49 @@
   }
 
   function drawJellyBlock(graphics, x, y, size, color, alpha) {
+    drawCandyJellyCells(graphics, [{ x: x + size / 2, y: y + size / 2, row: 0, col: 0 }], size, color, alpha, 1);
+  }
+
+  function drawCandyJellyCells(graphics, cells, size, color, alpha, seed) {
     const opacity = alpha === undefined ? 1 : alpha;
-    const pad = Math.max(1.5, size * 0.055);
-    const radiusValue = Math.max(5, size * 0.2);
-    const dark = Phaser.Display.Color.IntegerToColor(color);
-    const darkColor = Phaser.Display.Color.GetColor(Math.max(0, dark.red - 45), Math.max(0, dark.green - 45), Math.max(0, dark.blue - 45));
-    const lightColor = Phaser.Display.Color.GetColor(Math.min(255, dark.red + 55), Math.min(255, dark.green + 55), Math.min(255, dark.blue + 55));
-    graphics.fillStyle(darkColor, 0.95 * opacity).fillRoundedRect(x + pad * 0.35, y + pad * 0.7, size - pad * 0.7, size - pad * 0.2, radiusValue);
-    graphics.fillStyle(color, 0.96 * opacity).fillRoundedRect(x + pad, y + pad * 0.38, size - pad * 2, size - pad * 1.35, radiusValue * 0.86);
-    graphics.fillStyle(lightColor, 0.32 * opacity).fillEllipse(x + size * 0.39, y + size * 0.34, size * 0.54, size * 0.19);
-    graphics.fillStyle(0xffffff, 0.56 * opacity).fillEllipse(x + size * 0.3, y + size * 0.26, size * 0.24, size * 0.1);
-    graphics.lineStyle(Math.max(1, size * 0.045), 0xffffff, 0.34 * opacity).strokeRoundedRect(x + pad, y + pad * 0.38, size - pad * 2, size - pad * 1.35, radiusValue * 0.86);
+    const source = Phaser.Display.Color.IntegerToColor(color);
+    const darkColor = Phaser.Display.Color.GetColor(Math.max(0, source.red - 48), Math.max(0, source.green - 48), Math.max(0, source.blue - 48));
+    const lightColor = Phaser.Display.Color.GetColor(Math.min(255, source.red + 58), Math.min(255, source.green + 58), Math.min(255, source.blue + 58));
+    const cellKeys = new Set(cells.map((cell) => `${cell.row}:${cell.col}`));
+    const rect = (cell, expansion, offsetX, offsetY, radiusScale) => {
+      const box = size + expansion;
+      graphics.fillRoundedRect(cell.x - box / 2 + (offsetX || 0), cell.y - box / 2 + (offsetY || 0), box, box, Math.max(4, size * radiusScale));
+    };
+
+    // 先画整块阴影、外沿与底色。各格略微重叠，所以内部没有独立正方形边框。
+    graphics.fillStyle(0x080415, 0.25 * opacity);
+    cells.forEach((cell) => rect(cell, size * 0.12, size * 0.07, size * 0.11, 0.23));
+    graphics.fillStyle(lightColor, 0.36 * opacity);
+    cells.forEach((cell) => rect(cell, size * 0.11, 0, 0, 0.22));
+    graphics.fillStyle(darkColor, 0.98 * opacity);
+    cells.forEach((cell) => rect(cell, size * 0.065, 0, size * 0.025, 0.2));
+    graphics.fillStyle(color, 0.96 * opacity);
+    cells.forEach((cell) => rect(cell, size * 0.02, 0, -size * 0.018, 0.18));
+
+    cells.forEach((cell) => {
+      // 恢复最初的柔和透光与湿润高光，只在外露表面出现。
+      graphics.fillStyle(lightColor, 0.12 * opacity).fillEllipse(cell.x, cell.y + size * 0.13, size * 0.76, size * 0.54);
+      if (!cellKeys.has(`${cell.row - 1}:${cell.col}`)) {
+        graphics.fillStyle(lightColor, 0.28 * opacity).fillEllipse(cell.x - size * 0.04, cell.y - size * 0.3, size * 0.68, size * 0.19);
+        graphics.fillStyle(0xffffff, 0.7 * opacity).fillEllipse(cell.x - size * 0.2, cell.y - size * 0.34, size * 0.34, size * 0.11);
+        graphics.fillStyle(0xffffff, 0.38 * opacity).fillCircle(cell.x - size * 0.33, cell.y - size * 0.08, Math.max(1.1, size * 0.05));
+      }
+    });
   }
 
   function drawTetrisPiece(graphics, matrix, x, y, size, color, alpha) {
+    const cells = [];
     for (let row = 0; row < matrix.length; row += 1) {
       for (let col = 0; col < matrix[row].length; col += 1) {
-        if (matrix[row][col]) drawJellyBlock(graphics, x + col * size, y + row * size, size, color, alpha);
+        if (matrix[row][col]) cells.push({ x: x + (col + 0.5) * size, y: y + (row + 0.5) * size, row, col });
       }
     }
+    drawCandyJellyCells(graphics, cells, size, color, alpha, matrix.length * 13 + matrix[0].length * 7);
   }
 
   function drawTetrisPieceWobble(graphics, matrix, x, y, size, color, alpha, time, intensity) {
@@ -1009,6 +1039,34 @@
     const width = matrix[0].length * size;
     const height = matrix.length * size;
     drawTetrisPiece(graphics, matrix, x - width / 2, y - height / 2, size, color, 1);
+  }
+
+  function addTetrisSpeedSelector(scene, x, y, onChange, compact) {
+    const keys = ['slow', 'normal', 'fast'];
+    const gap = compact ? 62 : 76;
+    const width = compact ? 56 : 68;
+    const items = [];
+    items.push(scene.add.text(x, y - 25, '下落速度', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: compact ? '11px' : '12px', fontStyle: 'bold', color: '#806770', align: 'center' }).setOrigin(0.5).setDepth(24));
+    const refresh = () => {
+      keys.forEach((key, index) => {
+        const selected = window.JellyTetrisSpeed === key;
+        const button = items[index + 1];
+        if (!button) return;
+        button.buttonText.setText(`${selected ? '✓ ' : ''}${TETRIS_SPEEDS[key].label}`);
+        button.buttonText.setColor(selected ? '#5f3441' : '#806770');
+        button.list[0].setStrokeStyle(selected ? 3 : 2, selected ? 0xf08a78 : 0xc87988, 1);
+      });
+    };
+    keys.forEach((key, index) => {
+      const button = addButton(scene, x + (index - 1) * gap, y, width, compact ? 26 : 30, '', () => {
+        window.JellyTetrisSpeed = key;
+        refresh();
+        if (onChange) onChange(key);
+      }, { depth: 25, fontSize: compact ? '10px' : '11px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#806770' });
+      items.push(button);
+    });
+    refresh();
+    return items;
   }
 
   class GameHubScene extends Phaser.Scene {
@@ -1080,7 +1138,8 @@
       this.add.text(CENTER_X, choose(80, 112), 'Q 弹果冻方块', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('46px', '40px'), fontStyle: 'bold', color: '#4b354d', stroke: '#fff7ea', strokeThickness: 7 }).setOrigin(0.5);
       this.add.text(CENTER_X, choose(136, 172), '不消行、不对齐，让软弹果冻自由堆叠', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('19px', '17px'), color: '#765f68', align: 'center', wordWrap: { width: choose(850, 470) } }).setOrigin(0.5);
       this.add.text(CENTER_X, choose(358, 595), IS_PORTRAIT ? '触屏：移动、旋转、加速，让形状稳稳落下' : '键盘：← → 推动 · ↑ 旋转 · ↓ 加速 · 空格速降', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '15px', color: '#765f68', align: 'center', wordWrap: { width: choose(850, 470) } }).setOrigin(0.5);
-      addButton(this, CENTER_X, choose(430, 720), choose(220, 260), choose(54, 62), '开始游戏', () => { JellyAudio.start(); analytics('tetris_start', { mode: 'jelly_tetris' }); this.scene.start('JellyTetrisScene'); }, { color: 0xff8f76, hover: 0xffa98e, stroke: 0xfff3d6, textColor: '#5f3441' });
+      addTetrisSpeedSelector(this, CENTER_X, choose(400, 660), null, false);
+      addButton(this, CENTER_X, choose(450, 740), choose(220, 260), choose(54, 62), '开始游戏', () => { JellyAudio.start(); analytics('tetris_start', { mode: 'jelly_tetris', speed: window.JellyTetrisSpeed }); this.scene.start('JellyTetrisScene'); }, { color: 0xff8f76, hover: 0xffa98e, stroke: 0xfff3d6, textColor: '#5f3441' });
       addButton(this, choose(74, 72), choose(34, 48), choose(92, 98), choose(32, 36), '返回入口', () => this.scene.start('GameHubScene'), { depth: 25, fontSize: '12px', color: 0xffffff, hover: 0xffe0d1, stroke: 0xc87988, textColor: '#754351' });
       this.add.text(CENTER_X, choose(497, 866), '每成功堆下一块得 1 分 · 越过危险线即结束', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#8b7079', align: 'center', wordWrap: { width: choose(850, 470) } }).setOrigin(0.5);
     }
@@ -1388,6 +1447,7 @@
         ? { left: 34, right: 506, top: 142, bottom: 760, danger: 360 }
         : { left: 280, right: 680, top: 42, bottom: 486, danger: 190 };
       this.physicsCell = IS_PORTRAIT ? 42 : 34;
+      this.setPhysicsSpeed(window.JellyTetrisSpeed);
 
       drawBackdrop(this.add.graphics().setDepth(0));
       this.boardGraphics = this.add.graphics().setDepth(1);
@@ -1404,6 +1464,7 @@
       this.helpText = this.add.text(CENTER_X, choose(530, 818), IS_PORTRAIT ? '滑动或使用按钮推动 · 点击旋转 · 向下滑动速降' : '← → 推动 · ↑ 旋转 · ↓ / 空格速降 · R 重开', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '12px', color: '#a1848c', align: 'center' }).setOrigin(0.5).setDepth(20);
       this.queueGraphics = this.add.graphics().setDepth(20);
       this.queueLabel = this.add.text(choose(785, 460), choose(96, 118), '接下来', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', fontStyle: 'bold', color: '#806770', align: 'center' }).setOrigin(0.5).setDepth(21);
+      this.speedButtons = addTetrisSpeedSelector(this, choose(150, CENTER_X), choose(130, 110), (mode) => this.setPhysicsSpeed(mode), true);
 
       this.addPhysicsControls();
       this.keys = this.input.keyboard.addKeys({ left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT, up: Phaser.Input.Keyboard.KeyCodes.UP, down: Phaser.Input.Keyboard.KeyCodes.DOWN, space: Phaser.Input.Keyboard.KeyCodes.SPACE, r: Phaser.Input.Keyboard.KeyCodes.R, esc: Phaser.Input.Keyboard.KeyCodes.ESC });
@@ -1436,6 +1497,15 @@
       this.spawnPhysicsPiece();
       window.JellyTetrisBest = window.JellyTetrisBest || 0;
       analytics('physics_stack_start', { mode: 'jelly_physics_stack' });
+    }
+
+    setPhysicsSpeed(mode) {
+      const key = TETRIS_SPEEDS[mode] ? mode : 'normal';
+      const config = TETRIS_SPEEDS[key];
+      this.speedMode = key;
+      window.JellyTetrisSpeed = key;
+      this.matter.world.setGravity(0, config.gravity);
+      if (this.statusText) this.statusText.setText(`已切换为${config.label}下落，可随时再次调整`);
     }
 
     insidePhysicsBoard(x, y) {
@@ -1479,6 +1549,7 @@
       const spawnY = this.playfield.top + cell * 0.9;
       const MatterLib = Phaser.Physics.Matter.Matter;
       const parts = [];
+      const partCells = [];
       const rows = matrix.length;
       const cols = matrix[0].length;
       for (let row = 0; row < rows; row += 1) {
@@ -1486,7 +1557,8 @@
           if (!matrix[row][col]) continue;
           const px = centerX + (col - (cols - 1) / 2) * cell;
           const py = spawnY + (row - (rows - 1) / 2) * cell;
-          parts.push(MatterLib.Bodies.rectangle(px, py, cell * 0.94, cell * 0.94, { chamfer: { radius: cell * 0.17 } }));
+          parts.push(MatterLib.Bodies.rectangle(px, py, cell * 0.99, cell * 0.99, { chamfer: { radius: cell * 0.17 } }));
+          partCells.push({ row, col });
         }
       }
       const body = MatterLib.Body.create({
@@ -1504,7 +1576,7 @@
         shapeIndex,
         color: shape.color,
         body,
-        localCells: body.parts.slice(1).map((part) => ({ x: part.position.x - body.position.x, y: part.position.y - body.position.y })),
+        localCells: body.parts.slice(1).map((part, index) => ({ x: part.position.x - body.position.x, y: part.position.y - body.position.y, row: partCells[index].row, col: partCells[index].col })),
         age: 0,
         restTime: 0,
         dangerHold: 0,
@@ -1545,7 +1617,7 @@
     fastDrop() {
       if (this.state !== 'playing' || !this.current) return;
       const body = this.current.body;
-      this.matter.body.setVelocity(body, { x: body.velocity.x * 0.82, y: Math.max(body.velocity.y, 9.5) });
+      this.matter.body.setVelocity(body, { x: body.velocity.x * 0.82, y: Math.max(body.velocity.y, 7.4) });
       this.current.deform = Math.max(this.current.deform, 0.28);
       JellyAudio.drop(2);
     }
@@ -1612,12 +1684,13 @@
       this.pieceGraphics.translateCanvas(body.position.x, body.position.y);
       this.pieceGraphics.rotateCanvas(body.angle);
       this.pieceGraphics.scaleCanvas(scaleX, scaleY);
-      piece.localCells.forEach((cell, index) => {
+      const renderCells = piece.localCells.map((cell, index) => {
         const phase = time * 0.013 + index * 1.4;
         const wobbleX = Math.sin(phase) * piece.deform * 3.2;
         const wobbleY = Math.cos(phase * 0.83) * piece.deform * 2.6;
-        drawJellyBlock(this.pieceGraphics, cell.x - this.physicsCell * 0.52 + wobbleX, cell.y - this.physicsCell * 0.52 + wobbleY, this.physicsCell * 1.04, piece.color, 1);
+        return { x: cell.x + wobbleX, y: cell.y + wobbleY, row: cell.row, col: cell.col };
       });
+      drawCandyJellyCells(this.pieceGraphics, renderCells, this.physicsCell * 1.02, piece.color, 1, piece.id * 17 + piece.shapeIndex * 41);
       this.pieceGraphics.restore();
     }
 
