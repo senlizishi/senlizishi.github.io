@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>果冻叠叠乐</title>
+  <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: #bcecff; touch-action: none; }
+    body {
+      position: fixed;
+      inset: 0;
+    }
+    #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; }
+    #home-link {
+      position: fixed; left: 10px; bottom: 10px; z-index: 30;
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255, 251, 243, 0.82); border: 2px solid rgba(105, 77, 91, 0.32);
+      color: #4b354d; font-size: 19px; line-height: 1; text-decoration: none;
+      font-family: "Microsoft YaHei", sans-serif; box-shadow: 0 3px 10px rgba(44, 26, 60, 0.22);
+      -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background 0.12s ease;
+    }
+    #home-link:hover { background: #fff; }
+    #home-link:active { transform: scale(0.92); }
+  </style>
+  <script src="./phaser.min.js"></script>
+  <script src="js/jelly-game.js"></script>
+</head>
+<body>
+<main id="game-root" aria-label="果冻叠叠乐游戏"></main>
+<script>
+const portraitLayout = window.innerHeight > window.innerWidth;
+window.game = new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'game-root',
+  width: portraitLayout ? 540 : 960,
+  height: portraitLayout ? 960 : 540,
+  backgroundColor: '#120d27',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
+  physics: {
+    default: 'matter',
+    matter: { gravity: { y: 1.12 }, enableSleeping: true, debug: false },
+  },
+  scene: [window.JellyTitleScene, window.JellyGameScene],
+});
+
+let lastPortraitLayout = portraitLayout;
+window.addEventListener('resize', () => {
+  const nextPortraitLayout = window.innerHeight > window.innerWidth;
+  if (nextPortraitLayout !== lastPortraitLayout) {
+    lastPortraitLayout = nextPortraitLayout;
+    window.location.reload();
+  }
+});
+</script>
+  <a id="home-link" href="./index.html" aria-label="返回首页">←</a>
+</body>
+</html>

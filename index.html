@@ -3,47 +3,143 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>果冻叠叠乐</title>
+  <title>小游戏合集</title>
   <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
   <style>
+    :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: #bcecff; touch-action: none; }
+    html, body { margin: 0; min-height: 100%; }
     body {
-      position: fixed;
-      inset: 0;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      color: #f5eeff; min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      background:
+        radial-gradient(120% 85% at 10% 4%, #3c2566 0%, rgba(60, 37, 102, 0) 58%),
+        radial-gradient(110% 80% at 92% 98%, #0d4c60 0%, rgba(13, 76, 96, 0) 62%),
+        linear-gradient(160deg, #180f2e 0%, #0b0916 100%);
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
-    #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .5;
+      background-image:
+        radial-gradient(1.6px 1.6px at 18% 22%, rgba(255,255,255,.7), transparent),
+        radial-gradient(1.4px 1.4px at 72% 12%, rgba(255,255,255,.55), transparent),
+        radial-gradient(1.5px 1.5px at 42% 68%, rgba(255,255,255,.45), transparent),
+        radial-gradient(1.3px 1.3px at 88% 62%, rgba(255,255,255,.5), transparent),
+        radial-gradient(1.4px 1.4px at 12% 84%, rgba(255,255,255,.4), transparent);
+      background-size: 520px 520px, 460px 460px, 640px 640px, 560px 560px, 700px 700px;
+    }
+    .shell { position: relative; width: 100%; max-width: 980px; display: flex; flex-direction: column; gap: clamp(16px, 3vh, 30px); }
+    .hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .badge {
+      font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #cbb8f2;
+      padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06);
+    }
+    .hero h1 {
+      margin: 2px 0 0; font-size: clamp(26px, 5.2vw, 40px); letter-spacing: .06em;
+      background: linear-gradient(96deg, #ffe9f6 8%, #c3b2ff 48%, #8ff0e2 92%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      text-shadow: 0 12px 34px rgba(140, 96, 220, .28);
+    }
+    .hero p { margin: 0; font-size: clamp(12px, 2.6vw, 15px); color: #b8a8d6; }
+    .cards { display: grid; gap: clamp(12px, 2.4vw, 18px); grid-template-columns: 1fr; }
+    @media (orientation: landscape) and (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
+    .card {
+      position: relative; display: flex; align-items: center; gap: clamp(12px, 2.6vw, 18px);
+      padding: clamp(13px, 2.4vw, 18px); border-radius: 22px; text-decoration: none; color: inherit;
+      background: linear-gradient(152deg, rgba(255,255,255,.12), rgba(255,255,255,.035));
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 16px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.2);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      overflow: hidden; touch-action: manipulation;
+    }
+    .card::after {
+      content: ""; position: absolute; width: 220px; height: 220px; top: -90px; right: -60px; border-radius: 50%;
+      background: radial-gradient(circle, var(--glow, #7d5bff), transparent 68%); opacity: .5; pointer-events: none;
+    }
+    .card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.3); box-shadow: 0 22px 40px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.24); }
+    .card:active { transform: scale(.985); }
+    .card.jelly { --glow: #5fd0ff; }
+    .card.mahjong { --glow: #35c98a; }
+    .thumb {
+      position: relative; width: clamp(78px, 17vw, 108px); aspect-ratio: 1; flex: none; border-radius: 18px;
+      display: grid; place-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 8px 18px rgba(0,0,0,.3);
+    }
+    .thumb img, .thumb svg { width: 84%; height: 84%; display: block; }
+    .thumb.jelly { background: linear-gradient(158deg, #cdefff, #e5d4ff 88%); }
+    .thumb.mahjong { background: radial-gradient(circle at 50% 32%, #35805a, #10301f 88%); }
+    .meta { min-width: 0; display: flex; flex-direction: column; }
+    .meta h2 { margin: 0 0 4px; font-size: clamp(17px, 2.5vw, 21px); letter-spacing: .03em; }
+    .meta p { margin: 0; font-size: clamp(11.5px, 1.9vw, 13px); line-height: 1.55; color: #c3b3e0; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .tag { font-size: 10.5px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.15); color: #ddd0f2; white-space: nowrap; }
+    .play {
+      margin-left: auto; flex: none; width: clamp(38px, 8vw, 46px); aspect-ratio: 1; border-radius: 50%;
+      display: grid; place-items: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.24);
+      color: #fff; font-size: 15px; transition: background .18s ease, transform .18s ease;
+    }
+    .card:hover .play { background: rgba(255,255,255,.28); transform: translateX(2px); }
+    .foot { text-align: center; font-size: 11.5px; color: #8d7fab; }
+    @media (max-height: 430px) {
+      .hero p { display: none; }
+      .meta p { display: none; }
+      .badge { display: none; }
+    }
   </style>
-  <script src="./phaser.min.js"></script>
-  <script src="js/jelly-game.js"></script>
 </head>
 <body>
-<main id="game-root" aria-label="果冻叠叠乐游戏"></main>
-<script>
-const portraitLayout = window.innerHeight > window.innerWidth;
-window.game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game-root',
-  width: portraitLayout ? 540 : 960,
-  height: portraitLayout ? 960 : 540,
-  backgroundColor: '#120d27',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
-  physics: {
-    default: 'matter',
-    matter: { gravity: { y: 1.12 }, enableSleeping: true, debug: false },
-  },
-  scene: [window.JellyTitleScene, window.JellyGameScene],
-});
+  <div class="shell">
+    <header class="hero">
+      <span class="badge">senlizishi.github.io</span>
+      <h1>小游戏合集</h1>
+      <p>挑一个开始玩，手机横屏竖屏都行</p>
+    </header>
 
-let lastPortraitLayout = portraitLayout;
-window.addEventListener('resize', () => {
-  const nextPortraitLayout = window.innerHeight > window.innerWidth;
-  if (nextPortraitLayout !== lastPortraitLayout) {
-    lastPortraitLayout = nextPortraitLayout;
-    window.location.reload();
-  }
-});
-</script>
+    <section class="cards">
+      <a class="card jelly" href="./jelly.html">
+        <div class="thumb jelly"><img src="assets/jelly-mark.svg" alt="果冻叠叠乐"></div>
+        <div class="meta">
+          <h2>果冻叠叠乐</h2>
+          <p>软糯果冻滑着弹着合在一起，堆得越高越刺激。</p>
+          <div class="tags"><span class="tag">物理合成</span><span class="tag">单手可玩</span></div>
+        </div>
+        <div class="play">▶</div>
+      </a>
+
+      <a class="card mahjong" href="./mahjong.html">
+        <div class="thumb mahjong">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <defs>
+              <linearGradient id="mjIvory" x1="0.1" y1="0" x2="0.35" y2="1">
+                <stop offset="0" stop-color="#fffdf5"/><stop offset="0.55" stop-color="#f6efdc"/><stop offset="1" stop-color="#e6d9ba"/>
+              </linearGradient>
+              <linearGradient id="mjSide" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#dccfab"/><stop offset="1" stop-color="#b9a87f"/>
+              </linearGradient>
+              <linearGradient id="mjBack" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f0e8d3"/><stop offset="1" stop-color="#d8caa6"/>
+              </linearGradient>
+            </defs>
+            <rect x="40" y="36" width="48" height="52" rx="8" fill="url(#mjSide)"/>
+            <rect x="40" y="30" width="48" height="52" rx="8" fill="url(#mjBack)"/>
+            <rect x="22" y="42" width="52" height="56" rx="9" fill="url(#mjSide)"/>
+            <rect x="22" y="34" width="52" height="56" rx="9" fill="url(#mjIvory)"/>
+            <rect x="28" y="40" width="40" height="44" rx="7" fill="none" stroke="#ded1b0" stroke-width="1.6"/>
+            <text x="48" y="74" text-anchor="middle" font-family="serif" font-size="34" font-weight="700" fill="#1c6f3c">&#30332;</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <h2>广东麻将</h2>
+          <p>不吃只碰杠，自摸胡点炮。一人对阵三个电脑玩家。</p>
+          <div class="tags"><span class="tag">1 对 3</span><span class="tag">横竖屏</span><span class="tag">免注册</span></div>
+        </div>
+        <div class="play">▶</div>
+      </a>
+    </section>
+
+    <p class="foot">打完一局自动开下一局 · 数据只存在本机</p>
+  </div>
 </body>
 </html>

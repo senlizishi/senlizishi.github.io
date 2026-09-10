@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  body { margin:0; background:#171029; padding:10px; font-family: "Microsoft YaHei", sans-serif; }
+  .row { display:flex; flex-wrap:wrap; gap:2px; width:1120px; }
+  .t { background:#0d0916; border-radius:4px; padding:2px; }
+  .t canvas { display:block; width:56px; height:75px; }
+  .t div { font-size:9px; color:#c9b8e8; text-align:center; }
+  #tableWrap { margin-top:10px; }
+  #table { width:420px; height:420px; display:block; border-radius:10px; }
+</style></head>
+<body>
+<div class="row" id="grid"></div>
+<div id="tableWrap"><canvas id="table"></canvas></div>
+<script src="js/mahjong/rules.js"></script>
+<script src="js/mahjong/art.js"></script>
+<script>
+  const store = {};
+  const stub = { textures: { exists: (k) => !!store[k], addCanvas: (k, cv) => { store[k] = cv; } } };
+  MahjongArt.build(stub);
+  const clone = (src) => { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; };
+  const grid = document.getElementById('grid');
+  for (let i = 0; i < 34; i += 1) {
+    const box = document.createElement('div'); box.className = 't';
+    box.appendChild(clone(store['mj-face-' + i]));
+    const label = document.createElement('div');
+    label.textContent = MahjongRules.tileName(i);
+    box.appendChild(label);
+    grid.appendChild(box);
+  }
+  const backBox = document.createElement('div'); backBox.className = 't';
+  backBox.appendChild(clone(store['mj-back']));
+  grid.appendChild(backBox);
+  const t = document.getElementById('table');
+  const src = store['mj-table'];
+  t.width = src.width; t.height = src.height;
+  t.getContext('2d').drawImage(src, 0, 0);
+  document.title = 'ready';
+</script>
+</body></html>
