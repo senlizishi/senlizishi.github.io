@@ -726,8 +726,10 @@
     }
 
     makeTileKey(key, x, y, scale, rotation, layer) {
+      // 注意：Phaser 的 Container 没有 create()，牌必须由工厂创建后再 add 进去。
       const target = layer || this.tileLayer;
-      const sprite = target.create(0, 0, key);
+      const sprite = this.add.image(0, 0, key);
+      if (target && typeof target.add === 'function') target.add(sprite);
       ART.place(sprite, x, y, scale);
       if (rotation) sprite.setRotation(rotation);
       this.tileSprites.push(sprite);
