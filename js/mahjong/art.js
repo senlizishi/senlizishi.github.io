@@ -52,18 +52,25 @@
     ctx.closePath();
   }
 
-  // 雕刻感文字：左上高光 + 右下阴影 + 主体色
+  // 雕刻感文字：刀口左上受光 + 凹槽暗影 + 彩色主体，像刻进象牙里
   function engravedText(ctx, text, cx, cy, size, color) {
     ctx.save();
     ctx.font = '700 ' + size + 'px ' + CJK;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-    ctx.fillStyle = 'rgba(255,253,244,0.92)';
-    ctx.fillText(text, cx - size * 0.026, cy - size * 0.036);
-    ctx.fillStyle = 'rgba(72,54,28,0.32)';
-    ctx.fillText(text, cx + size * 0.032, cy + size * 0.05);
-    ctx.lineWidth = size * 0.05;
+    ctx.miterLimit = 2;
+    // 刀口左上受光面
+    ctx.fillStyle = 'rgba(255,255,252,0.95)';
+    ctx.fillText(text, cx - size * 0.03, cy - size * 0.042);
+    // 凹槽里沉下去的暗影
+    ctx.fillStyle = 'rgba(58,40,16,0.42)';
+    ctx.fillText(text, cx + size * 0.036, cy + size * 0.055);
+    // 笔画外沿压一圈深色，把字从底面托起来
+    ctx.lineWidth = size * 0.1;
+    ctx.strokeStyle = 'rgba(56,38,14,0.24)';
+    ctx.strokeText(text, cx + size * 0.016, cy + size * 0.024);
+    ctx.lineWidth = size * 0.062;
     ctx.strokeStyle = color;
     ctx.strokeText(text, cx, cy);
     ctx.fillStyle = color;
@@ -79,28 +86,33 @@
     const t = TILE.thickness;
     const rnd = makeRng(seed);
 
+    // 接触阴影：范围大一点、深一点，牌才不会“飘”在桌面上
     ctx.save();
-    ctx.shadowColor = 'rgba(9,7,3,0.46)';
-    ctx.shadowBlur = 9;
+    ctx.shadowColor = 'rgba(8,6,3,0.5)';
+    ctx.shadowBlur = 12;
     ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 6;
+    ctx.shadowOffsetY = 7;
     roundRect(ctx, M, M + 2, w, h + t - 2, TILE.radius + 1);
-    ctx.fillStyle = '#b6a279';
+    ctx.fillStyle = '#9d8a63';
     ctx.fill();
     ctx.restore();
 
+    // 厚度侧面：上沿受光、下沿吃暗
     const side = ctx.createLinearGradient(0, M, 0, M + h + t);
-    side.addColorStop(0, '#e6d9b8');
-    side.addColorStop(0.7, '#d5c59e');
-    side.addColorStop(1, '#ab9670');
+    side.addColorStop(0, '#f3e8cb');
+    side.addColorStop(0.62, '#e2d3ae');
+    side.addColorStop(0.88, '#c4b087');
+    side.addColorStop(1, '#9c855a');
     roundRect(ctx, M, M + 2, w, h + t - 2, TILE.radius + 1);
     ctx.fillStyle = side;
     ctx.fill();
 
-    const face = ctx.createLinearGradient(M, M, M + w * 0.5, M + h);
-    face.addColorStop(0, '#fffdf7');
-    face.addColorStop(0.4, '#fbf5e4');
-    face.addColorStop(1, '#ecdfc1');
+    // 正面：象牙底色，左上受光更亮
+    const face = ctx.createLinearGradient(M, M, M + w * 0.62, M + h);
+    face.addColorStop(0, '#fffefa');
+    face.addColorStop(0.32, '#fdf8ec');
+    face.addColorStop(0.72, '#f5ead2');
+    face.addColorStop(1, '#e9dbba');
     roundRect(ctx, M, M, w, h, TILE.radius);
     ctx.fillStyle = face;
     ctx.fill();
@@ -109,30 +121,38 @@
     ctx.save();
     roundRect(ctx, M, M, w, h, TILE.radius);
     ctx.clip();
-    const seam = ctx.createLinearGradient(0, M + h - 7, 0, M + h + 2);
+    const seam = ctx.createLinearGradient(0, M + h - 9, 0, M + h + 2);
     seam.addColorStop(0, 'rgba(120,98,58,0)');
-    seam.addColorStop(1, 'rgba(86,66,34,0.5)');
+    seam.addColorStop(0.6, 'rgba(96,74,38,0.32)');
+    seam.addColorStop(1, 'rgba(70,52,24,0.6)');
     ctx.fillStyle = seam;
-    ctx.fillRect(M, M + h - 7, w, 9);
+    ctx.fillRect(M, M + h - 9, w, 11);
+    // 对角反光：象牙的柔和光泽
+    const sheen = ctx.createLinearGradient(M, M, M + w * 0.92, M + h * 0.82);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.4)');
+    sheen.addColorStop(0.42, 'rgba(255,255,255,0.06)');
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(M, M, w, h);
     // 象牙纹路
-    ctx.globalAlpha = 0.5;
-    for (let i = 0; i < 90; i += 1) {
+    ctx.globalAlpha = 0.42;
+    for (let i = 0; i < 80; i += 1) {
       const x = M + rnd() * w;
       const y = M + rnd() * h;
-      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(180,158,116,0.35)';
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(178,155,112,0.32)';
       ctx.fillRect(x, y, 1.1, 1.1);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // 倒角高光
-    roundRect(ctx, M + 1.1, M + 1.1, w - 2.2, h - 2.2, TILE.radius - 1);
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    ctx.lineWidth = 1.6;
-    ctx.stroke();
-    roundRect(ctx, M + 0.5, M + 0.5, w - 1, h - 1, TILE.radius);
-    ctx.strokeStyle = 'rgba(150,128,88,0.35)';
+    // 倒角：外圈浅、内圈亮，棱角更圆润
+    roundRect(ctx, M + 0.6, M + 0.6, w - 1.2, h - 1.2, TILE.radius);
+    ctx.strokeStyle = 'rgba(146,122,82,0.4)';
     ctx.lineWidth = 1;
+    ctx.stroke();
+    roundRect(ctx, M + 1.7, M + 1.7, w - 3.4, h - 3.4, TILE.radius - 1.3);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.7;
     ctx.stroke();
   }
 
@@ -142,26 +162,56 @@
     const pw = TILE.faceW - 16;
     const ph = TILE.faceH - 16;
     roundRect(ctx, px, py, pw, ph, 9);
-    const g = ctx.createRadialGradient(px + pw * 0.42, py + ph * 0.34, pw * 0.08, px + pw * 0.5, py + ph * 0.55, pw * 1.05);
-    g.addColorStop(0, '#fffef9');
-    g.addColorStop(1, '#efe3c6');
+    const g = ctx.createRadialGradient(px + pw * 0.4, py + ph * 0.3, pw * 0.06, px + pw * 0.5, py + ph * 0.58, pw * 1.1);
+    g.addColorStop(0, '#fffefa');
+    g.addColorStop(0.62, '#faf3e0');
+    g.addColorStop(1, '#ece0c0');
     ctx.fillStyle = g;
     ctx.fill();
+
+    // 内凹：上沿压暗、下沿提亮，牌面像嵌进去的一块
+    ctx.save();
+    roundRect(ctx, px, py, pw, ph, 9);
+    ctx.clip();
+    const grooveTop = ctx.createLinearGradient(0, py, 0, py + ph * 0.26);
+    grooveTop.addColorStop(0, 'rgba(118,94,52,0.26)');
+    grooveTop.addColorStop(1, 'rgba(118,94,52,0)');
+    ctx.fillStyle = grooveTop;
+    ctx.fillRect(px, py, pw, ph * 0.26);
+    const grooveBottom = ctx.createLinearGradient(0, py + ph, 0, py + ph * 0.74);
+    grooveBottom.addColorStop(0, 'rgba(255,255,255,0.5)');
+    grooveBottom.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grooveBottom;
+    ctx.fillRect(px, py + ph * 0.74, pw, ph * 0.26);
+    ctx.restore();
+
+    // 外沿亮边 + 内沿暗线
     roundRect(ctx, px - 1.6, py - 1.6, pw + 3.2, ph + 3.2, 10);
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.72)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    roundRect(ctx, px + 0.9, py + 0.9, pw - 1.8, ph - 1.8, 8);
-    ctx.strokeStyle = 'rgba(158,136,94,0.28)';
-    ctx.lineWidth = 1.8;
+    roundRect(ctx, px + 0.4, py + 0.4, pw - 0.8, ph - 0.8, 9);
+    ctx.strokeStyle = 'rgba(150,126,82,0.34)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    roundRect(ctx, px + 1.7, py + 1.7, pw - 3.4, ph - 3.4, 8);
+    ctx.strokeStyle = 'rgba(158,136,94,0.2)';
+    ctx.lineWidth = 1.6;
     ctx.stroke();
     return { x: px, y: py, w: pw, h: ph };
   }
 
   function drawCoin(ctx, x, y, r, color, deep) {
+    // 落地阴影：让圆点看着是凸起来的
+    ctx.beginPath();
+    ctx.arc(x + r * 0.06, y + r * 0.17, r * 1.02, 0, TAU);
+    ctx.fillStyle = 'rgba(56,40,16,0.2)';
+    ctx.fill();
+
     const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
     g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.45, color);
+    g.addColorStop(0.42, color);
+    g.addColorStop(0.84, color);
     g.addColorStop(1, deep);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, TAU);
@@ -170,19 +220,24 @@
     ctx.lineWidth = Math.max(1, r * 0.14);
     ctx.strokeStyle = deep;
     ctx.stroke();
+
+    // 内圈：白底 + 同色细环，像一枚古钱
     ctx.beginPath();
-    ctx.arc(x, y, r * 0.42, 0, TAU);
+    ctx.arc(x, y, r * 0.44, 0, TAU);
     ctx.fillStyle = '#fdf6e2';
     ctx.fill();
     ctx.lineWidth = Math.max(0.8, r * 0.12);
     ctx.strokeStyle = color;
     ctx.stroke();
+
     ctx.beginPath();
     ctx.arc(x, y, r * 0.14, 0, TAU);
     ctx.fillStyle = deep;
     ctx.fill();
+
+    // 左上高光
     ctx.beginPath();
-    ctx.arc(x - r * 0.42, y - r * 0.44, r * 0.2, 0, TAU);
+    ctx.arc(x - r * 0.42, y - r * 0.44, r * 0.19, 0, TAU);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fill();
   }
@@ -198,6 +253,16 @@
     roundRect(ctx, x - r, y - h / 2, w, h, r);
     ctx.fillStyle = body;
     ctx.fill();
+    // 竹节：两道横向暗线，条子才像竹子
+    ctx.strokeStyle = 'rgba(6,52,30,0.42)';
+    ctx.lineWidth = Math.max(0.7, w * 0.1);
+    for (let k = 1; k <= 2; k += 1) {
+      const ny = y - h / 2 + (h * k) / 3;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.86, ny);
+      ctx.lineTo(x + r * 0.86, ny);
+      ctx.stroke();
+    }
     const capGrad = ctx.createLinearGradient(x - r, 0, x + r, 0);
     capGrad.addColorStop(0, DEEP_RED);
     capGrad.addColorStop(0.45, '#d4452f');
@@ -212,11 +277,11 @@
     ctx.strokeStyle = 'rgba(63,26,10,0.55)';
     ctx.lineWidth = Math.max(0.8, w * 0.1);
     ctx.stroke();
-    roundRect(ctx, x - r * 0.34, y - h * 0.28, w * 0.24, h * 0.5, w * 0.12);
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    roundRect(ctx, x - r * 0.44, y - h * 0.3, w * 0.22, h * 0.54, w * 0.11);
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillRect(x - w * 0.16, y - h * 0.05, w * 0.32, Math.max(1, h * 0.03));
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(x - w * 0.14, y - h * 0.04, w * 0.28, Math.max(1, h * 0.026));
   }
 
   const DOT_LAYOUT = {
@@ -389,23 +454,41 @@
       const cx = plate.x + plate.w / 2;
       const cy = plate.y + plate.h / 2;
       if (idx === 6) {                       // 白板：传统空框
-        roundRect(ctx, plate.x + 12, plate.y + 14, plate.w - 24, plate.h - 28, 7);
-        ctx.strokeStyle = 'rgba(31,77,155,0.9)';
-        ctx.lineWidth = 4;
+        const fx = plate.x + 11;
+        const fy = plate.y + 13;
+        const fw = plate.w - 22;
+        const fh = plate.h - 26;
+        roundRect(ctx, fx, fy, fw, fh, 7);
+        ctx.fillStyle = 'rgba(31,77,155,0.06)';
+        ctx.fill();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'rgba(31,77,155,0.92)';
         ctx.stroke();
-        roundRect(ctx, plate.x + 12, plate.y + 14, plate.w - 24, plate.h - 28, 7);
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        roundRect(ctx, fx + 1.6, fy + 1.6, fw - 3.2, fh - 3.2, 6);
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        roundRect(ctx, fx - 2.4, fy - 2.4, fw + 4.8, fh + 4.8, 8);
+        ctx.strokeStyle = 'rgba(31,77,155,0.26)';
         ctx.lineWidth = 1.2;
         ctx.stroke();
         return;
       }
       const text = idx === 4 ? '中' : (idx === 5 ? '發' : rules.HONOR_TEXT[idx]);
-      const color = idx === 4 ? RED : (idx === 5 ? GREEN : '');
-      engravedText(ctx, text, cx, cy, plate.w * 0.92, color || BLUE);
+      const color = idx === 4 ? RED : (idx === 5 ? GREEN : BLUE);
+      // 字牌底纹：一圈极淡的光晕，单字不会显得空
+      const halo = ctx.createRadialGradient(cx, cy, plate.w * 0.06, cx, cy, plate.w * 0.58);
+      halo.addColorStop(0, idx === 4 ? 'rgba(188,51,36,0.11)' : (idx === 5 ? 'rgba(21,117,63,0.11)' : 'rgba(31,77,155,0.08)'));
+      halo.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, plate.w * 0.58, 0, TAU);
+      ctx.fillStyle = halo;
+      ctx.fill();
+      engravedText(ctx, text, cx, cy, plate.w * 0.9, color);
       if (idx === 4) {
         ctx.beginPath();
-        ctx.arc(cx, cy, plate.w * 0.42, 0, TAU);
-        ctx.strokeStyle = 'rgba(188,51,36,0.22)';
+        ctx.arc(cx, cy, plate.w * 0.43, 0, TAU);
+        ctx.strokeStyle = 'rgba(188,51,36,0.24)';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -427,24 +510,89 @@
   function drawBack(ctx) {
     const M = TILE.margin;
     const rnd = makeRng(20240910);
-    roundRect(ctx, M + 9, M + 10, TILE.faceW - 18, TILE.faceH - 20, 9);
-    const g = ctx.createLinearGradient(0, M, 0, M + TILE.faceH);
-    g.addColorStop(0, '#f4ead2');
-    g.addColorStop(1, '#e2d3ae');
+    const bx = M + 9;
+    const by = M + 10;
+    const bw = TILE.faceW - 18;
+    const bh = TILE.faceH - 20;
+
+    // 内嵌的牌背面板
+    roundRect(ctx, bx, by, bw, bh, 9);
+    const g = ctx.createLinearGradient(bx, by, bx + bw * 0.3, by + bh);
+    g.addColorStop(0, '#f7eed9');
+    g.addColorStop(0.5, '#efe3c6');
+    g.addColorStop(1, '#ddcda6');
     ctx.fillStyle = g;
     ctx.fill();
+
     ctx.save();
-    roundRect(ctx, M + 9, M + 10, TILE.faceW - 18, TILE.faceH - 20, 9);
+    roundRect(ctx, bx, by, bw, bh, 9);
     ctx.clip();
-    ctx.globalAlpha = 0.45;
-    for (let i = 0; i < 70; i += 1) {
-      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(178,156,112,0.4)';
-      ctx.fillRect(M + rnd() * TILE.faceW, M + rnd() * TILE.faceH, 1.1, 1.1);
+
+    // 极淡的斜纹编织感
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = 'rgba(186,164,120,0.3)';
+    ctx.lineWidth = 1;
+    for (let d = -bh; d < bw; d += 13) {
+      ctx.beginPath();
+      ctx.moveTo(bx + d, by);
+      ctx.lineTo(bx + d + bh, by + bh);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx + d + bh, by);
+      ctx.lineTo(bx + d, by + bh);
+      ctx.stroke();
     }
+    // 象牙颗粒
+    ctx.globalAlpha = 0.4;
+    for (let i = 0; i < 80; i += 1) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(178,156,112,0.4)';
+      ctx.fillRect(bx + rnd() * bw, by + rnd() * bh, 1.1, 1.1);
+    }
+    ctx.globalAlpha = 1;
+
+    // 面板内凹：上沿暗、下沿亮
+    const inTop = ctx.createLinearGradient(0, by, 0, by + bh * 0.3);
+    inTop.addColorStop(0, 'rgba(122,100,58,0.28)');
+    inTop.addColorStop(1, 'rgba(122,100,58,0)');
+    ctx.fillStyle = inTop;
+    ctx.fillRect(bx, by, bw, bh * 0.3);
+    const inBot = ctx.createLinearGradient(0, by + bh, 0, by + bh * 0.72);
+    inBot.addColorStop(0, 'rgba(255,255,255,0.5)');
+    inBot.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = inBot;
+    ctx.fillRect(bx, by + bh * 0.72, bw, bh * 0.28);
     ctx.restore();
-    roundRect(ctx, M + 11, M + 12, TILE.faceW - 22, TILE.faceH - 24, 8);
-    ctx.strokeStyle = 'rgba(150,126,84,0.35)';
+
+    // 中央小菱形金印
+    const ccx = bx + bw / 2;
+    const ccy = by + bh / 2;
+    const rr = Math.min(bw, bh) * 0.15;
+    ctx.beginPath();
+    ctx.moveTo(ccx, ccy - rr);
+    ctx.lineTo(ccx + rr, ccy);
+    ctx.lineTo(ccx, ccy + rr);
+    ctx.lineTo(ccx - rr, ccy);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(166,126,52,0.45)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ccx, ccy - rr * 0.45);
+    ctx.lineTo(ccx + rr * 0.45, ccy);
+    ctx.lineTo(ccx, ccy + rr * 0.45);
+    ctx.lineTo(ccx - rr * 0.45, ccy);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(190,146,60,0.38)';
+    ctx.fill();
+
+    // 边框：外深内亮，像一圈抛光过的棱
+    roundRect(ctx, bx + 2, by + 2, bw - 4, bh - 4, 8);
+    ctx.strokeStyle = 'rgba(150,126,84,0.34)';
     ctx.lineWidth = 1.4;
+    ctx.stroke();
+    roundRect(ctx, bx + 3.6, by + 3.6, bw - 7.2, bh - 7.2, 7);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
     ctx.stroke();
   }
 
@@ -458,22 +606,58 @@
     if (code >= 0) drawFace(ctx, code); else drawBack(ctx);
     return canvas;
   }
-  function makeRoomCanvas() {
-    const size = 256;
+  // 背景按实际画布尺寸烘焙，避免拉伸导致噪点变成椭圆
+  function makeRoomCanvas(w, h) {
+    const width = Math.max(64, Math.round(w || 480));
+    const height = Math.max(64, Math.round(h || 480));
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
-    const g = ctx.createRadialGradient(size * 0.5, size * 0.36, size * 0.06, size * 0.5, size * 0.5, size * 0.78);
-    g.addColorStop(0, '#4a3668');
-    g.addColorStop(0.45, '#2a1d40');
-    g.addColorStop(1, '#0d0916');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
     const rnd = makeRng(77);
-    for (let i = 0; i < 900; i += 1) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.01 + rnd() * 0.03) + ')';
-      ctx.fillRect(rnd() * size, rnd() * size, 1.2, 1.2);
+
+    // 底色：深紫暗室
+    const base = ctx.createLinearGradient(0, 0, 0, height);
+    base.addColorStop(0, '#150e24');
+    base.addColorStop(0.42, '#241838');
+    base.addColorStop(1, '#0b0714');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, width, height);
+
+    // 顶灯：桌面后上方晕开的一片暖光
+    const pool = ctx.createRadialGradient(width * 0.5, height * 0.42, width * 0.04, width * 0.5, height * 0.44, Math.max(width, height) * 0.62);
+    pool.addColorStop(0, 'rgba(122,98,170,0.55)');
+    pool.addColorStop(0.4, 'rgba(84,62,126,0.3)');
+    pool.addColorStop(1, 'rgba(20,12,34,0)');
+    ctx.fillStyle = pool;
+    ctx.fillRect(0, 0, width, height);
+
+    // 四周压暗，视线收拢到牌桌
+    const vig = ctx.createRadialGradient(width * 0.5, height * 0.46, Math.min(width, height) * 0.2, width * 0.5, height * 0.5, Math.max(width, height) * 0.78);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(0.62, 'rgba(0,0,0,0.28)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, width, height);
+
+    // 顶部/底部再压一层，给 HUD、状态条和手牌让出干净的暗背景
+    const top = ctx.createLinearGradient(0, 0, 0, height * 0.17);
+    top.addColorStop(0, 'rgba(5,3,10,0.6)');
+    top.addColorStop(1, 'rgba(5,3,10,0)');
+    ctx.fillStyle = top;
+    ctx.fillRect(0, 0, width, height * 0.17);
+    const bottom = ctx.createLinearGradient(0, height, 0, height * 0.78);
+    bottom.addColorStop(0, 'rgba(5,3,10,0.66)');
+    bottom.addColorStop(1, 'rgba(5,3,10,0)');
+    ctx.fillStyle = bottom;
+    ctx.fillRect(0, height * 0.78, width, height * 0.22);
+
+    // 浮尘
+    const dust = Math.round((width * height) / 900);
+    for (let i = 0; i < dust; i += 1) {
+      ctx.fillStyle = 'rgba(255,246,220,' + (0.012 + rnd() * 0.035) + ')';
+      const r = 0.6 + rnd() * 1.2;
+      ctx.fillRect(rnd() * width, rnd() * height, r, r);
     }
     return canvas;
   }
@@ -512,6 +696,19 @@
       ctx.lineWidth = 0.6 + rnd() * 2.2;
       ctx.stroke();
     }
+    // 木节：几处同心年轮，外框更像真木料
+    for (let k = 0; k < 5; k += 1) {
+      const kx = rnd() * size;
+      const ky = rnd() * size;
+      const rings = 3 + Math.floor(rnd() * 3);
+      for (let n = rings; n >= 1; n -= 1) {
+        ctx.beginPath();
+        ctx.ellipse(kx, ky, n * (3 + rnd() * 2.4), n * (1.8 + rnd() * 1.6), rnd() * TAU, 0, TAU);
+        ctx.strokeStyle = 'rgba(40,22,8,' + (0.05 + n * 0.02).toFixed(3) + ')';
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+      }
+    }
     // 外沿压暗
     const edge = ctx.createLinearGradient(0, 0, 0, size);
     edge.addColorStop(0, 'rgba(0,0,0,0.35)');
@@ -533,6 +730,14 @@
     felt.addColorStop(1, '#0d3f29');
     roundRect(ctx, feltX, feltY, feltW, feltH, size * 0.03);
     ctx.fillStyle = felt;
+    ctx.fill();
+
+    // 桌面柔光：中心稍亮，视线落在牌桌上
+    const glow = ctx.createRadialGradient(size * 0.5, size * 0.42, feltW * 0.02, size * 0.5, size * 0.46, feltW * 0.62);
+    glow.addColorStop(0, 'rgba(152,236,182,0.14)');
+    glow.addColorStop(1, 'rgba(152,236,182,0)');
+    roundRect(ctx, feltX, feltY, feltW, feltH, size * 0.03);
+    ctx.fillStyle = glow;
     ctx.fill();
 
     ctx.save();
@@ -590,19 +795,24 @@
     ctx.stroke();
     ctx.restore();
 
-    // 木框内沿的金线
-    roundRect(ctx, feltX - 3, feltY - 3, feltW + 6, feltH + 6, size * 0.032);
-    const gold = ctx.createLinearGradient(0, 0, size, size);
-    gold.addColorStop(0, 'rgba(255,226,150,0.85)');
-    gold.addColorStop(0.4, 'rgba(190,146,60,0.7)');
-    gold.addColorStop(0.7, 'rgba(255,232,170,0.8)');
-    gold.addColorStop(1, 'rgba(150,110,40,0.6)');
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 3.4;
+    // 木框内沿的金线：深色凹槽 + 金线 + 内侧高光，做出金属倒角
+    roundRect(ctx, feltX - 8, feltY - 8, feltW + 16, feltH + 16, size * 0.036);
+    ctx.strokeStyle = 'rgba(28,14,5,0.55)';
+    ctx.lineWidth = 4.5;
     ctx.stroke();
-    roundRect(ctx, feltX - 6.5, feltY - 6.5, feltW + 13, feltH + 13, size * 0.035);
-    ctx.strokeStyle = 'rgba(30,16,6,0.5)';
-    ctx.lineWidth = 3;
+    roundRect(ctx, feltX - 4.5, feltY - 4.5, feltW + 9, feltH + 9, size * 0.034);
+    const gold = ctx.createLinearGradient(0, 0, size, size);
+    gold.addColorStop(0, 'rgba(255,236,178,0.95)');
+    gold.addColorStop(0.28, 'rgba(222,174,78,0.9)');
+    gold.addColorStop(0.55, 'rgba(160,116,36,0.85)');
+    gold.addColorStop(0.78, 'rgba(255,232,170,0.9)');
+    gold.addColorStop(1, 'rgba(148,104,32,0.8)');
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 4.4;
+    ctx.stroke();
+    roundRect(ctx, feltX - 2.6, feltY - 2.6, feltW + 5.2, feltH + 5.2, size * 0.031);
+    ctx.strokeStyle = 'rgba(255,246,214,0.45)';
+    ctx.lineWidth = 1.4;
     ctx.stroke();
     roundRect(ctx, 1.5, 1.5, size - 3, size - 3, size * 0.05);
     ctx.strokeStyle = 'rgba(255,214,150,0.28)';
@@ -613,14 +823,14 @@
 
   const Art = {
     TILE: TILE,
-    build: function (scene) {
+    build: function (scene, roomW, roomH) {
       if (scene.textures.exists('mj-face-0')) return;
       for (let code = 0; code < RULES.KIND; code += 1) {
         scene.textures.addCanvas('mj-face-' + code, makeTileCanvas(code));
       }
       scene.textures.addCanvas('mj-back', makeTileCanvas(-1));
       scene.textures.addCanvas('mj-table', makeTableCanvas(1024));
-      scene.textures.addCanvas('mj-room', makeRoomCanvas());
+      scene.textures.addCanvas('mj-room', makeRoomCanvas(roomW, roomH));
     },
     faceKey: function (code) { return 'mj-face-' + code; },
     backKey: 'mj-back',

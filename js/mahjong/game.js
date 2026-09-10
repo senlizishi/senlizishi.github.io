@@ -11,9 +11,13 @@
   const SFX = window.MahjongAudio;
   const TILE = ART.TILE;
 
-  const IS_PORTRAIT = window.innerHeight > window.innerWidth;
-  const WIDTH = IS_PORTRAIT ? 540 : 960;
-  const HEIGHT = IS_PORTRAIT ? 960 : 540;
+  // 画布尺寸由 mahjong.html 按屏幕比例算好放进 window.MahjongView，
+  // 下面的值只是兜底，真正的尺寸在 create() 里落地。
+  let IS_PORTRAIT = window.innerHeight >= window.innerWidth;
+  let WIDTH = IS_PORTRAIT ? 540 : 960;
+  let HEIGHT = IS_PORTRAIT ? 960 : 540;
+  let HUD_INSET = 78;                                    // 左上角返回按钮让出的宽度
+  let SAFE = { top: 0, right: 0, bottom: 0, left: 0 };    // 刘海 / 圆角安全区（画布坐标）
   const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
   const TAU = Math.PI * 2;
 
@@ -37,34 +41,47 @@
     g.closePath();
   }
 
+  // 以 (x, y) 为中心的圆角面板：内部按中心点作画，整体缩放时不会跑偏
   function addPanel(scene, x, y, w, h, color, alpha, radius) {
-    const g = scene.add.graphics();
-    g.fillStyle(0x0d0716, 0.35).fillRoundedRect(x - w / 2 + 3, y - h / 2 + 5, w, h, radius || 14);
-    g.fillStyle(color, alpha === undefined ? 0.92 : alpha).fillRoundedRect(x - w / 2, y - h / 2, w, h, radius || 14);
+    const r = radius || 14;
+    const g = scene.add.graphics({ x: x, y: y });
+    g.fillStyle(0x0d0716, 0.35).fillRoundedRect(-w / 2 + 3, -h / 2 + 5, w, h, r);
+    g.fillStyle(color, alpha === undefined ? 0.92 : alpha).fillRoundedRect(-w / 2, -h / 2, w, h, r);
     return g;
   }
 
-  // 立体感按钮：底影 + 主体 + 顶面高光
+  // 立体感按钮：投影 + 厚度底座 + 圆角亮面 + 金色描边
   function addButton(scene, x, y, w, h, label, onClick, options) {
     const opts = options || {};
     const container = scene.add.container(x, y).setDepth(opts.depth || 60);
-    const shadow = scene.add.rectangle(0, 4, w, h, 0x0b0616, 0.45);
-    const base = scene.add.rectangle(0, 1, w, h - 3, opts.base || 0x5c3a86, 1);
-    const face = scene.add.rectangle(0, -2, w, h - 3, opts.color || 0x7b53ad, 1);
-    const top = scene.add.rectangle(0, -h / 2 + 4, w - 8, 3, 0xffffff, 0.28);
-    const text = scene.add.text(0, -2, label, {
+    const radius = Math.min(opts.radius === undefined ? 12 : opts.radius, h / 2);
+    const color = opts.color === undefined ? 0x7b53ad : opts.color;
+    const base = opts.base === undefined ? 0x5c3a86 : opts.base;
+    const lift = 3;                     // 立面厚度
+    const face = scene.add.graphics();
+    // 贴地投影
+    face.fillStyle(0x070410, 0.42).fillRoundedRect(-w / 2 + 1, -h / 2 + lift + 3, w, h - lift, radius);
+    // 底座（比面低一点，形成厚度）
+    face.fillStyle(base, 1).fillRoundedRect(-w / 2, -h / 2 + lift, w, h - lift, radius);
+    // 按钮面
+    face.fillStyle(color, 1).fillRoundedRect(-w / 2, -h / 2, w, h - lift, radius);
+    // 顶面反光
+    face.fillStyle(0xffffff, 0.18).fillRoundedRect(-w / 2 + 2, -h / 2 + 2, w - 4, (h - lift) * 0.44, Math.max(3, radius - 3));
+    // 金色描边
+    face.lineStyle(1.4, 0xffd89a, 0.4).strokeRoundedRect(-w / 2 + 0.7, -h / 2 + 0.7, w - 1.4, h - lift - 1.4, radius);
+    const text = scene.add.text(0, -lift / 2, label, {
       fontFamily: FONT,
       fontSize: (opts.fontSize || 19) + 'px',
       fontStyle: 'bold',
       color: opts.textColor || '#fff6e6',
     }).setOrigin(0.5);
-    shadow.setOrigin(0.5); base.setOrigin(0.5); face.setOrigin(0.5); top.setOrigin(0.5);
+    if (text.setShadow) text.setShadow(0, 1, 'rgba(0,0,0,0.45)', 2, false, true);
     const hit = scene.add.rectangle(0, 0, w, h, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
     hit.on('pointerdown', () => {
       scene.tweens.add({ targets: container, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true });
       onClick();
     });
-    container.add([shadow, base, face, top, hit, text]);
+    container.add([face, hit, text]);
     container.buttonText = text;
     container.buttonFace = face;
     return container;
@@ -89,52 +106,100 @@
     return value - Math.floor(value);
   }
 
+  // 自适应布局：画布比例等于屏幕比例，所以按画布尺寸算出的坐标天然适配任何机型。
+  // 所有尺寸都从 WIDTH / HEIGHT / SAFE / HUD_INSET 推出来，不写死像素，
+  // 这样竖屏、横屏、平板、桌面窗口都不会出现压边或留黑边。
   function computeLayout() {
-    const table = IS_PORTRAIT
-      ? { cx: 270, cy: 390, size: 536 }
-      : { cx: 430, cy: 252, size: 496 };
-    const rim = table.size * 0.085;
-    const felt = {
-      x: table.cx - table.size / 2 + rim,
-      y: table.cy - table.size / 2 + rim,
-      w: table.size - rim * 2,
-      h: table.size - rim * 2,
-    };
-    const band = IS_PORTRAIT ? 34 : 30;              // 对手手牌靠边的一条
-    const inner = { x: felt.x + band, y: felt.y + band, w: felt.w - band * 2, h: felt.h - band * 2 };
-    const dead = IS_PORTRAIT ? { w: 24, h: 30 } : { w: 24, h: 30 };   // 弃牌槽位（横放时用 w/h 互换）
+    const safe = SAFE;
     const cols = 6;
-    const upDeadDrop = IS_PORTRAIT ? 40 : 30;   // 对家弃牌区整体下移，给副露角落让位
+    const inset = Math.max(safe.left, HUD_INSET);   // 左上角要躲开返回按钮
 
     if (IS_PORTRAIT) {
+      const hud = {
+        titleX: inset,
+        titleY: safe.top + 26,
+        subY: safe.top + 60,
+        pillY: safe.top + 24,
+        pillRight: WIDTH - safe.right - 10,
+        pillW: 68,
+        pillH: 30,
+      };
+
+      // 底部区块自下而上排：提示 -> 手牌 -> 状态 -> 操作按钮
+      const handScale = 0.55;
+      const halfH = TILE.faceH * handScale / 2;
+      const hintY = HEIGHT - safe.bottom - 26;
+      const handY = hintY - 22 - halfH;
+      const statusY = handY - 72;
+      const actionsY = handY - 124;
+
+      const side = clamp(Math.round(WIDTH * 0.034), 12, 26);
+      // 牌桌上沿要让开标题 + 牌墙/局数那一行，否则牌匾会压到桌面上
+      const chipRowBottom = hud.pillY + hud.pillH + 72;
+      const tableTop = Math.max(hud.pillY + hud.pillH + 22, chipRowBottom);
+      const tableBottom = actionsY - 26 - 16;
+      const room = Math.max(180, tableBottom - tableTop);
+      const table = {
+        cx: WIDTH / 2,
+        cy: tableTop + room / 2,
+        size: Math.max(200, Math.min(WIDTH - side * 2, room)),
+      };
+
+      const rim = table.size * 0.085;
+      const felt = {
+        x: table.cx - table.size / 2 + rim,
+        y: table.cy - table.size / 2 + rim,
+        w: table.size - rim * 2,
+        h: table.size - rim * 2,
+      };
+      const band = 34;                              // 对手手牌靠边的一条
+      const inner = { x: felt.x + band, y: felt.y + band, w: felt.w - band * 2, h: felt.h - band * 2 };
+      const upDeadDrop = 40;                        // 对家弃牌区下移，给副露角落让位
       const meldBand = 44;
       const region = { x: inner.x, y: inner.y, w: inner.w, h: inner.h - meldBand };
+
+      // 弃牌槽按剩下的空间取大小：牌尽量大，槽位留缝，看着不挤
+      const dead = {
+        w: clamp(Math.floor(region.w / cols), 22, 34),
+        h: clamp(Math.floor(region.h / 5), 26, 44),
+      };
+      const deadScale = clamp((dead.h - 6) / TILE.faceH, 0.15, 0.27);
       const gapX = (region.w - cols * dead.w) / 2;
       const left = region.x + gapX;
-      const right = left + (cols - 1) * dead.w;
       const centerY = region.y + region.h / 2;
       const sideTop = centerY - ((cols - 1) * dead.w) / 2;
+
+      // 对手整条手牌要放得进内圈：牌桌越小画得越小，牌多时自动收紧间距
+      const innerMin = Math.min(inner.w, inner.h);
+      const oppScale = Math.round(clamp((innerMin - 8) / 1185.6, 0.15, 0.26) * 100) / 100;
+      const oppPitch = clamp(Math.floor((innerMin - TILE.faceW * oppScale - 6) / 13), 8, 26);
+
       return {
         table: table,
         felt: felt,
         inner: inner,
         region: region,
-        hud: { titleX: 78, titleY: 26, subY: 60, pillY: 24, pillRight: 530, pillW: 68, pillH: 30 },
-        hand: { y: 752, scale: 0.5, maxPitch: 40, avail: WIDTH - 24, left: 12 },
+        hud: hud,
+        hand: { y: handY, scale: handScale, maxPitch: 44, avail: WIDTH - side * 2, left: side },
         meldBand: meldBand,
-        playerMeld: { y: region.y + region.h + meldBand / 2 + 12, scale: 0.24, right: 486, maxWidth: 250 },
-        oppScale: 0.24,
-        oppPitch: 24,
-        deadScale: 0.2,
+        playerMeld: {
+          y: region.y + region.h + meldBand / 2 + 12,
+          scale: 0.26,
+          right: felt.x + felt.w - 10,
+          maxWidth: Math.round(felt.w * 0.66),
+        },
+        oppScale: oppScale,
+        oppPitch: oppPitch,
+        deadScale: deadScale,
         corner: {
           1: { x: inner.x + inner.w, y: inner.y + 18, align: 'right' },
           2: { x: inner.x, y: inner.y + 18, align: 'left' },
           3: { x: inner.x, y: inner.y + inner.h - 18, align: 'left', growUp: true },
         },
         oppMeld: {
-          1: { scale: 0.17, maxWidth: 168 },
-          2: { scale: 0.17, maxWidth: 168 },
-          3: { scale: 0.17, maxWidth: 160 },
+          1: { scale: 0.18, maxWidth: 168 },
+          2: { scale: 0.18, maxWidth: 168 },
+          3: { scale: 0.18, maxWidth: 160 },
         },
         seats: {
           0: { originX: table.cx - (cols - 1) * dead.w / 2, originY: region.y + region.h - dead.h / 2, stepX: dead.w, stepY: -dead.h, rotation: 0 },
@@ -144,62 +209,129 @@
         },
         cols: cols,
         opp: {
-          2: { from: 'x', y: inner.y - band / 2, pitch: 24, center: table.cx },
-          3: { from: 'y', x: inner.x - band / 2, pitch: 24, center: table.cy },
-          1: { from: 'y', x: inner.x + inner.w + band / 2, pitch: 24, center: table.cy },
+          2: { from: 'x', y: inner.y - band / 2, pitch: oppPitch, center: table.cx },
+          3: { from: 'y', x: inner.x - band / 2, pitch: oppPitch, center: table.cy },
+          1: { from: 'y', x: inner.x + inner.w + band / 2, pitch: oppPitch, center: table.cy },
         },
-        actions: { mode: 'row', x: 270, y: 640, w: 78, h: 44, gap: 10 },
-        status: { x: 270, y: 690 },
-        hint: { x: 270, y: 830 },
-        wallChip: { x: 120, y: 94 },
-        roundChip: { x: 372, y: 94 },
+        actions: { mode: 'row', x: WIDTH / 2, y: actionsY, w: 94, h: 52, gap: 12 },
+        status: { x: WIDTH / 2, y: statusY },
+        hint: { x: WIDTH / 2, y: hintY },
+        wallChip: { x: inset + 82, y: safe.top + 94 },
+        roundChip: { x: WIDTH - safe.right - 168, y: safe.top + 94 },
       };
     }
 
+    // ---------------- 横屏 ----------------
+    // 横屏高度基本被牌桌吃满，顶部留不出横带，所以标题写在牌桌正上方，
+    // 音量/重开、牌墙、局数、操作按钮全部收进右侧操作栏。
+    const rightCol = clamp(Math.round(WIDTH * 0.2), 158, 224);
+    const controlsX = WIDTH - safe.right - Math.round(rightCol * 0.5);
+    const controlsLeft = WIDTH - safe.right - rightCol;
+
+    const hudBand = Math.round(clamp(WIDTH * 0.055, 46, 58));
+    const pillH = 30;
+    const hud = {
+      titleX: 0,                                   // 下面按牌桌中线补
+      titleY: safe.top + hudBand * 0.40,
+      subY: safe.top + hudBand * 0.80,
+      pillY: safe.top + 20,
+      pillRight: WIDTH - safe.right - 10,
+      pillW: 68,
+      pillH: pillH,
+    };
+
+    const handScale = 0.54;
+    const halfH = TILE.faceH * handScale / 2;
+    const handY = HEIGHT - safe.bottom - 16 - halfH;
+    const bodyW = WIDTH - safe.left - safe.right;
+    const handAvail = Math.min(bodyW - 200, 760);
+    const handLeft = safe.left + (bodyW - handAvail) / 2;
+
+    const vmargin = clamp(Math.round(HEIGHT * 0.024), 8, 16);
+    const tableTop = safe.top + hudBand;
+    const tableBottom = HEIGHT - safe.bottom - vmargin;
+    const band = Math.max(180, tableBottom - tableTop);
+    // 牌桌可用横向区间：左沿躲开返回按钮，右沿让开操作栏
+    const leftEdge = inset;
+    const rightEdge = controlsLeft - 6;
+    const span = Math.max(180, rightEdge - leftEdge);
+    const size = Math.max(180, Math.min(span, band));
+    const cx = leftEdge + Math.max(0, span - size) / 2 + size / 2;
+    const table = { cx: cx, cy: tableTop + band / 2, size: size };
+    hud.titleX = cx;
+
+    const rim = size * 0.085;
+    const felt = {
+      x: cx - size / 2 + rim,
+      y: table.cy - size / 2 + rim,
+      w: size - rim * 2,
+      h: size - rim * 2,
+    };
+    const band2 = 30;
+    const inner = { x: felt.x + band2, y: felt.y + band2, w: felt.w - band2 * 2, h: felt.h - band2 * 2 };
+    const upDeadDrop = 30;
+    const meldBand = 0;
     const region = { x: inner.x, y: inner.y, w: inner.w, h: inner.h };
+
+    const dead = {
+      w: clamp(Math.floor(region.w / cols), 22, 34),
+      h: clamp(Math.floor(region.h / 5), 26, 44),
+    };
+    const deadScale = clamp((dead.h - 6) / TILE.faceH, 0.15, 0.27);
     const gapX = (region.w - cols * dead.w) / 2;
     const left = region.x + gapX;
     const centerY = region.y + region.h / 2;
     const sideTop = centerY - ((cols - 1) * dead.w) / 2;
+
+    const innerMin = Math.min(inner.w, inner.h);
+    const oppScale = Math.round(clamp((innerMin - 8) / 1185.6, 0.15, 0.26) * 100) / 100;
+    const oppPitch = clamp(Math.floor((innerMin - TILE.faceW * oppScale - 6) / 13), 8, 26);
+
     return {
       table: table,
       felt: felt,
       inner: inner,
       region: region,
-      hud: { titleX: 78, titleY: 22, subY: 50, pillY: 20, pillRight: 934, pillW: 68, pillH: 30 },
-      hand: { y: 490, scale: 0.5, maxPitch: 40, avail: 560, left: 130 },
-      meldBand: 0,
-      playerMeld: { y: 452, scale: 0.24, right: 946, maxWidth: 220 },
-      oppScale: 0.22,
-      oppPitch: 22,
-      deadScale: 0.2,
+      hud: hud,
+      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft },
+      meldBand: meldBand,
+      // 自己的副露靠在操作栏左边、手牌上方
+      playerMeld: {
+        y: handY - halfH - 26,
+        scale: 0.22,
+        right: rightEdge,
+        maxWidth: Math.max(150, Math.round((controlsLeft - safe.left) * 0.34)),
+      },
+      oppScale: oppScale,
+      oppPitch: oppPitch,
+      deadScale: deadScale,
       corner: {
-        1: { x: felt.x + felt.w, y: inner.y + 18, align: 'right' },
+        1: { x: inner.x + inner.w, y: inner.y + 18, align: 'right' },
         2: { x: inner.x, y: inner.y + 18, align: 'left' },
-        3: { x: inner.x - 30, y: inner.y + inner.h - 18, align: 'left', growUp: true },
+        3: { x: inner.x, y: inner.y + inner.h - 18, align: 'left', growUp: true },
       },
       oppMeld: {
-        1: { scale: 0.16, maxWidth: 200 },
-        2: { scale: 0.16, maxWidth: 180 },
-        3: { scale: 0.16, maxWidth: 120 },
+        1: { scale: 0.17, maxWidth: 200 },
+        2: { scale: 0.17, maxWidth: 180 },
+        3: { scale: 0.17, maxWidth: 120 },
       },
       seats: {
-        0: { originX: left, originY: region.y + region.h - dead.h / 2, stepX: dead.w, stepY: -dead.h, rotation: 0 },
+        0: { originX: table.cx - (cols - 1) * dead.w / 2, originY: region.y + region.h - dead.h / 2, stepX: dead.w, stepY: -dead.h, rotation: 0 },
         2: { originX: left + (cols - 1) * dead.w, originY: region.y + dead.h / 2 + upDeadDrop, stepX: -dead.w, stepY: dead.h, rotation: Math.PI },
         3: { originX: region.x + (dead.h + 4) / 2, originY: sideTop, stepX: dead.h + 4, stepY: dead.w, rotation: Math.PI / 2 },
         1: { originX: region.x + region.w - (dead.h + 4) / 2, originY: sideTop, stepX: -(dead.h + 4), stepY: dead.w, rotation: -Math.PI / 2 },
       },
       cols: cols,
       opp: {
-        2: { from: 'x', y: inner.y - band / 2, pitch: 22, center: table.cx },
-        3: { from: 'y', x: inner.x - band / 2, pitch: 22, center: table.cy },
-        1: { from: 'y', x: inner.x + inner.w + band / 2, pitch: 22, center: table.cy },
+        2: { from: 'x', y: inner.y - band2 / 2, pitch: oppPitch, center: table.cx },
+        3: { from: 'y', x: inner.x - band2 / 2, pitch: oppPitch, center: table.cy },
+        1: { from: 'y', x: inner.x + inner.w + band2 / 2, pitch: oppPitch, center: table.cy },
       },
-      actions: { mode: 'col', x: 862, y: 158, w: 104, h: 48, gap: 12 },
-      status: { x: 838, y: 380 },
-      hint: { x: 838, y: 420 },
-      wallChip: { x: 96, y: 96 },
-      roundChip: { x: 96, y: 126 },
+      actions: { mode: 'col', x: controlsX, y: safe.top + 146, w: 104, h: 52, gap: 12 },
+      status: { x: controlsX, y: HEIGHT * 0.7, wrap: rightCol - 14 },
+      hint: { x: controlsX, y: HEIGHT * 0.78, wrap: rightCol - 14 },
+      wallChip: { x: controlsX - 16, y: safe.top + 72 },
+      roundChip: { x: controlsX, y: safe.top + 104 },
     };
   }
 
@@ -207,7 +339,13 @@
     constructor() { super('MahjongScene'); }
 
     create() {
-      ART.build(this);
+      const view = window.MahjongView;
+      WIDTH = Math.round(view && view.w ? view.w : this.scale.width);
+      HEIGHT = Math.round(view && view.h ? view.h : this.scale.height);
+      IS_PORTRAIT = HEIGHT >= WIDTH;
+      SAFE = (view && view.safe) || { top: 0, right: 0, bottom: 0, left: 0 };
+      HUD_INSET = (view && view.hudInset) || 78;
+      ART.build(this, WIDTH, HEIGHT);
       this.L = computeLayout();
       this.random = Math.random;
       this.timers = [];
@@ -239,22 +377,29 @@
     }
 
     drawBackdrop() {
+      // 背景贴图按画布尺寸烘焙，顶部/底部的渐隐在贴图里，不会出现硬边
       this.add.image(WIDTH / 2, HEIGHT / 2, 'mj-room').setDisplaySize(WIDTH, HEIGHT).setDepth(0);
-      const g = this.add.graphics().setDepth(1);
-      g.fillStyle(0x000000, 0.25).fillRect(0, 0, WIDTH, IS_PORTRAIT ? 120 : 96);
-      g.fillStyle(0x000000, 0.2).fillRect(0, HEIGHT - (IS_PORTRAIT ? 150 : 90), WIDTH, IS_PORTRAIT ? 150 : 90);
     }
 
     drawTableDecor() {
       const g = this.add.graphics().setDepth(3);
       const t = this.L.table;
-      g.lineStyle(2, 0xffe6b0, 0.16).strokeRoundedRect(t.cx - t.size / 2 + 3, t.cy - t.size / 2 + 3, t.size - 6, t.size - 6, t.size * 0.045);
+      const x = t.cx - t.size / 2;
+      const y = t.cy - t.size / 2;
+      g.lineStyle(2, 0xffe6b0, 0.16).strokeRoundedRect(x + 3, y + 3, t.size - 6, t.size - 6, t.size * 0.045);
+      g.lineStyle(1, 0xffcf85, 0.12).strokeRoundedRect(x + t.size * 0.028, y + t.size * 0.028, t.size * 0.944, t.size * 0.944, t.size * 0.042);
     }
 
     buildHud() {
       const hud = this.L.hud;
-      this.uiLayer.add(text(this, hud.titleX, hud.titleY, '广东麻将', IS_PORTRAIT ? 26 : 24, '#f7e6c4', { bold: true }));
-      this.uiLayer.add(text(this, hud.titleX, hud.subY, '不吃 · 只能碰杠 · 自摸或胡别人', IS_PORTRAIT ? 12 : 11, '#c8b494'));
+      // 竖屏标题贴左上角，横屏没有左侧余量，标题居中压在手牌上方的横带上
+      const hudOriginX = IS_PORTRAIT ? 0 : 0.5;
+      this.uiLayer.add(text(this, hud.titleX, hud.titleY, '广东麻将', IS_PORTRAIT ? 26 : 24, '#f7e6c4', {
+        bold: true, originX: hudOriginX, stroke: '#2a1408', strokeThickness: 4,
+      }));
+      this.uiLayer.add(text(this, hud.titleX, hud.subY, '不吃 · 只能碰杠 · 自摸或胡别人', IS_PORTRAIT ? 12 : 11, '#c8b494', {
+        originX: hudOriginX,
+      }));
       const btnW = hud.pillW;
       const btnH = hud.pillH;
       const gap = 8;
@@ -267,14 +412,40 @@
       this.soundPill = mkPill('音量', 0, () => this.toggleSound());
       this.uiLayer.add(this.soundPill);
       this.uiLayer.add(mkPill('重开', 1, () => { this.startHand(); }));
-      this.wallText = text(this, this.L.wallChip.x + 16, this.L.wallChip.y, '', IS_PORTRAIT ? 15 : 14, '#f3e3bf', { bold: true, originX: 0, originY: 0.5 });
+
+      this.wallText = text(this, this.L.wallChip.x + (IS_PORTRAIT ? 16 : 0), this.L.wallChip.y, '', IS_PORTRAIT ? 15 : 14, '#f3e3bf', {
+        bold: true, originX: IS_PORTRAIT ? 0 : 0.5, originY: 0.5, stroke: '#1b1024', strokeThickness: 3,
+      });
+      this.roundText = text(this, this.L.roundChip.x, this.L.roundChip.y, '', 11, '#c9b696', { originX: 0.5, originY: 0.5 });
+      // 局数/风向那行小字垫一块牌匾，细字也看得清
+      this.roundBadge = this.add.graphics();
+      this.uiLayer.addAt(this.roundBadge, 0);
       this.uiLayer.add(this.wallText);
-      this.roundText = text(this, this.L.roundChip.x, this.L.roundChip.y, '', 11, '#c1ae8c', { originX: 0.5, originY: 0.5 });
       this.uiLayer.add(this.roundText);
-      this.statusText = text(this, this.L.status.x, this.L.status.y, '', IS_PORTRAIT ? 15 : 14, '#f6e8cc', { bold: true, originX: 0.5, originY: 0.5 });
+
+      this.statusText = text(this, this.L.status.x, this.L.status.y, '', IS_PORTRAIT ? 17 : 14, '#f6e8cc', {
+        bold: true, originX: 0.5, originY: 0.5, wrap: this.L.status.wrap, stroke: '#1b1024', strokeThickness: 4,
+      });
       this.uiLayer.add(this.statusText);
-      this.hintLabel = text(this, this.L.hint.x, this.L.hint.y, '', IS_PORTRAIT ? 13 : 12, '#ffd9a0', { originX: 0.5, originY: 0.5 });
+      this.hintLabel = text(this, this.L.hint.x, this.L.hint.y, '', IS_PORTRAIT ? 15 : 12, '#ffd9a0', {
+        originX: 0.5, originY: 0.5, wrap: this.L.hint.wrap, stroke: '#1b1024', strokeThickness: 3,
+      });
       this.uiLayer.add(this.hintLabel);
+      this.drawRoundBadge();
+    }
+
+    // 牌匾按文字实际宽度绘制，换局后文字变长也不会溢出
+    drawRoundBadge() {
+      if (!this.roundBadge || !this.roundText) return;
+      const w = Math.max(112, this.roundText.width + 22);
+      const h = 21;
+      // 文字变长时把牌匾夹在屏幕内，别贴到边上
+      const x = clamp(this.L.roundChip.x, w / 2 + 8 + SAFE.left, WIDTH - w / 2 - 8 - SAFE.right);
+      const y = this.L.roundChip.y;
+      this.roundText.setPosition(x, y);
+      this.roundBadge.clear();
+      this.roundBadge.fillStyle(0x140c24, 0.4).fillRoundedRect(x - w / 2, y - h / 2, w, h, 11);
+      this.roundBadge.lineStyle(1, 0xffd89a, 0.14).strokeRoundedRect(x - w / 2 + 0.5, y - h / 2 + 0.5, w - 1, h - 1, 11);
     }
 
     toggleSound() {
@@ -458,7 +629,7 @@
       this.actions = [];
       this.selected = -1;
       SFX.kong();
-      this.showBanner('杠', 0);
+      this.showBanner('杠', 0, '#ffc24d');
       this.sortHand(0);
       if (!this.wall.length) return this.finishHand({ type: 'liuju' });
       this.drawTile(0);
@@ -519,7 +690,7 @@
         if (meld) meld.type = 'kong';
       }
       SFX.kong();
-      this.showBanner('杠', seat);
+      this.showBanner('杠', seat, '#ffc24d');
       this.renderAll();
       this.later(480, () => {
         if (this.state !== 'playing') return;
@@ -604,7 +775,7 @@
       this.removeDiscard(from, tile);
       this.lastDiscardSeat = -1;
       SFX[type === 'kong' ? 'kong' : 'pong']();
-      this.showBanner(type === 'kong' ? '杠' : '碰', seat);
+      this.showBanner(type === 'kong' ? '杠' : '碰', seat, type === 'kong' ? '#ffc24d' : '#a8dcff');
       this.turn = seat;
       this.updateTenpaiHint();
       if (seat === 0) this.sortHand(0);
@@ -680,22 +851,42 @@
       const cy = HEIGHT / 2;
       const w = IS_PORTRAIT ? 340 : 420;
       const h = IS_PORTRAIT ? 210 : 180;
-      const layer = this.uiLayer;
       const shade = this.add.rectangle(cx, cy, WIDTH, HEIGHT, 0x08040f, 0.5).setDepth(90).setInteractive();
-      const panel = addPanel(this, cx, cy, w, h, 0x2b1d40, 0.98, 20).setDepth(92);
-      const titleText = text(this, cx, cy - h / 2 + 34, title, IS_PORTRAIT ? 30 : 28, '#ffd98a', { bold: true, originX: 0.5, originY: 0.5 }).setDepth(94);
-      const detailText = text(this, cx, cy - 8, detail, IS_PORTRAIT ? 14 : 13, '#f0e2c8', { originX: 0.5, originY: 0.5, align: 'center', wrap: w - 40 }).setDepth(94);
+      shade.setAlpha(0);
+
+      const panel = addPanel(this, cx, cy, w, h, 0x2b1d40, 0.985, 20).setDepth(92);
+      // 顶部反光 + 双层金线 + 标题下的分隔线
+      panel.fillStyle(0xffffff, 0.05).fillRoundedRect(-w / 2 + 4, -h / 2 + 4, w - 8, h * 0.42, 16);
+      panel.lineStyle(2.4, 0xd9a441, 0.72).strokeRoundedRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6, 17);
+      panel.lineStyle(1, 0xffe6b0, 0.26).strokeRoundedRect(-w / 2 + 8.5, -h / 2 + 8.5, w - 17, h - 17, 13);
+      panel.lineStyle(1, 0xffd98a, 0.32).lineBetween(-w * 0.3, -h / 2 + 58, w * 0.3, -h / 2 + 58);
+
+      const titleText = text(this, cx, cy - h / 2 + 34, title, IS_PORTRAIT ? 30 : 28, '#ffd98a', {
+        bold: true, originX: 0.5, originY: 0.5, stroke: '#3a1c07', strokeThickness: 4,
+      }).setDepth(94);
+      const detailText = text(this, cx, cy - 6, detail, IS_PORTRAIT ? 14 : 13, '#f0e2c8', {
+        originX: 0.5, originY: 0.5, align: 'center', wrap: w - 44,
+      }).setDepth(94);
       const button = addButton(this, cx, cy + h / 2 - 40, 150, 44, '下一局', () => this.startHand(), {
         color: 0xd08a3c, base: 0x7d4d1c, fontSize: 17, depth: 96, textColor: '#fff6e4',
       });
       shade.on('pointerdown', () => this.startHand());
+
+      // 弹出：面板从略小放大到原尺寸
+      panel.setScale(0.88);
+      button.setScale(0.88);
+      titleText.setAlpha(0);
+      detailText.setAlpha(0);
+      this.tweens.add({ targets: shade, alpha: 0.5, duration: 200 });
+      this.tweens.add({ targets: [panel, button], scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: [titleText, detailText], alpha: 1, duration: 260, delay: 90 });
       this.bannerObjects.push(shade, panel, titleText, detailText, button);
     }
 
-    showBanner(label, seat) {
+    showBanner(label, seat, tint) {
       const position = this.bannerPosition(seat);
-      const item = text(this, position.x, position.y, label, IS_PORTRAIT ? 40 : 34, '#ffd479', {
-        bold: true, originX: 0.5, originY: 0.5, stroke: '#48220f', strokeThickness: 7,
+      const item = text(this, position.x, position.y, label, IS_PORTRAIT ? 40 : 34, tint || '#ffd479', {
+        bold: true, originX: 0.5, originY: 0.5, stroke: '#3f1c0a', strokeThickness: 7,
       }).setDepth(80);
       item.setScale(0.5);
       this.bannerObjects.push(item);
@@ -814,7 +1005,8 @@
       const playerMelds = this.seats[0].melds;
       if (playerMelds.length) {
         const cfg = this.L.playerMeld;
-        this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400);
+        // 副露多时往上叠，别顶到手牌或掉出牌桌
+        this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400, true);
       }
       for (const seat of [1, 2, 3]) {
         const melds = this.seats[seat].melds;
@@ -858,6 +1050,12 @@
         const lifted = i === this.selected;
         const x = metrics.startX + i * metrics.pitch;
         const y = this.L.hand.y - (lifted ? 18 : 0);
+        if (lifted) {
+          // 选中的牌下面托一层金光，抬起来更明显
+          const glow = this.add.graphics().setDepth(6);
+          glow.fillStyle(0xffd479, 0.26).fillRoundedRect(x - TILE.faceW * scale / 2 - 3, y - half - 3, TILE.faceW * scale + 6, TILE.faceH * scale + 6, 7);
+          this.marks.push(glow);
+        }
         this.makeTile(state.hand[i], x, y, scale, 0);
         if (this.drawnThisTurn && i === state.drawnIndex) {
           const dot = this.add.graphics().setDepth(6);
@@ -926,6 +1124,7 @@
       const windOfSeat = WIND_NAME[((0 - this.dealer) + 4) % 4];
       const windNow = WIND_NAME[((this.turn - this.dealer) + 4) % 4];
       this.roundText.setText('第 ' + this.handIndex + ' 局 · 你坐' + windOfSeat + ' · 轮到' + windNow);
+      this.drawRoundBadge();
       this.makeTile(-1, chip.x - 68, chip.y, 0.2, Math.PI / 2);
       this.makeTile(-1, chip.x - 40, chip.y, 0.2, Math.PI / 2);
     }

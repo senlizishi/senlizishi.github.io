@@ -1,40 +1,93 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>麻将美术预览</title>
 <style>
-  body { margin:0; background:#171029; padding:10px; font-family: "Microsoft YaHei", sans-serif; }
-  .row { display:flex; flex-wrap:wrap; gap:2px; width:1120px; }
-  .t { background:#0d0916; border-radius:4px; padding:2px; }
-  .t canvas { display:block; width:56px; height:75px; }
-  .t div { font-size:9px; color:#c9b8e8; text-align:center; }
-  #tableWrap { margin-top:10px; }
-  #table { width:420px; height:420px; display:block; border-radius:10px; }
-</style></head>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 18px 18px 44px; background: #0d0916; color: #e8dcc4;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; color: #f7e6c4; }
+  .note { margin: 0 0 6px; font-size: 12px; line-height: 1.6; color: #9d8fb5; }
+  h2 { font-size: 14px; margin: 26px 0 10px; color: #ffd98a; font-weight: 600; }
+  .faces {
+    display: flex; flex-wrap: wrap; gap: 10px; padding: 16px; border-radius: 16px;
+    background: radial-gradient(circle at 50% 35%, #20734b, #0d3f29 78%);
+    box-shadow: inset 0 0 0 3px rgba(255,214,150,0.25), 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .cell { text-align: center; }
+  .cell canvas { display: block; width: 78px; height: 105px; }
+  .cell span { display: block; font-size: 11px; color: #ffe8bd; margin-top: 3px; text-shadow: 0 1px 2px #000; }
+  .wide { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+  .card { border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.55); }
+  #table { width: 480px; height: 480px; display: block; }
+  #room { width: 260px; height: 462px; display: block; }
+  .cap { font-size: 11px; color: #9d8fb5; margin-top: 6px; }
+</style>
+</head>
 <body>
-<div class="row" id="grid"></div>
-<div id="tableWrap"><canvas id="table"></canvas></div>
+<h1>麻将美术预览</h1>
+<p class="note">直接打开本文件即可查看 34 张牌面、牌背、牌桌与背景贴图。改 js/mahjong/art.js 后刷新即可看到效果。</p>
+
+<h2>牌面（万 / 筒 / 条 / 字牌）</h2>
+<div class="faces" id="faces"></div>
+
+<h2>牌桌与背景</h2>
+<div class="wide">
+  <div>
+    <div class="card"><canvas id="table"></canvas></div>
+    <div class="cap">mj-table · 1024 × 1024</div>
+  </div>
+  <div>
+    <div class="card"><canvas id="room"></canvas></div>
+    <div class="cap">mj-room · 260 × 462（游戏里按画布尺寸烘焙）</div>
+  </div>
+</div>
+
 <script src="js/mahjong/rules.js"></script>
 <script src="js/mahjong/art.js"></script>
 <script>
-  const store = {};
-  const stub = { textures: { exists: (k) => !!store[k], addCanvas: (k, cv) => { store[k] = cv; } } };
-  MahjongArt.build(stub);
-  const clone = (src) => { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; };
-  const grid = document.getElementById('grid');
-  for (let i = 0; i < 34; i += 1) {
-    const box = document.createElement('div'); box.className = 't';
-    box.appendChild(clone(store['mj-face-' + i]));
-    const label = document.createElement('div');
-    label.textContent = MahjongRules.tileName(i);
-    box.appendChild(label);
-    grid.appendChild(box);
-  }
-  const backBox = document.createElement('div'); backBox.className = 't';
-  backBox.appendChild(clone(store['mj-back']));
-  grid.appendChild(backBox);
-  const t = document.getElementById('table');
-  const src = store['mj-table'];
-  t.width = src.width; t.height = src.height;
-  t.getContext('2d').drawImage(src, 0, 0);
-  document.title = 'ready';
+  (function () {
+    const store = {};
+    const stub = { textures: { exists: (k) => !!store[k], addCanvas: (k, cv) => { store[k] = cv; } } };
+    MahjongArt.build(stub, 260, 462);
+
+    const clone = (src) => {
+      const c = document.createElement('canvas');
+      c.width = src.width;
+      c.height = src.height;
+      c.getContext('2d').drawImage(src, 0, 0);
+      return c;
+    };
+
+    const faces = document.getElementById('faces');
+    const add = (key, label) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.appendChild(clone(store[key]));
+      const span = document.createElement('span');
+      span.textContent = label;
+      cell.appendChild(span);
+      faces.appendChild(cell);
+    };
+    for (let i = 0; i < 34; i += 1) add('mj-face-' + i, MahjongRules.tileName(i));
+    add('mj-back', '牌背');
+
+    const paint = (id, key) => {
+      const el = document.getElementById(id);
+      const src = store[key];
+      el.width = src.width;
+      el.height = src.height;
+      el.getContext('2d').drawImage(src, 0, 0);
+    };
+    paint('table', 'mj-table');
+    paint('room', 'mj-room');
+
+    document.title = '麻将美术预览 · ready';
+  })();
 </script>
-</body></html>
+</body>
+</html>
