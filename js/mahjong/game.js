@@ -125,24 +125,45 @@
         pillH: 30,
       };
 
-      // 底部区块自下而上排：提示 -> 手牌 -> 状态 -> 操作按钮
-      const handScale = 0.55;
-      const halfH = TILE.faceH * handScale / 2;
-      const hintY = HEIGHT - safe.bottom - 26;
-      const handY = hintY - 22 - halfH;
-      const statusY = handY - 72;
-      const actionsY = handY - 124;
-
       const side = clamp(Math.round(WIDTH * 0.034), 12, 26);
       // 牌桌上沿要让开标题 + 牌墙/局数那一行，否则牌匾会压到桌面上
       const chipRowBottom = hud.pillY + hud.pillH + 72;
       const tableTop = Math.max(hud.pillY + hud.pillH + 22, chipRowBottom);
-      const tableBottom = actionsY - 26 - 16;
+
+      // 底部区块自下而上排：提示 -> 手牌 -> 状态 -> 操作按钮
+      const handAvail = WIDTH - side * 2;
+      const hintGap = 28;         // 提示文字到屏幕底
+      const hintToHand = 26;      // 提示到手牌下沿
+      const handToStatus = 30;    // 手牌上沿到状态文字
+      const statusToActions = 48; // 状态到操作按钮
+      const actionsToTable = 42;  // 按钮到牌桌下沿
+      const handGapY = 22;        // 两行手牌之间的缝（也够选中抬起 18px）
+      const tableMin = Math.min(handAvail, 300);
+
+      // 竖屏一行 13 张太挤：铺成两行、每行 7 张不重叠，牌面能大一圈。
+      // 竖直空间不够（例如 4:3 平板竖屏）就退回一行，别把牌桌挤没。
+      const roomForHand = HEIGHT - safe.bottom - tableTop - tableMin
+        - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
+      const twoRowScale = Math.min(
+        (handAvail - 6) / 7 / TILE.faceW,
+        (roomForHand - handGapY) / (2 * TILE.faceH),
+      );
+      const handRows = twoRowScale >= 0.56 ? 2 : 1;
+      const handScale = handRows === 2 ? clamp(twoRowScale, 0.3, 0.7) : 0.55;
+      const handBlockH = handRows * TILE.faceH * handScale + (handRows - 1) * handGapY;
+      const hintY = HEIGHT - safe.bottom - hintGap;
+      const handBlockBottom = hintY - hintToHand;
+      const handBlockTop = handBlockBottom - handBlockH;
+      const handY = (handBlockTop + handBlockBottom) / 2;
+      const statusY = handBlockTop - handToStatus;
+      const actionsY = statusY - statusToActions;
+
+      const tableBottom = actionsY - actionsToTable;
       const room = Math.max(180, tableBottom - tableTop);
       const table = {
         cx: WIDTH / 2,
         cy: tableTop + room / 2,
-        size: Math.max(200, Math.min(WIDTH - side * 2, room)),
+        size: Math.max(200, Math.min(handAvail, room)),
       };
 
       const rim = table.size * 0.085;
@@ -180,7 +201,7 @@
         inner: inner,
         region: region,
         hud: hud,
-        hand: { y: handY, scale: handScale, maxPitch: 44, avail: WIDTH - side * 2, left: side },
+        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, blockH: handBlockH },
         meldBand: meldBand,
         playerMeld: {
           y: region.y + region.h + meldBand / 2 + 12,
@@ -293,7 +314,7 @@
       inner: inner,
       region: region,
       hud: hud,
-      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft },
+      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, blockH: TILE.faceH * handScale },
       meldBand: meldBand,
       // 自己的副露靠在操作栏左边、手牌上方
       playerMeld: {
@@ -575,29 +596,57 @@
       const count = state.hand.length;
       if (!count) return;
       const metrics = this.handMetrics();
-      const half = TILE.faceH * this.L.hand.scale / 2;
-      const top = this.L.hand.y - half - 24;
-      const bottom = this.L.hand.y + half + 14;
-      const leftEdge = metrics.startX - TILE.faceW * this.L.hand.scale / 2 - 10;
-      const rightEdge = metrics.startX + metrics.pitch * (count - 1) + TILE.faceW * this.L.hand.scale / 2 + 10;
-      if (y < top || y > bottom || x < leftEdge || x > rightEdge) {
+      // 手牌可能是两行，按最近的一张判定，行与行之间也能点中
+      const slopX = metrics.w / 2 + 8;
+      const slopY = metrics.h / 2 + 16;
+      let hit = -1;
+      let bestDist = Infinity;
+      for (let i = 0; i < count; i += 1) {
+        const dx = x - metrics.slotX(i);
+        const dy = y - metrics.slotY(i);
+        if (Math.abs(dx) > slopX || Math.abs(dy) > slopY) continue;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist) { bestDist = dist; hit = i; }
+      }
+      if (hit < 0) {
         if (this.selected >= 0) { this.selected = -1; this.renderAll(); }
         return;
       }
-      const index = clamp(Math.round((x - metrics.startX) / Math.max(1, metrics.pitch)), 0, count - 1);
-      if (this.selected === index) this.playerDiscard(index);
-      else { this.selected = index; this.renderAll(); }
+      if (this.selected === hit) this.playerDiscard(hit);
+      else { this.selected = hit; this.renderAll(); }
     }
 
+    // 手牌可能铺成两行：这里给出每张牌的位置，以及整块手牌的外接矩形
     handMetrics() {
       const count = this.seats[0].hand.length;
-      const scale = this.L.hand.scale;
+      const cfg = this.L.hand;
+      const scale = cfg.scale;
       const w = TILE.faceW * scale;
-      const avail = this.L.hand.avail;
-      const pitch = count > 1 ? Math.min(this.L.hand.maxPitch, (avail - w) / (count - 1)) : 0;
-      const total = w + pitch * Math.max(0, count - 1);
-      const startX = this.L.hand.left + (avail - total) / 2 + w / 2;
-      return { w: w, pitch: pitch, startX: startX, total: total, count: count };
+      const h = TILE.faceH * scale;
+      const rows = Math.max(1, cfg.rows || 1);
+      const gapY = Math.max(0, cfg.gapY || 0);
+      // 一行时按实际张数铺开（自动居中）；两行时按整副 14 张分成固定的两排，牌不会跳位
+      const perRow = rows === 1 ? Math.max(1, count) : Math.max(1, Math.ceil(14 / rows));
+      const avail = cfg.avail;
+      const pitch = perRow > 1
+        ? Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)))
+        : 0;
+      const total = w + pitch * (perRow - 1);
+      const startX = cfg.left + (avail - total) / 2 + w / 2;
+      const rowStep = h + gapY;
+      const topY = cfg.y - ((rows - 1) * rowStep) / 2;
+      const slotX = (index) => startX + (index % perRow) * pitch;
+      const slotY = (index) => topY + Math.floor(index / perRow) * rowStep;
+      return {
+        w: w, h: h, pitch: pitch, startX: startX, total: total, count: count,
+        rows: rows, perRow: perRow, gapY: gapY, rowStep: rowStep, topY: topY,
+        slotX: slotX, slotY: slotY,
+        blockH: rows * h + (rows - 1) * gapY,
+        left: startX - w / 2,
+        right: startX + pitch * (perRow - 1) + w / 2,
+        top: topY - h / 2,
+        bottom: topY + (rows - 1) * rowStep + h / 2,
+      };
     }
 
     playerDiscard(index) {
@@ -896,7 +945,7 @@
 
     bannerPosition(seat) {
       const table = this.L.table;
-      if (seat === 0) return { x: table.cx, y: this.L.hand.y - 74 };
+      if (seat === 0) return { x: table.cx, y: this.L.hand.y - (this.L.hand.blockH || 0) / 2 - 30 };
       if (seat === 1) return { x: this.L.inner.x + this.L.inner.w - 62, y: table.cy - 70 };
       if (seat === 2) return { x: table.cx, y: this.L.inner.y + 76 };
       return { x: this.L.inner.x + 62, y: table.cy - 70 };
@@ -1048,8 +1097,8 @@
       const half = TILE.faceH * scale / 2;
       for (let i = 0; i < state.hand.length; i += 1) {
         const lifted = i === this.selected;
-        const x = metrics.startX + i * metrics.pitch;
-        const y = this.L.hand.y - (lifted ? 18 : 0);
+        const x = metrics.slotX(i);
+        const y = metrics.slotY(i) - (lifted ? 18 : 0);
         if (lifted) {
           // 选中的牌下面托一层金光，抬起来更明显
           const glow = this.add.graphics().setDepth(6);
