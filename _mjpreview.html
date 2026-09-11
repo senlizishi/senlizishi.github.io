@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>mj tile preview</title>
+<style>
+  body { margin: 0; background: #f7f3ea; font: 12px/1.4 "Microsoft YaHei", sans-serif; }
+  h2 { margin: 6px 10px; font-size: 13px; color: #555; }
+  .grid { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 8px; }
+  .cell { text-align: center; }
+  .cell canvas { display: block; }
+  .lab { font-size: 9px; color: #777; }
+  .big .cell canvas { width: 264px; }
+</style>
+</head>
+<body>
+<h2>A: 手牌实际大小（宽 74px = handScale 0.56）</h2>
+<div class="grid" id="small"></div>
+<h2>B: 单张放大（2x）</h2>
+<div class="grid big" id="big"></div>
+<script src="js/mahjong/rules.js"></script>
+<script src="js/mahjong/art.js"></script>
+<script>
+  const store = {};
+  const stub = { textures: { exists: () => !!store['mj-face-0'], addCanvas: (k, cv) => { store[k] = cv; } } };
+  MahjongArt.build(stub, 540, 960);
+  function makeCell(code, scale) {
+    const src = store['mj-face-' + code];
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const cv = document.createElement('canvas');
+    cv.width = src.width;
+    cv.height = src.height;
+    cv.getContext('2d').drawImage(src, 0, 0);
+    cv.style.width = (src.width / 2 * scale) + 'px';
+    cell.appendChild(cv);
+    const lab = document.createElement('div');
+    lab.className = 'lab';
+    lab.textContent = (window.MahjongRules ? MahjongRules.tileName(code) : code) + ' #' + code;
+    cell.appendChild(lab);
+    return cell;
+  }
+  const small = document.getElementById('small');
+  const big = document.getElementById('big');
+  for (let c = 0; c < 34; c += 1) small.appendChild(makeCell(c, 0.56));
+  [9, 11, 12, 14, 16, 17, 18, 23, 25, 26].forEach((c) => big.appendChild(makeCell(c, 1)));
+  window.__tilePreviewReady = true;
+</script>
+</body>
+</html>

@@ -40,7 +40,10 @@
   const DOT_RED_DEEP = '#8a2e1e';
   const DOT_NAVY = '#3457a4';
   const DOT_NAVY_DEEP = '#1d3168';
-  const DOT_PAIRS = [[DOT_GREEN, DOT_GREEN_DEEP], [DOT_RED, DOT_RED_DEEP], [DOT_NAVY, DOT_NAVY_DEEP]];
+  // 八同：外圈两排是黑色（素材里这套的深色圈，压暗成墨黑更接近真牌）
+  const DOT_BLACK = '#33363d';
+  const DOT_BLACK_DEEP = '#14161a';
+  const DOT_PAIRS = [[DOT_GREEN, DOT_GREEN_DEEP], [DOT_RED, DOT_RED_DEEP], [DOT_NAVY, DOT_NAVY_DEEP], [DOT_BLACK, DOT_BLACK_DEEP]];
   const STICK_GREEN = '#2f9152';
   const STICK_GREEN_DEEP = '#12522c';
   const STICK_RED = '#c33a27';
@@ -304,20 +307,20 @@
     5: { rows: [[0, 0], [1], [0, 0]], hMul: 0.3, spread: 0.4 },
     6: { rows: [[0, 0, 0], [0, 0, 0]], hMul: 0.34, spread: 0.58 },
     7: { rows: [[1], [0, 0, 0], [0, 0, 0]], hMul: 0.28, spread: 0.58 },
-    8: { rows: [[0, 0, 0, 0], [0, 0, 0, 0]], hMul: 0.3, spread: 0.68 },
+    8: { rows: [[0, 1, 1, 0], [0, 1, 1, 0]], hMul: 0.3, spread: 0.6, mJoin: true },
     9: { rows: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], hMul: 0.25, spread: 0.58 },
   };
 
-  // 每张牌的圈圈配色，和素材一致：绿 / 砖红 / 藏青 三色搭
+  // 每张牌的圈圈配色，和素材一致：竹绿 / 砖红 / 墨黑 三色搭（0 绿 1 红 2 藏青 3 墨黑）
   const DOT_PLAN = {
     2: [0, 0],
-    3: [0, 0, 0],
-    4: [2, 2, 2, 2],
+    3: [3, 1, 3],
+    4: [3, 3, 3, 3],
     5: [0, 0, 1, 0, 0],
-    6: [0, 0, 1, 1, 0, 0],
-    7: [0, 0, 0, 1, 1, 2, 2],
-    8: [0, 0, 0, 0, 2, 2, 2, 2],
-    9: [0, 0, 0, 1, 1, 1, 0, 0, 0],
+    6: [3, 3, 1, 1, 3, 3],
+    7: [0, 0, 0, 1, 1, 3, 3],
+    8: [3, 3, 1, 1, 1, 1, 3, 3],
+    9: [3, 3, 3, 1, 1, 1, 3, 3, 3],
   };
 
   // 一筒：外圈青绿花瓣环 + 内圈砖红花心，像素材里的“大花心”
@@ -380,6 +383,29 @@
       drawCoin(ctx, px, py, Math.max(6, base), pair[0], pair[1]);
     }
   }
+  // 八条：中间两根竹子顶上拉一道“人”字梁连起来，两根一组成一个 M 形
+  function drawStickJoin(ctx, x1, x2, yTop, w, h) {
+    const mid = (x1 + x2) / 2;
+    const dip = yTop + h * 0.5;
+    const trace = () => {
+      ctx.beginPath();
+      ctx.moveTo(x1, yTop);
+      ctx.quadraticCurveTo(x1 + (mid - x1) * 0.62, dip, mid, dip);
+      ctx.quadraticCurveTo(x2 - (x2 - mid) * 0.62, dip, x2, yTop);
+    };
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    trace();
+    ctx.lineWidth = Math.max(1.4, w * 0.44);
+    ctx.strokeStyle = STICK_RED_DEEP;
+    ctx.stroke();
+    trace();
+    ctx.lineWidth = Math.max(0.8, w * 0.22);
+    ctx.strokeStyle = STICK_RED;
+    ctx.stroke();
+    ctx.restore();
+  }
   function drawSticks(ctx, plate, n) {
     const layout = STICK_LAYOUT[n];
     const cx = plate.x + plate.w / 2;
@@ -400,6 +426,15 @@
       for (let i = 0; i < row.length; i += 1) {
         const x = cx + (row.length === 1 ? 0 : (i / (row.length - 1) - 0.5) * spread);
         drawStick(ctx, x, y, stickW, stickH, row[i] === 1);
+      }
+      if (layout.mJoin) {
+        for (let i = 0; i + 1 < row.length; i += 1) {
+          if (row[i] === 1 && row[i + 1] === 1) {
+            const xa = cx + (i / (row.length - 1) - 0.5) * spread;
+            const xb = cx + ((i + 1) / (row.length - 1) - 0.5) * spread;
+            drawStickJoin(ctx, xa, xb, y - stickH / 2, stickW, stickH);
+          }
+        }
       }
     }
   }
