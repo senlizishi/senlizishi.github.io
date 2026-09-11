@@ -33,16 +33,19 @@
   const BLUE = '#1f4d9b';
   const DEEP_BLUE = '#153a77';
   // 圈圈牌 / 条子牌 / 字牌配色，取自参考素材：青竹绿、砖红、藏青
-  // 圈圈 / 竹节配色：比素材里那套更亮一点，贴在象牙牌面上不会发闷
-  const DOT_GREEN = '#3d9159';
-  const DOT_GREEN_DEEP = '#1d5636';
-  const DOT_RED = '#c1462f';
-  const DOT_RED_DEEP = '#8a2e1e';
+  // 圈圈配色对齐参考素材：墨绿 / 砖红都是压暗过的老料色，外面再套一圈墨黑厚环
+  const DOT_GREEN = '#1f4a3c';
+  const DOT_GREEN_DEEP = '#123127';
+  const DOT_RED = '#8e2a20';
+  const DOT_RED_DEEP = '#5c130c';
   const DOT_NAVY = '#3457a4';
   const DOT_NAVY_DEEP = '#1d3168';
   // 八同：外圈两排是黑色（素材里这套的深色圈，压暗成墨黑更接近真牌）
   const DOT_BLACK = '#33363d';
   const DOT_BLACK_DEEP = '#14161a';
+  // 筒子统一的「厚黑外环 + 白色花瓣」——素材里每一颗筒子都是这个长相
+  const DOT_RING = '#15171c';
+  const DOT_FLOWER = '#f9f2df';
   const DOT_PAIRS = [[DOT_GREEN, DOT_GREEN_DEEP], [DOT_RED, DOT_RED_DEEP], [DOT_NAVY, DOT_NAVY_DEEP], [DOT_BLACK, DOT_BLACK_DEEP]];
   const STICK_GREEN = '#2f9152';
   const STICK_GREEN_DEEP = '#12522c';
@@ -222,32 +225,52 @@
     return { x: px, y: py, w: pw, h: ph };
   }
 
-  // 圈圈牌：彩色外环 + 内圈小环 + 中心点，做成素材里那种空心“圈”而不是实心球
+  // 筒子：素材同款四瓣花心币。自外向内 —— 厚黑外环 / 一圈细白边 / 彩盘 /
+  // 四片挖在对角线上的白花瓣 / 彩色花心环 / 白芯 / 中心墨点。
+  // 黑外环固定墨黑（这套牌每颗筒子都一样），color 只决定花瓣与花心的颜色。
   function drawCoin(ctx, x, y, r, color, deep) {
     ctx.save();
+    // 黑环内侧那圈细白边一直铺到圆心
     ctx.beginPath();
-    ctx.arc(x, y, r * 0.72, 0, TAU);
-    ctx.lineWidth = r * 0.44;
-    ctx.strokeStyle = color;
+    ctx.arc(x, y, r * 0.70, 0, TAU);
+    ctx.fillStyle = DOT_FLOWER;
+    ctx.fill();
+    // 厚黑外环
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.85, 0, TAU);
+    ctx.lineWidth = r * 0.30;
+    ctx.strokeStyle = DOT_RING;
     ctx.stroke();
+    // 彩盘：几乎填满黑环内沿，只在边上留一道细白边
     ctx.beginPath();
-    ctx.arc(x, y, r * 0.94, 0, TAU);
-    ctx.lineWidth = Math.max(0.6, r * 0.1);
-    ctx.strokeStyle = deep;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.5, 0, TAU);
-    ctx.lineWidth = Math.max(0.5, r * 0.08);
-    ctx.strokeStyle = 'rgba(120,98,58,0.26)';
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.29, 0, TAU);
-    ctx.lineWidth = Math.max(0.8, r * 0.15);
-    ctx.strokeStyle = color;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.12, 0, TAU);
+    ctx.arc(x, y, r * 0.665, 0, TAU);
     ctx.fillStyle = color;
+    ctx.fill();
+    // 四片白花瓣挖在对角线上，花瓣顺着圆周方向拉长
+    for (let i = 0; i < 4; i += 1) {
+      const a = Math.PI / 4 + (i / 4) * TAU;
+      ctx.save();
+      ctx.translate(x + Math.cos(a) * r * 0.36, y + Math.sin(a) * r * 0.36);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.13, r * 0.19, 0, 0, TAU);
+      ctx.fillStyle = DOT_FLOWER;
+      ctx.fill();
+      ctx.restore();
+    }
+    // 花心：一圈彩环套一颗白芯，正中点一颗墨点
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.255, 0, TAU);
+    ctx.lineWidth = r * 0.125;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.16, 0, TAU);
+    ctx.fillStyle = DOT_FLOWER;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.058, 0, TAU);
+    ctx.fillStyle = deep;
     ctx.fill();
     ctx.restore();
   }
@@ -291,7 +314,7 @@
     4: { size: 0.72, pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]] },
     5: { size: 0.66, pts: [[-0.52, -0.52], [0.52, -0.52], [0, 0], [-0.52, 0.52], [0.52, 0.52]] },
     6: { size: 0.6, pts: [[-0.48, -0.66], [0.48, -0.66], [-0.48, 0], [0.48, 0], [-0.48, 0.66], [0.48, 0.66]] },
-    7: { size: 0.46, pts: [[-0.6, -0.72], [0, -0.72], [0.6, -0.72], [-0.46, 0.04], [0.46, 0.04], [-0.46, 0.78], [0.46, 0.78]] },
+    7: { size: 0.55, pts: [[-0.646, -0.685], [-0.022, -0.457], [0.602, -0.228], [-0.4, 0.096], [0.402, 0.096], [-0.4, 0.513], [0.402, 0.513]] },
     8: { size: 0.5, pts: [[-0.44, -0.72], [0.44, -0.72], [-0.44, -0.24], [0.44, -0.24], [-0.44, 0.24], [0.44, 0.24], [-0.44, 0.72], [0.44, 0.72]] },
     9: { size: 0.55, pts: [[-0.62, -0.62], [0, -0.62], [0.62, -0.62], [-0.62, 0], [0, 0], [0.62, 0], [-0.62, 0.62], [0, 0.62], [0.62, 0.62]] },
   };
@@ -307,7 +330,6 @@
     5: { rows: [[0, 0], [1], [0, 0]], hMul: 0.3, spread: 0.4 },
     6: { rows: [[0, 0, 0], [0, 0, 0]], hMul: 0.34, spread: 0.58 },
     7: { rows: [[1], [0, 0, 0], [0, 0, 0]], hMul: 0.28, spread: 0.58 },
-    8: { rows: [[0, 1, 1, 0], [0, 1, 1, 0]], hMul: 0.3, spread: 0.6, mJoin: true },
     9: { rows: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], hMul: 0.25, spread: 0.58 },
   };
 
@@ -318,7 +340,7 @@
     4: [3, 3, 3, 3],
     5: [0, 0, 1, 0, 0],
     6: [3, 3, 1, 1, 3, 3],
-    7: [0, 0, 0, 1, 1, 3, 3],
+    7: [0, 0, 0, 1, 1, 1, 1],
     8: [3, 3, 1, 1, 1, 1, 3, 3],
     9: [3, 3, 3, 1, 1, 1, 3, 3, 3],
   };
@@ -383,29 +405,6 @@
       drawCoin(ctx, px, py, Math.max(6, base), pair[0], pair[1]);
     }
   }
-  // 八条：中间两根竹子顶上拉一道“人”字梁连起来，两根一组成一个 M 形
-  function drawStickJoin(ctx, x1, x2, yTop, w, h) {
-    const mid = (x1 + x2) / 2;
-    const dip = yTop + h * 0.5;
-    const trace = () => {
-      ctx.beginPath();
-      ctx.moveTo(x1, yTop);
-      ctx.quadraticCurveTo(x1 + (mid - x1) * 0.62, dip, mid, dip);
-      ctx.quadraticCurveTo(x2 - (x2 - mid) * 0.62, dip, x2, yTop);
-    };
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    trace();
-    ctx.lineWidth = Math.max(1.4, w * 0.44);
-    ctx.strokeStyle = STICK_RED_DEEP;
-    ctx.stroke();
-    trace();
-    ctx.lineWidth = Math.max(0.8, w * 0.22);
-    ctx.strokeStyle = STICK_RED;
-    ctx.stroke();
-    ctx.restore();
-  }
   function drawSticks(ctx, plate, n) {
     const layout = STICK_LAYOUT[n];
     const cx = plate.x + plate.w / 2;
@@ -427,15 +426,45 @@
         const x = cx + (row.length === 1 ? 0 : (i / (row.length - 1) - 0.5) * spread);
         drawStick(ctx, x, y, stickW, stickH, row[i] === 1);
       }
-      if (layout.mJoin) {
-        for (let i = 0; i + 1 < row.length; i += 1) {
-          if (row[i] === 1 && row[i + 1] === 1) {
-            const xa = cx + (i / (row.length - 1) - 0.5) * spread;
-            const xb = cx + ((i + 1) / (row.length - 1) - 0.5) * spread;
-            drawStickJoin(ctx, xa, xb, y - stickH / 2, stickW, stickH);
-          }
-        }
-      }
+    }
+  }
+  // 八条：素材里那套「八」字花梁 —— 四根青竹 + 上下两道横梁 + 中间人字 / 倒人字斜撑。
+  // 全绿无红，斜撑也按竹子画（带竹节和浅芯），和整副条子是一套料。
+  function drawSou8(ctx, plate) {
+    const W = plate.w;
+    const H = plate.h;
+    const atX = (v) => plate.x + W * v;
+    const atY = (v) => plate.y + H * v;
+    const colX = [atX(0.165), atX(0.325), atX(0.675), atX(0.835)];
+    const stickW = W * 0.086;
+    const beamW = stickW * 0.74;
+    const top = 0.05;                       // 四根竹子的上下端（占牌面高的比例）
+    const bottom = 0.95;
+    const seg = (bottom - top) / 3;
+    const knotTop = top + seg;              // 竹子上的两道竹节，斜撑正好接在节上
+    const knotBottom = top + seg * 2;
+    const topBar = 0.085;
+    const midBar = 0.5;
+    // 横梁 / 斜撑：把一根竹子转到两点之间，长度就是这个距离
+    const beam = (x1, y1, x2, y2) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      ctx.save();
+      ctx.translate((x1 + x2) / 2, (y1 + y2) / 2);
+      ctx.rotate(Math.atan2(dy, dx) - Math.PI / 2);
+      drawStick(ctx, 0, 0, beamW, Math.sqrt(dx * dx + dy * dy), false);
+      ctx.restore();
+    };
+    // 梁和斜撑先画，四根竹子后画压在上面，竹身才不会被梁头打断
+    beam(colX[0], atY(topBar), colX[1], atY(topBar));      // 左上横梁
+    beam(colX[2], atY(topBar), colX[3], atY(topBar));      // 右上横梁
+    beam(colX[0], atY(midBar), colX[3], atY(midBar));      // 拦腰通梁
+    beam(colX[1], atY(knotTop), atX(0.5), atY(topBar));    // 上人字，顶点落在牌面中线上
+    beam(atX(0.5), atY(topBar), colX[2], atY(knotTop));
+    beam(colX[1], atY(knotBottom), atX(0.5), atY(bottom)); // 下倒人字
+    beam(atX(0.5), atY(bottom), colX[2], atY(knotBottom));
+    for (let i = 0; i < 4; i += 1) {
+      drawStick(ctx, colX[i], atY(midBar), stickW, H * (bottom - top), false);
     }
   }
   // 一条：传统“幺鸡”，一只侧身站立的鸟
@@ -594,6 +623,7 @@
     }
     if (suit === 1) { drawDots(ctx, plate, rank + 1); return; }
     if (rank === 0) { drawBird(ctx, plate); return; }
+    if (rank === 7) { drawSou8(ctx, plate); return; }
     drawSticks(ctx, plate, rank + 1);
   }
 
