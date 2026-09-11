@@ -108,18 +108,25 @@
 
   // 一整张牌的「占位尺寸」：牌面 + 描边留白 + 厚度（含投影，见 art.js 的 footW / footH）。
   // 排版必须按占位尺寸算，只按牌面宽度排，相邻两张的贴图会互相压住（看起来就是牌叠在一起）。
+  // 手牌自适应：给定可用宽高，反算一张牌能画多大。
+  // 宽度按「相邻锚点步进 advanceW + 一整张贴图宽」算，高度按「行距 + 一整张贴图高」算，
+  // 所以 gapX = 0 时牌正好首尾相接（排内没有缝），gapY 则保证两排之间留出缝。
   function fitHand(boxW, boxH, options) {
     const opts = options || {};
     const count = Math.max(1, opts.count || 14);
-    const gapX = opts.gapX === undefined ? 6 : opts.gapX;
+    const gapX = opts.gapX === undefined ? 0 : opts.gapX;
     const gapY = opts.gapY === undefined ? 20 : opts.gapY;
     const maxRows = Math.max(1, opts.maxRows || 2);
     const maxScale = opts.maxScale === undefined ? 0.62 : opts.maxScale;
+    const advanceW = (opts.advanceW === undefined ? TILE.footW : opts.advanceW) + gapX;
+    const rowStepUnits = TILE.faceH + TILE.thickness;
     let best = null;
     for (let rows = 1; rows <= Math.min(maxRows, count); rows += 1) {
       const cols = Math.ceil(count / rows);
-      const scaleW = (boxW - gapX * (cols - 1)) / (cols * TILE.footW);
-      const scaleH = (boxH - gapY * (rows - 1)) / (rows * TILE.footH);
+      const boardW = (cols - 1) * advanceW + TILE.footW;
+      const boardH = (rows - 1) * rowStepUnits + TILE.footH;
+      const scaleW = boxW / boardW;
+      const scaleH = (boxH - gapY * (rows - 1)) / boardH;
       const scale = Math.min(scaleW, scaleH, maxScale);
       if (scale <= 0.1) continue;
       if (!best || scale > best.scale + 1e-6) {
@@ -180,8 +187,11 @@
         - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
       // 手牌自适应：竖屏铺两行、每行最多 7 张。缩放由 fitHand() 按「整块贴图」反算，
       // 牌宽、牌高一起约束，任何屏宽 / 屏高的手机都只会把牌缩小，绝不会互相压住。
+      // gapX = 0：同一排里相邻两张首尾相接，看着是一整排牌；
+      // gapY 只留在两排之间，所以上下排仍然互不遮挡。
       const handFit = fitHand(handAvail, roomForHand, {
-        count: 14, gapX: 6, gapY: handGapY, maxRows: 2, maxScale: 0.56,
+        count: 14, gapX: 0, gapY: handGapY, maxRows: 2, maxScale: 0.56,
+        advanceW: TILE.faceW,
       });
       const handRows = handFit.rows;
       const handCols = handFit.cols;
@@ -252,7 +262,7 @@
         hand: {
           y: handY, scale: handScale, avail: handAvail, left: side,
           rows: handRows, cols: handCols, gapX: handGapX, gapY: handGapY,
-          rowStep: handRowStep, footPitch: true, up: handUp,
+          rowStep: handRowStep, footPitch: true, up: handUp, pitchW: TILE.faceW,
           footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
         },
         meldBand: meldBand,
@@ -334,8 +344,10 @@
     // 铺不下就整体缩小，牌与牌之间永远留着 gapX 的缝，不会互相压住。
     const handAvail = Math.max(180, rightEdge - leftEdge);
     const handLeft = leftEdge;
+    // 横屏同理：一排 14 张首尾相接，铺不下就整体缩小。
     const handFit = fitHand(handAvail, band * 0.5, {
-      count: 14, gapX: 6, gapY: 14, maxRows: 1, maxScale: 0.56,
+      count: 14, gapX: 0, gapY: 14, maxRows: 1, maxScale: 0.56,
+      advanceW: TILE.faceW,
     });
     const handRows = handFit.rows;
     const handCols = handFit.cols;
@@ -385,7 +397,7 @@
       hand: {
         y: handY, scale: handScale, avail: handAvail, left: handLeft,
         rows: handRows, cols: handCols, gapX: handGapX, gapY: 0,
-        rowStep: handRowStep, footPitch: true, up: handUp,
+        rowStep: handRowStep, footPitch: true, up: handUp, pitchW: TILE.faceW,
         footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
       },
       meldBand: meldBand,
@@ -451,7 +463,6 @@
       this.actionButtons = [];
       this.bannerObjects = [];
       this.selected = -1;
-      this.hintText = '';
       this.actions = [];
       this.pendingClaim = null;
       this.revealAll = false;
@@ -521,10 +532,6 @@
         bold: true, originX: 0.5, originY: 0.5, wrap: this.L.status.wrap, stroke: '#1b1024', strokeThickness: 4,
       });
       this.uiLayer.add(this.statusText);
-      this.hintLabel = text(this, this.L.hint.x, this.L.hint.y, '', IS_PORTRAIT ? 15 : 12, '#ffd9a0', {
-        originX: 0.5, originY: 0.5, wrap: this.L.hint.wrap, stroke: '#1b1024', strokeThickness: 3,
-      });
-      this.uiLayer.add(this.hintLabel);
       this.drawRoundBadge();
     }
 
@@ -579,7 +586,6 @@
       this.selected = -1;
       this.pendingClaim = null;
       this.actions = [];
-      this.hintText = '';
       this.result = null;
       this.drawnThisTurn = false;
       this.lastDiscardSeat = -1;
@@ -657,7 +663,6 @@
       RULES.concealedKongs(counts).forEach((tile) => list.push({ id: 'ankong', label: '暗杠', tile: tile }));
       RULES.addedKongs(counts, state.melds).forEach((tile) => list.push({ id: 'addkong', label: '补杠', tile: tile }));
       this.actions = list;
-      this.hintText = '';
       this.renderAll();
     }
 
@@ -714,9 +719,10 @@
       const rowStep = rows > 1 ? (cfg.rowStep || bodyH + gapY) : 0;
       let pitch = 0;
       if (perRow > 1) {
-        // 横排只留「缝」：pitch 大于整块贴图宽度，投影也不会叠到邻居身上
+        // 排内步进：pitchW 是相邻两张锚点的距离（贴图单位）。
+        // 取 faceW 时两张牌正好首尾相接，取 footW 时会留出贴图的透明留白。
         pitch = cfg.footPitch
-          ? footW + (cfg.gapX || 0)
+          ? (cfg.pitchW || cfg.footW || TILE.footW) * scale + (cfg.gapX || 0)
           : Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)));
       }
       const total = footW + pitch * (perRow - 1);
@@ -885,21 +891,9 @@
 
       if (meldSeat > 0) return this.executeMeld(meldSeat, meldType, tile, from);
 
-      if (from === 0) this.updateTenpaiHint();
       this.advanceTurn(from);
     }
 
-    updateTenpaiHint() {
-      const state = this.seats[0];
-      const counts = RULES.countsOf(state.hand);
-      const melds = state.melds.length;
-      if (RULES.shanten(counts, melds) === 0) {
-        const waits = RULES.waitingTiles(counts, melds);
-        this.hintText = waits.length ? '听 ' + waits.map((code) => RULES.tileName(code)).join(' ') : '';
-      } else {
-        this.hintText = '';
-      }
-    }
 
     executeMeld(seat, type, tile, from) {
       const state = this.seats[seat];
@@ -914,7 +908,6 @@
       SFX[type === 'kong' ? 'kong' : 'pong']();
       this.showBanner(type === 'kong' ? '杠' : '碰', seat, type === 'kong' ? '#ffc24d' : '#a8dcff');
       this.turn = seat;
-      this.updateTenpaiHint();
       if (seat === 0) this.sortHand(0);
       this.renderAll();
       if (type === 'kong') {
@@ -967,7 +960,6 @@
       this.actions = [];
       this.pendingClaim = null;
       this.selected = -1;
-      this.hintText = '';
       if (result.type === 'win') SFX.win(); else SFX.lose();
       this.renderAll();
       const isWin = result.type === 'win';
@@ -1190,15 +1182,6 @@
           const jitter = (hashRand(seat * 131 + i * 17) - 0.5) * 0.12;
           const dx = (hashRand(seat * 977 + i * 7.3) - 0.5) * 2.6;
           const dy = (hashRand(seat * 313 + i * 3.1) - 0.5) * 2.6;
-          const isLast = seat === this.lastDiscardSeat && i === list.length - 1;
-          if (isLast) {
-            const glow = this.add.graphics().setDepth(6);
-            glow.fillStyle(0xffd479, 0.34).fillRoundedRect(
-              slot.x - TILE.faceW * scale / 2 - 4, slot.y - TILE.faceH * scale / 2 - 4,
-              TILE.faceW * scale + 8, TILE.faceH * scale + 8, 7
-            );
-            this.marks.push(glow);
-          }
           this.makeTile(list[i], slot.x + dx, slot.y + dy, scale, slot.rotation + jitter);
         }
       }
@@ -1220,11 +1203,6 @@
           this.marks.push(glow);
         }
         this.makeTile(state.hand[i], x, y, scale, 0);
-        if (this.drawnThisTurn && i === state.drawnIndex) {
-          const dot = this.add.graphics().setDepth(6);
-          dot.fillStyle(0xffd479, 0.9).fillCircle(x, y - half - 9, 3.6);
-          this.marks.push(dot);
-        }
       }
     }
 
@@ -1272,13 +1250,12 @@
       let status = '';
       if (this.state === 'playing') {
         if (this.pendingClaim) status = this.pendingClaim.kind === 'win' ? '这张牌可以胡' : '可以碰 / 杠这张牌';
-        else if (this.turn === 0) status = '轮到你出牌 · 点两次打出';
+        else if (this.turn === 0) status = '轮到你出牌';
         else status = SEAT_NAME[this.turn] + ' 出牌中…';
       } else if (this.result) {
         status = '';
       }
       this.statusText.setText(status);
-      this.hintLabel.setText(this.hintText || '');
     }
 
     renderWallChip() {

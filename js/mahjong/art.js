@@ -33,17 +33,18 @@
   const BLUE = '#1f4d9b';
   const DEEP_BLUE = '#153a77';
   // 圈圈牌 / 条子牌 / 字牌配色，取自参考素材：青竹绿、砖红、藏青
-  const DOT_GREEN = '#4b7d55';
-  const DOT_GREEN_DEEP = '#2b5236';
-  const DOT_RED = '#b2544a';
-  const DOT_RED_DEEP = '#82352c';
-  const DOT_NAVY = '#3d4a6c';
-  const DOT_NAVY_DEEP = '#262f47';
+  // 圈圈 / 竹节配色：比素材里那套更亮一点，贴在象牙牌面上不会发闷
+  const DOT_GREEN = '#3d9159';
+  const DOT_GREEN_DEEP = '#1d5636';
+  const DOT_RED = '#c1462f';
+  const DOT_RED_DEEP = '#8a2e1e';
+  const DOT_NAVY = '#3457a4';
+  const DOT_NAVY_DEEP = '#1d3168';
   const DOT_PAIRS = [[DOT_GREEN, DOT_GREEN_DEEP], [DOT_RED, DOT_RED_DEEP], [DOT_NAVY, DOT_NAVY_DEEP]];
-  const STICK_GREEN = '#2f7a4a';
-  const STICK_GREEN_DEEP = '#17482a';
-  const STICK_RED = '#ac4038';
-  const STICK_RED_DEEP = '#6f241d';
+  const STICK_GREEN = '#2f9152';
+  const STICK_GREEN_DEEP = '#12522c';
+  const STICK_RED = '#c33a27';
+  const STICK_RED_DEEP = '#7c2013';
   const WIND_NAVY = '#2c3a63';
 
   function makeRng(seed) {
@@ -287,33 +288,36 @@
     4: { size: 0.72, pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]] },
     5: { size: 0.66, pts: [[-0.52, -0.52], [0.52, -0.52], [0, 0], [-0.52, 0.52], [0.52, 0.52]] },
     6: { size: 0.6, pts: [[-0.48, -0.66], [0.48, -0.66], [-0.48, 0], [0.48, 0], [-0.48, 0.66], [0.48, 0.66]] },
-    7: { size: 0.55, pts: [[-0.62, -0.66], [0, -0.66], [0.62, -0.66], [0, 0], [-0.62, 0.66], [0, 0.66], [0.62, 0.66]] },
+    7: { size: 0.46, pts: [[-0.6, -0.72], [0, -0.72], [0.6, -0.72], [-0.46, 0.04], [0.46, 0.04], [-0.46, 0.78], [0.46, 0.78]] },
     8: { size: 0.5, pts: [[-0.44, -0.72], [0.44, -0.72], [-0.44, -0.24], [0.44, -0.24], [-0.44, 0.24], [0.44, 0.24], [-0.44, 0.72], [0.44, 0.72]] },
     9: { size: 0.55, pts: [[-0.62, -0.62], [0, -0.62], [0.62, -0.62], [-0.62, 0], [0, 0], [0.62, 0], [-0.62, 0.62], [0, 0.62], [0.62, 0.62]] },
   };
 
   // 每行几根竹节；1 表示这一根是砖红色（素材里只有中间/顶部那几根是红的）
+  // rows 是每排几根竹节，hMul 是竹节高度（占牌面高的比例），
+  // spread 是这一排最外侧两根的中心距（占牌面宽的比例）。
+  // 张数越多竹节越短越细，和真牌的排布一致。
   const STICK_LAYOUT = {
-    2: { rows: [[0, 0]] },
-    3: { rows: [[0], [0, 0]] },
-    4: { rows: [[0, 0], [0, 0]] },
-    5: { rows: [[0, 0], [1], [0, 0]] },
-    6: { rows: [[0, 1, 0], [0, 1, 0]] },
-    7: { rows: [[1], [0, 0, 0], [0, 0, 0]] },
-    8: { rows: [[0, 0, 0, 0], [0, 0, 0, 0]] },
-    9: { rows: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] },
+    2: { rows: [[0, 0]], hMul: 0.58, spread: 0.34 },
+    3: { rows: [[0], [0, 0]], hMul: 0.44, spread: 0.36 },
+    4: { rows: [[0, 0], [0, 0]], hMul: 0.36, spread: 0.36 },
+    5: { rows: [[0, 0], [1], [0, 0]], hMul: 0.3, spread: 0.4 },
+    6: { rows: [[0, 0, 0], [0, 0, 0]], hMul: 0.34, spread: 0.58 },
+    7: { rows: [[1], [0, 0, 0], [0, 0, 0]], hMul: 0.28, spread: 0.58 },
+    8: { rows: [[0, 0, 0, 0], [0, 0, 0, 0]], hMul: 0.3, spread: 0.68 },
+    9: { rows: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], hMul: 0.25, spread: 0.58 },
   };
 
   // 每张牌的圈圈配色，和素材一致：绿 / 砖红 / 藏青 三色搭
   const DOT_PLAN = {
     2: [0, 0],
-    3: [2, 1, 2],
+    3: [0, 0, 0],
     4: [2, 2, 2, 2],
     5: [0, 0, 1, 0, 0],
-    6: [2, 2, 1, 1, 2, 2],
-    7: [0, 0, 0, 1, 2, 2, 2],
-    8: [2, 2, 1, 1, 2, 2, 1, 1],
-    9: [2, 2, 2, 1, 1, 1, 2, 2, 2],
+    6: [0, 0, 1, 1, 0, 0],
+    7: [0, 0, 0, 1, 1, 2, 2],
+    8: [0, 0, 0, 0, 2, 2, 2, 2],
+    9: [0, 0, 0, 1, 1, 1, 0, 0, 0],
   };
 
   // 一筒：外圈青绿花瓣环 + 内圈砖红花心，像素材里的“大花心”
@@ -381,13 +385,18 @@
     const cx = plate.x + plate.w / 2;
     const cy = plate.y + plate.h / 2;
     const rowCount = layout.rows.length;
-    const rowH = plate.h / rowCount;
-    const stickH = rowH * 0.76;
+    const stickH = plate.h * layout.hMul;
+    // 竹节的长宽比固定，长短不同的牌上看着是同一根竹子，只是排布不同
+    // 竹节粗细跟长短有关但有个上下限：张数少的那几张不会粗得像药丸，多的那几张也不会细成针
+    const stickW = Math.max(plate.w * 0.1, Math.min(plate.w * 0.155, stickH * 0.3));
+    const spread = plate.w * layout.spread;
+    // 整块竹节在牌面里居中：行距在剩余空间里均分，上下留一样多
+    const rowGap = rowCount > 1
+      ? Math.min(plate.h * 0.92 - stickH, stickH * 1.5) / (rowCount - 1)
+      : 0;
     for (let r = 0; r < rowCount; r += 1) {
       const row = layout.rows[r];
-      const stickW = Math.min(plate.w * 0.15, plate.w / (row.length * 1.75));
-      const spread = plate.w * 0.72;
-      const y = cy + (r - (rowCount - 1) / 2) * rowH;
+      const y = cy + (r - (rowCount - 1) / 2) * rowGap;
       for (let i = 0; i < row.length; i += 1) {
         const x = cx + (row.length === 1 ? 0 : (i / (row.length - 1) - 0.5) * spread);
         drawStick(ctx, x, y, stickW, stickH, row[i] === 1);
