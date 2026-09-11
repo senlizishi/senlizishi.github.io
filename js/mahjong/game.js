@@ -167,16 +167,15 @@
       const chipRowBottom = hud.pillY + hud.pillH + 72;
       const tableTop = Math.max(hud.pillY + hud.pillH + 22, chipRowBottom);
 
-      // 底部区块自下而上排：提示 -> 手牌 -> 状态 -> 操作按钮
+      // 底部区块自下而上排：手牌 -> 状态 -> 操作按钮 -> 牌桌
       const handAvail = WIDTH - side * 2;
       // 画布偏矮（平板竖屏）时把底部几条间距按比例收一收，省下的高度让给牌桌和手牌；
       // 高瘦的手机画布 HEIGHT >= 900，系数为 1，间距与原来完全一致。
       const shortFall = Math.min(1, HEIGHT / 900);
-      const hintGap = Math.round(28 * shortFall);          // 提示文字到屏幕底
-      const hintToHand = Math.round(26 * shortFall);       // 提示到手牌下沿
-      const handToStatus = Math.round(30 * shortFall);     // 手牌上沿到状态文字
-      const statusToActions = Math.round(48 * shortFall);  // 状态到操作按钮
-      const actionsToTable = Math.round(42 * shortFall);   // 按钮到牌桌下沿
+      const handBottomGap = Math.round(12 * shortFall);    // 手牌下沿到屏幕底
+      const handToStatus = Math.round(26 * shortFall);     // 手牌上沿到状态文字
+      const statusToActions = Math.round(40 * shortFall);  // 状态文字到操作按钮
+      const actionsToTable = Math.round(34 * shortFall);   // 按钮到牌桌下沿
       const handGapY = 22;        // 两行手牌之间的缝（也够选中抬起 18px）
       // 牌桌保留高度的下限：竖屏短屏（如平板竖屏）时让牌桌让出空间给两行手牌
       const tableMin = Math.min(handAvail, Math.max(220, Math.round(HEIGHT * 0.36)));
@@ -184,7 +183,7 @@
       // 竖屏一行 13 张太挤：铺成两行、每行 7 张，牌与牌之间留出缝，谁也不压谁。
       // 牌不做满屏那么大（小一点更好认），但也别小到手指点不准。
       const roomForHand = HEIGHT - bottomInset - tableTop - tableMin
-        - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
+        - (handBottomGap + handToStatus + statusToActions + actionsToTable);
       // 手牌自适应：竖屏铺两行、每行最多 7 张。缩放由 fitHand() 按「整块贴图」反算，
       // 牌宽、牌高一起约束，任何屏宽 / 屏高的手机都只会把牌缩小，绝不会互相压住。
       // gapX = 0：同一排里相邻两张首尾相接，看着是一整排牌；
@@ -201,8 +200,7 @@
       const handUp = TILE.originY * TILE.texH * handScale;
       const handDown = (TILE.texH - TILE.originY * TILE.texH) * handScale;
       const handRowStep = (TILE.faceH + TILE.thickness) * handScale + handGapY;
-      const hintY = HEIGHT - bottomInset - hintGap;
-      const handBlockBottom = hintY - hintToHand;
+      const handBlockBottom = HEIGHT - bottomInset - handBottomGap;
       const handBlockH = handUp + (handRows - 1) * handRowStep + handDown;
       const handBlockTop = handBlockBottom - handBlockH;
       const handY = handBlockTop + handUp;                   // 第一排锚点，其余按 handRowStep 往下排
@@ -226,32 +224,55 @@
       };
       const band = 34;                              // 对手手牌靠边的一条
       const inner = { x: felt.x + band, y: felt.y + band, w: felt.w - band * 2, h: felt.h - band * 2 };
-      const upDeadDrop = 40;                        // 对家弃牌区下移，给副露角落让位
-      const meldBand = 44;
+      // 副露条只要留够「一行副露画得清」的高度：副露的尺寸本来就被横向宽度卡住，
+      // 留太高也换不来更大的副露牌，省下来的高度全给上面的弃牌区。
+      const meldBand = Math.max(46, Math.round(inner.h * 0.16));
       const region = { x: inner.x, y: inner.y, w: inner.w, h: inner.h - meldBand };
 
-      // 弃牌槽按剩下的空间取大小：牌尽量大，槽位留缝，看着不挤
+      // 弃牌区：四家各占一条互不相压的「河」，按主流麻将 App 的风车形咬合排布，
+      // 中间留出牌墙的位置。四条河各自是一个矩形、彼此不重叠，所以后期弃牌再多
+      // 也只会缩在自己那条河里，不会压到隔壁。
+      // 下 / 右 / 上 / 左 依次首尾相接，读牌方向顺着出牌顺序转一圈（你 → 下家 →
+      // 对家 → 上家）；一张牌具体多大、一行几张由 discardPlan() 按各家当前弃牌
+      // 数现算（牌多就整体缩小，始终画在自己那条河里）。
+      const dh = Math.round(region.w * 0.42);
+      const dv = Math.round(region.h * 0.42);
+      // 牌贴图在牌面外还留了一圈「厚度」，四条河的外沿要按这一圈往回收，
+      // 免得贴图压到圈外的手牌 / 副露。
+      const edge = 6;
       const dead = {
-        w: clamp(Math.floor(region.w / cols), 22, 34),
-        h: clamp(Math.floor(region.h / 5), 26, 44),
+        x: region.x, y: region.y, w: region.w, h: region.h,
+        maxScale: 0.27, minScale: 0.02, maxCols: 10, pad: 3,
+        // 你（下）：横条，占下边靠右 58%
+        bottom: { x0: region.x + dh, x1: region.x + region.w, y0: region.y + region.h - dv, y1: region.y + region.h - edge, rotation: 0 },
+        // 下家（右）：竖条，占右边靠上 58%
+        right: { x0: region.x + region.w - dh, x1: region.x + region.w - edge, y0: region.y, y1: region.y + region.h - dv, rotation: -Math.PI / 2 },
+        // 对家（上）：横条，占上边靠左 58%
+        top: { x0: region.x, x1: region.x + region.w - dh, y0: region.y + edge, y1: region.y + dv, rotation: Math.PI },
+        // 上家（左）：竖条，占左边靠下 58%
+        left: { x0: region.x + edge, x1: region.x + dh, y0: region.y + dv, y1: region.y + region.h, rotation: Math.PI / 2 },
       };
-      const deadScale = clamp((dead.h - 6) / TILE.faceH, 0.15, 0.27);
-      const gapX = (region.w - cols * dead.w) / 2;
-      const left = region.x + gapX;
-      const centerY = region.y + region.h / 2;
-      const sideTop = centerY - ((cols - 1) * dead.w) / 2;
 
       // 对手整条手牌要放得进内圈：牌桌越小画得越小，牌多时自动收紧间距
       const innerMin = Math.min(inner.w, inner.h);
       const oppScale = Math.round(clamp((innerMin - 8) / 1185.6, 0.15, 0.26) * 100) / 100;
       const oppPitch = clamp(Math.floor((innerMin - TILE.faceW * oppScale - 6) / 13), 8, 26);
 
-      // 副露带：牌桌下沿到操作栏之间那条空带。自己的副露靠右、对家 3 的靠左，
-      // 左右分开摆放，副露再多也只在这条带里叠，既不盖住自己的弃牌，也不会互相压住。
+      // 副露条：牌桌下沿那块空地切成四条，一条一个座位（上家 / 对家 / 下家 / 你），
+      // 每条左边一个名牌。每条都按「一行放得下」定尺寸，副露再多也不会缩到看不清，
+      // 也不会像以前那样压到弃牌上。
+      // 弃牌现在铁定落在 region 里（风车形四家互不相压），副露条贴着 region 下沿就行
       const meldLowTop = region.y + region.h + 4;
       const meldLowBottom = tableBottom - 6;
-      const meldLowLeftW = Math.max(60, Math.round(inner.w * 0.34));
-      const meldLowRightW = Math.max(110, Math.round(felt.x + felt.w - 10 - (inner.x + meldLowLeftW) - 8));
+      const meldArea = {
+        left: inner.x,
+        right: inner.x + inner.w,
+        top: meldLowTop,
+        bottom: meldLowBottom,
+        rowH: (meldLowBottom - meldLowTop) / 4,
+        labelW: Math.round(30 * shortFall),
+        scale: 0.26,
+      };
 
       return {
         table: table,
@@ -266,33 +287,10 @@
           footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
         },
         meldBand: meldBand,
-        playerMeld: {
-          y: meldLowBottom,
-          scale: 0.26,
-          right: felt.x + felt.w - 10,
-          maxWidth: meldLowRightW,
-          bandTop: meldLowTop,
-          bandBottom: meldLowBottom,
-        },
+        meldArea: meldArea,
         oppScale: oppScale,
         oppPitch: oppPitch,
-        deadScale: deadScale,
-        corner: {
-          1: { x: inner.x + inner.w, y: inner.y + 18, align: 'right' },
-          2: { x: inner.x, y: inner.y + 18, align: 'left' },
-          3: { x: inner.x, y: meldLowBottom, align: 'left', growUp: true, bandTop: meldLowTop, bandBottom: meldLowBottom },
-        },
-        oppMeld: {
-          1: { scale: 0.18, maxWidth: 168 },
-          2: { scale: 0.18, maxWidth: 168 },
-          3: { scale: 0.18, maxWidth: meldLowLeftW },
-        },
-        seats: {
-          0: { originX: table.cx - (cols - 1) * dead.w / 2, originY: region.y + region.h - dead.h / 2, stepX: dead.w, stepY: -dead.h, rotation: 0 },
-          2: { originX: left + (cols - 1) * dead.w, originY: region.y + dead.h / 2 + upDeadDrop, stepX: -dead.w, stepY: dead.h, rotation: Math.PI },
-          3: { originX: region.x + (dead.h + 4) / 2, originY: sideTop, stepX: dead.h + 4, stepY: dead.w, rotation: Math.PI / 2 },
-          1: { originX: region.x + region.w - (dead.h + 4) / 2, originY: sideTop, stepX: -(dead.h + 4), stepY: dead.w, rotation: -Math.PI / 2 },
-        },
+        dead: dead,
         cols: cols,
         opp: {
           2: { from: 'x', y: inner.y - band / 2, pitch: oppPitch, center: table.cx },
@@ -301,7 +299,6 @@
         },
         actions: { mode: 'row', x: WIDTH / 2, y: actionsY, w: 94, h: 52, gap: 12 },
         status: { x: WIDTH / 2, y: statusY },
-        hint: { x: WIDTH / 2, y: hintY },
         wallChip: { x: inset + 82, y: safe.top + 94 },
         roundChip: { x: WIDTH - safe.right - 168, y: safe.top + 94 },
       };
@@ -435,7 +432,6 @@
       },
       actions: { mode: 'col', x: controlsX, y: safe.top + 146, w: 104, h: 52, gap: 12 },
       status: { x: controlsX, y: HEIGHT * 0.7, wrap: rightCol - 14 },
-      hint: { x: controlsX, y: HEIGHT * 0.78, wrap: rightCol - 14 },
       wallChip: { x: controlsX - 16, y: safe.top + 72 },
       roundChip: { x: controlsX, y: safe.top + 104 },
     };
@@ -458,6 +454,7 @@
       this.tileSprites = [];
       this.marks = [];
       this.oppMeldSprites = [];
+      this.meldDecor = [];
       this.uiObjects = [];
       this.lastDiscardSeat = -1;
       this.actionButtons = [];
@@ -1039,6 +1036,8 @@
       this.marks = [];
       this.oppMeldSprites.forEach((sprite) => sprite.destroy());
       this.oppMeldSprites = [];
+      this.meldDecor.forEach((item) => item.destroy());
+      this.meldDecor = [];
     }
 
     makeTile(code, x, y, scale, rotation, layer) {
@@ -1056,7 +1055,94 @@
       return sprite;
     }
 
-    discardSlot(seat, index) {
+    // 弃牌「河」的排布：四家各一条互不相压的矩形（风车形）。
+    // 先按各家弃牌数求「塞进自己这条河需要的最大牌面缩放」，四家取最小值 ——
+    // 四家牌一样大；只有某家多到放不下时才会整体缩小，永远压不到隔壁。
+    discardPlan() {
+      const dead = this.L.dead;
+      if (!dead) return null;
+      const rectOf = (seat) => (seat === 0 ? dead.bottom : (seat === 1 ? dead.right : (seat === 2 ? dead.top : dead.left)));
+      // 下家（右）/ 上家（左）的牌转了 90°，行方向落在纵轴上
+      const sideways = (seat) => (seat === 1 || seat === 3);
+      const extents = (seat) => {
+        const r = rectOf(seat);
+        return sideways(seat)
+          ? { along: r.y1 - r.y0 - dead.pad * 2, deep: r.x1 - r.x0 - dead.pad * 2 }
+          : { along: r.x1 - r.x0 - dead.pad * 2, deep: r.y1 - r.y0 - dead.pad * 2 };
+      };
+      const colsFor = (seat, scale) => {
+        const along = extents(seat).along;
+        return Math.min(dead.maxCols, Math.max(1, Math.floor(along / (TILE.faceW * scale))));
+      };
+      // 一家能用的最大缩放：枚举「一行放几张」，取放得进自己那条河的最大值。
+      // 小屏 / 牌特别多时缩放会一直变小，但只会在自己那条河里变小，不会压到隔壁。
+      const bestScale = (count, along, deep) => {
+        let top = 0;
+        const cap = Math.max(1, Math.min(dead.maxCols, count));
+        for (let cols = 1; cols <= cap; cols += 1) {
+          const rows = Math.ceil(count / cols);
+          const s = Math.min(dead.maxScale, along / (cols * TILE.faceW), deep / (rows * TILE.faceH));
+          if (s > top) top = s;
+        }
+        return top;
+      };
+      let scale = dead.maxScale;
+      for (let seat = 0; seat < 4; seat += 1) {
+        const count = this.seats[seat].discards.length;
+        if (count <= 0) continue;
+        const e = extents(seat);
+        scale = Math.min(scale, bestScale(count, e.along, e.deep) * 0.998);
+      }
+      // 缩放往下取整（取整后行数可能翻一行），再退到四条河都真的放得下为止
+      scale = Math.max(dead.minScale, Math.floor(scale * 1000) / 1000);
+      for (let guard = 0; guard < 300; guard += 1) {
+        const allFit = [0, 1, 2, 3].every((seat) => {
+          const count = this.seats[seat].discards.length;
+          if (count <= 0) return true;
+          const rows = Math.ceil(count / colsFor(seat, scale));
+          return rows * TILE.faceH * scale <= extents(seat).deep + 0.01;
+        });
+        if (allFit) break;
+        if (scale <= dead.minScale + 0.002) { scale = dead.minScale; break; }
+        scale = Math.round((scale - 0.002) * 1000) / 1000;
+      }
+
+      const seats = {};
+      for (let seat = 0; seat < 4; seat += 1) {
+        const r = rectOf(seat);
+        const tileW = TILE.faceW * scale;
+        const tileH = TILE.faceH * scale;
+        let ox; let oy; let scx; let scy; let srx; let sry;
+        if (seat === 0) {            // 下：第一行贴着自己，往上（桌心）叠
+          ox = r.x0 + dead.pad + tileW / 2; oy = r.y1 - dead.pad - tileH / 2;
+          scx = tileW; scy = 0; srx = 0; sry = -tileH;
+        } else if (seat === 2) {     // 上：牌面转 180°，第一行贴着对家，往下叠
+          ox = r.x1 - dead.pad - tileW / 2; oy = r.y0 + dead.pad + tileH / 2;
+          scx = -tileW; scy = 0; srx = 0; sry = tileH;
+        } else if (seat === 1) {     // 右：牌面转 -90°，第一行贴着下家，往左叠
+          ox = r.x1 - dead.pad - tileH / 2; oy = r.y1 - dead.pad - tileW / 2;
+          scx = 0; scy = -tileW; srx = -tileH; sry = 0;
+        } else {                     // 左：牌面转 +90°，第一行贴着上家，往右叠
+          ox = r.x0 + dead.pad + tileH / 2; oy = r.y0 + dead.pad + tileW / 2;
+          scx = 0; scy = tileW; srx = tileH; sry = 0;
+        }
+        seats[seat] = { ox: ox, oy: oy, scx: scx, scy: scy, srx: srx, sry: sry, cols: colsFor(seat, scale), rotation: r.rotation };
+      }
+      return { scale: scale, seats: seats };
+    }
+
+    // 弃牌落位：竖屏走 discardPlan() 的风车形，横屏沿用旧布局（L.seats）
+    discardSlot(seat, index, plan) {
+      if (plan) {
+        const g = plan.seats[seat];
+        const col = index % g.cols;
+        const row = Math.floor(index / g.cols);
+        return {
+          x: g.ox + g.scx * col + g.srx * row,
+          y: g.oy + g.scy * col + g.sry * row,
+          rotation: g.rotation,
+        };
+      }
       const layout = this.L.seats[seat];
       const row = Math.floor(index / this.L.cols);
       const col = index % this.L.cols;
@@ -1157,24 +1243,92 @@
     }
 
     renderMelds() {
-      const playerMelds = this.seats[0].melds;
-      if (playerMelds.length) {
-        const cfg = this.L.playerMeld;
-        // 副露多时往上叠，别顶到手牌或掉出牌桌
-        this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400, true, cfg.bandTop, cfg.bandBottom);
+      const area = this.L.meldArea;
+      if (!area) {
+        // 横屏：桌面下沿没有整条空带，沿用原来分角落的摆法
+        const playerMelds = this.seats[0].melds;
+        if (playerMelds.length) {
+          const cfg = this.L.playerMeld;
+          // 副露多时往上叠，别顶到手牌或掉出牌桌
+          this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400, true, cfg.bandTop, cfg.bandBottom);
+        }
+        for (const seat of [1, 2, 3]) {
+          const melds = this.seats[seat].melds;
+          if (!melds.length) continue;
+          const anchor = this.L.corner[seat];
+          const cfg = this.L.oppMeld[seat];
+          this.drawMeldRow(melds, anchor.x, anchor.y, cfg.scale, anchor.align, cfg.maxWidth, anchor.growUp, anchor.bandTop, anchor.bandBottom);
+        }
+        return;
       }
-      for (const seat of [1, 2, 3]) {
+      // 画布太矮时副露条会被压扁到看不清，宁可不画（弃牌区还占着位置）
+      if (area.rowH < 11.5) return;
+      // 竖屏：四条固定分给四个座位，位置不随副露多少跳动。上家在最上面，
+      // 自己最下面紧挨手牌，和牌桌上的座次一一对应。
+      [3, 2, 1, 0].forEach((seat, index) => {
         const melds = this.seats[seat].melds;
-        if (!melds.length) continue;
-        const anchor = this.L.corner[seat];
-        const cfg = this.L.oppMeld[seat];
-        this.drawMeldRow(melds, anchor.x, anchor.y, cfg.scale, anchor.align, cfg.maxWidth, anchor.growUp, anchor.bandTop, anchor.bandBottom);
-      }
+        if (!melds.length) return;
+        this.drawMeldLine(melds, seat, area, area.top + (index + 0.5) * area.rowH);
+      });
+    }
+
+    // 一条副露：左边名牌 + 若干组「碰 / 杠」，整条居中。组内三张（杠四张）首尾相接，
+    // 组与组之间留缝，每组垫一块底板，一眼能看出哪几张是一副；碰是暗底，杠描一圈金边。
+    drawMeldLine(melds, seat, area, y) {
+      const gap = 7;
+      const step = (s) => TILE.faceW * s + 1;
+      const countOf = (meld) => (meld.type === 'kong' ? 4 : 3);
+      const tileCount = melds.reduce((n, meld) => n + countOf(meld), 0);
+      const gaps = (melds.length - 1) * gap;
+      const avail = area.right - area.left - area.labelW;
+      const widthAt = (s) => tileCount * step(s) + gaps;
+      // 目标尺寸放不下就整条等比缩小，保证永远只占一行、绝不叠到别的东西上
+      let scale = Math.min(area.scale, area.rowH / TILE.faceH * 0.94);
+      if (widthAt(scale) > avail) scale = (avail - gaps - tileCount) / (tileCount * TILE.faceW);
+      scale = Math.min(scale, area.scale);
+      // 一行实在挤不下就整条不画：与其把副露压到旁边的手牌上，不如不画
+      if (scale < 0.06) return;
+      const labelSize = clamp(Math.round(area.rowH * 0.46), 8, 12);
+      const label = text(this, area.left + area.labelW - 7, y, SEAT_NAME[seat], labelSize, seat === 0 ? '#ffd479' : '#e9d8b7', {
+        originX: 1, originY: 0.5, stroke: '#1b1024', strokeThickness: 3,
+      });
+      this.tileLayer.add(label);
+      this.meldDecor.push(label);
+      const half = TILE.faceH * scale / 2;
+      let x = area.left + area.labelW + Math.max(0, (avail - widthAt(scale)) / 2);
+      melds.forEach((meld) => {
+        const count = countOf(meld);
+        const groupW = count * step(scale);
+        const plate = this.add.graphics();
+        this.tileLayer.add(plate);
+        this.meldDecor.push(plate);
+        const r = Math.max(3, step(scale) * 0.24);
+        plate.fillStyle(0x0d0817, 0.4).fillRoundedRect(x - 2, y - half - 2.5, groupW + 4, half * 2 + 5, r);
+        if (meld.type === 'kong') {
+          plate.lineStyle(1.4, 0xffd479, 0.55).strokeRoundedRect(x - 2, y - half - 2.5, groupW + 4, half * 2 + 5, r);
+        }
+        for (let i = 0; i < count; i += 1) {
+          const concealed = meld.concealed && (i === 1 || i === 2);
+          this.makeTileKey(concealed ? ART.backKey : ART.faceKey(meld.tile), x + i * step(scale) + step(scale) / 2, y, scale, 0);
+        }
+        x += groupW + gap;
+      });
     }
 
     renderDiscards() {
+      // 风车形：四家共用一个牌面缩放，格子对齐（跟主流麻将 App 一样不抖不歪），
+      // 所以同一排的牌只是首尾相接，绝不会互相压住。
+      const plan = this.discardPlan();
       for (let seat = 0; seat < 4; seat += 1) {
         const list = this.seats[seat].discards;
+        if (plan) {
+          for (let i = 0; i < list.length; i += 1) {
+            const slot = this.discardSlot(seat, i, plan);
+            this.makeTile(list[i], slot.x, slot.y, plan.scale, slot.rotation);
+          }
+          continue;
+        }
+        // 横屏：沿用原来的散摆 + 轻微错位
         const base = this.L.deadScale;
         const scale = list.length > 24 ? base * Math.sqrt(24 / list.length) : base;
         for (let i = 0; i < list.length; i += 1) {
