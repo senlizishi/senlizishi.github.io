@@ -106,6 +106,33 @@
     return value - Math.floor(value);
   }
 
+  // 一整张牌的「占位尺寸」：牌面 + 描边留白 + 厚度（含投影，见 art.js 的 footW / footH）。
+  // 排版必须按占位尺寸算，只按牌面宽度排，相邻两张的贴图会互相压住（看起来就是牌叠在一起）。
+  function fitHand(boxW, boxH, options) {
+    const opts = options || {};
+    const count = Math.max(1, opts.count || 14);
+    const gapX = opts.gapX === undefined ? 6 : opts.gapX;
+    const gapY = opts.gapY === undefined ? 20 : opts.gapY;
+    const maxRows = Math.max(1, opts.maxRows || 2);
+    const maxScale = opts.maxScale === undefined ? 0.62 : opts.maxScale;
+    let best = null;
+    for (let rows = 1; rows <= Math.min(maxRows, count); rows += 1) {
+      const cols = Math.ceil(count / rows);
+      const scaleW = (boxW - gapX * (cols - 1)) / (cols * TILE.footW);
+      const scaleH = (boxH - gapY * (rows - 1)) / (rows * TILE.footH);
+      const scale = Math.min(scaleW, scaleH, maxScale);
+      if (scale <= 0.1) continue;
+      if (!best || scale > best.scale + 1e-6) {
+        best = {
+          rows: rows, cols: cols, scale: scale,
+          gapX: cols > 1 ? gapX : 0, gapY: rows > 1 ? gapY : 0,
+        };
+      }
+    }
+    if (!best) best = { rows: 1, cols: count, scale: 0.1, gapX: 0, gapY: 0 };
+    return best;
+  }
+
   // 自适应布局：画布比例等于屏幕比例，所以按画布尺寸算出的坐标天然适配任何机型。
   // 所有尺寸都从 WIDTH / HEIGHT / SAFE / HUD_INSET 推出来，不写死像素，
   // 这样竖屏、横屏、平板、桌面窗口都不会出现压边或留黑边。
@@ -151,22 +178,24 @@
       // 牌不做满屏那么大（小一点更好认），但也别小到手指点不准。
       const roomForHand = HEIGHT - bottomInset - tableTop - tableMin
         - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
-      // 手牌按「整块贴图」排版：footW / footH 是牌面 + 描边留白 + 厚度（见 art.js）。
-      // 只按牌面宽度排，相邻两张的贴图（含投影）会互相压住，看起来就是牌叠在一起。
-      const handCols = 7;                                   // 两行，每行 7 张
-      const handEdge = 6;                                   // 手牌块左右各留的安全边
-      const handGapX = 6;                                   // 牌与牌之间至少留的缝
-      const handScaleW = (handAvail - handEdge * 2 - handGapX * (handCols - 1))
-        / (handCols * TILE.footW);
-      const handScaleH = (roomForHand - handGapY) / (TILE.faceH + TILE.footH);
-      const twoRowScale = Math.min(handScaleW, handScaleH);
-      const handRows = twoRowScale >= 0.3 ? 2 : 1;
-      const handScale = handRows === 2 ? clamp(twoRowScale, 0.28, 0.5) : 0.52;
-      const handBlockH = handRows * TILE.faceH * handScale + (handRows - 1) * handGapY;
+      // 手牌自适应：竖屏铺两行、每行最多 7 张。缩放由 fitHand() 按「整块贴图」反算，
+      // 牌宽、牌高一起约束，任何屏宽 / 屏高的手机都只会把牌缩小，绝不会互相压住。
+      const handFit = fitHand(handAvail, roomForHand, {
+        count: 14, gapX: 6, gapY: handGapY, maxRows: 2, maxScale: 0.56,
+      });
+      const handRows = handFit.rows;
+      const handCols = handFit.cols;
+      const handGapX = handFit.gapX;
+      const handScale = handFit.scale;
+      // 贴图锚点在牌面中心（art.js 的 originY），手牌块要按贴图的上下沿对齐才算得准。
+      const handUp = TILE.originY * TILE.texH * handScale;
+      const handDown = (TILE.texH - TILE.originY * TILE.texH) * handScale;
+      const handRowStep = (TILE.faceH + TILE.thickness) * handScale + handGapY;
       const hintY = HEIGHT - bottomInset - hintGap;
       const handBlockBottom = hintY - hintToHand;
+      const handBlockH = handUp + (handRows - 1) * handRowStep + handDown;
       const handBlockTop = handBlockBottom - handBlockH;
-      const handY = (handBlockTop + handBlockBottom) / 2;
+      const handY = handBlockTop + handUp;                   // 第一排锚点，其余按 handRowStep 往下排
       const statusY = handBlockTop - handToStatus;
       const actionsY = statusY - statusToActions;
 
@@ -207,19 +236,33 @@
       const oppScale = Math.round(clamp((innerMin - 8) / 1185.6, 0.15, 0.26) * 100) / 100;
       const oppPitch = clamp(Math.floor((innerMin - TILE.faceW * oppScale - 6) / 13), 8, 26);
 
+      // 副露带：牌桌下沿到操作栏之间那条空带。自己的副露靠右、对家 3 的靠左，
+      // 左右分开摆放，副露再多也只在这条带里叠，既不盖住自己的弃牌，也不会互相压住。
+      const meldLowTop = region.y + region.h + 4;
+      const meldLowBottom = tableBottom - 6;
+      const meldLowLeftW = Math.max(60, Math.round(inner.w * 0.34));
+      const meldLowRightW = Math.max(110, Math.round(felt.x + felt.w - 10 - (inner.x + meldLowLeftW) - 8));
+
       return {
         table: table,
         felt: felt,
         inner: inner,
         region: region,
         hud: hud,
-        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, gapX: handGapX, footW: TILE.footW, footH: TILE.footH, blockH: handBlockH },
+        hand: {
+          y: handY, scale: handScale, avail: handAvail, left: side,
+          rows: handRows, cols: handCols, gapX: handGapX, gapY: handGapY,
+          rowStep: handRowStep, footPitch: true, up: handUp,
+          footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
+        },
         meldBand: meldBand,
         playerMeld: {
-          y: region.y + region.h + meldBand / 2 + 12,
+          y: meldLowBottom,
           scale: 0.26,
           right: felt.x + felt.w - 10,
-          maxWidth: Math.round(felt.w * 0.66),
+          maxWidth: meldLowRightW,
+          bandTop: meldLowTop,
+          bandBottom: meldLowBottom,
         },
         oppScale: oppScale,
         oppPitch: oppPitch,
@@ -227,12 +270,12 @@
         corner: {
           1: { x: inner.x + inner.w, y: inner.y + 18, align: 'right' },
           2: { x: inner.x, y: inner.y + 18, align: 'left' },
-          3: { x: inner.x, y: inner.y + inner.h - 18, align: 'left', growUp: true },
+          3: { x: inner.x, y: meldLowBottom, align: 'left', growUp: true, bandTop: meldLowTop, bandBottom: meldLowBottom },
         },
         oppMeld: {
           1: { scale: 0.18, maxWidth: 168 },
           2: { scale: 0.18, maxWidth: 168 },
-          3: { scale: 0.18, maxWidth: 160 },
+          3: { scale: 0.18, maxWidth: meldLowLeftW },
         },
         seats: {
           0: { originX: table.cx - (cols - 1) * dead.w / 2, originY: region.y + region.h - dead.h / 2, stepX: dead.w, stepY: -dead.h, rotation: 0 },
@@ -273,12 +316,6 @@
       pillH: pillH,
     };
 
-    const handScale = 0.54;
-    const halfH = TILE.faceH * handScale / 2;
-    const handY = HEIGHT - safe.bottom - 16 - halfH;
-    const bodyW = WIDTH - safe.left - safe.right;
-    const handAvail = Math.min(bodyW - 200, 760);
-    const handLeft = safe.left + (bodyW - handAvail) / 2;
 
     const vmargin = clamp(Math.round(HEIGHT * 0.024), 8, 16);
     const tableTop = safe.top + hudBand;
@@ -292,6 +329,25 @@
     const cx = leftEdge + Math.max(0, span - size) / 2 + size / 2;
     const table = { cx: cx, cy: tableTop + band / 2, size: size };
     hud.titleX = cx;
+
+    // 手牌：横屏高度不够铺两行，用一行 14 张，同样按「整块贴图」自适应算尺寸；
+    // 铺不下就整体缩小，牌与牌之间永远留着 gapX 的缝，不会互相压住。
+    const handAvail = Math.max(180, rightEdge - leftEdge);
+    const handLeft = leftEdge;
+    const handFit = fitHand(handAvail, band * 0.5, {
+      count: 14, gapX: 6, gapY: 14, maxRows: 1, maxScale: 0.56,
+    });
+    const handRows = handFit.rows;
+    const handCols = handFit.cols;
+    const handGapX = handFit.gapX;
+    const handScale = handFit.scale;
+    const handUp = TILE.originY * TILE.texH * handScale;
+    const handRowStep = (TILE.faceH + TILE.thickness) * handScale;
+    const handBlockH = TILE.footH * handScale;
+    const handBlockBottom = tableBottom;
+    const handBlockTop = handBlockBottom - handBlockH;
+    const handY = handBlockTop + handUp;                   // 唯一一排的锚点
+    const halfH = (TILE.faceH + TILE.thickness) * handScale / 2;
 
     const rim = size * 0.085;
     const felt = {
@@ -326,7 +382,12 @@
       inner: inner,
       region: region,
       hud: hud,
-      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, gapX: 0, blockH: TILE.faceH * handScale },
+      hand: {
+        y: handY, scale: handScale, avail: handAvail, left: handLeft,
+        rows: handRows, cols: handCols, gapX: handGapX, gapY: 0,
+        rowStep: handRowStep, footPitch: true, up: handUp,
+        footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
+      },
       meldBand: meldBand,
       // 自己的副露靠在操作栏左边、手牌上方
       playerMeld: {
@@ -637,34 +698,42 @@
       const h = TILE.faceH * scale;
       const rows = Math.max(1, cfg.rows || 1);
       const gapY = Math.max(0, cfg.gapY || 0);
-      // 一行时按实际张数铺开（自动居中）；两行时按整副 14 张分成固定的两排，牌不会跳位
-      const perRow = rows === 1 ? Math.max(1, count) : Math.max(1, Math.ceil(14 / rows));
+      // 一行时按实际张数铺开（自动居中）；多行时按整副 14 张分排，牌不会跳位
+      const perRow = rows === 1
+        ? Math.max(1, count)
+        : Math.max(1, cfg.cols || Math.ceil(14 / rows));
       const avail = cfg.avail;
-      // 一整块贴图的占位宽度：含描边留白与投影，按它排版相邻两张才不会互相压住
-      const footW = (cfg.footW || TILE.footW || TILE.faceW) * scale;
-      const footH = (cfg.footH || TILE.footH || TILE.faceH) * scale;
+      // 一整块贴图的占位尺寸：含描边留白、厚度与投影（见 art.js 的 footW / footH）
+      const footW = (cfg.footW || TILE.footW) * scale;
+      const footH = (cfg.footH || TILE.footH) * scale;
+      // 贴图锚点在牌面中心，锚点上下各占多少要按 originY 算，手牌块才对得上
+      const up = TILE.originY * TILE.texH * scale;
+      const down = (TILE.texH - TILE.originY * TILE.texH) * scale;
+      // 行距按「可见牌体」（牌面 + 厚度）算，两排之间正好留出 cfg.gapY 的缝，不会互相压住
+      const bodyH = (TILE.faceH + TILE.thickness) * scale;
+      const rowStep = rows > 1 ? (cfg.rowStep || bodyH + gapY) : 0;
       let pitch = 0;
       if (perRow > 1) {
-        pitch = (rows > 1 && cfg.gapX)
-          ? footW + cfg.gapX
+        // 横排只留「缝」：pitch 大于整块贴图宽度，投影也不会叠到邻居身上
+        pitch = cfg.footPitch
+          ? footW + (cfg.gapX || 0)
           : Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)));
       }
       const total = footW + pitch * (perRow - 1);
       const startX = cfg.left + (avail - total) / 2 + footW / 2;
-      const rowStep = h + gapY;
-      const topY = cfg.y - ((rows - 1) * rowStep) / 2;
+      const topY = cfg.y;                       // cfg.y 是第一排的锚点
       const slotX = (index) => startX + (index % perRow) * pitch;
       const slotY = (index) => topY + Math.floor(index / perRow) * rowStep;
       return {
         w: w, h: h, pitch: pitch, startX: startX, total: total, count: count,
         rows: rows, perRow: perRow, gapY: gapY, rowStep: rowStep, topY: topY,
         slotX: slotX, slotY: slotY,
-        blockH: rows * h + (rows - 1) * gapY,
+        blockH: up + (rows - 1) * rowStep + down,
         footW: footW, footH: footH,
         left: startX - footW / 2,
         right: startX + pitch * (perRow - 1) + footW / 2,
-        top: topY - footH / 2,
-        bottom: topY + (rows - 1) * rowStep + footH / 2,
+        top: topY - up,
+        bottom: topY + (rows - 1) * rowStep + down,
       };
     }
 
@@ -964,7 +1033,7 @@
 
     bannerPosition(seat) {
       const table = this.L.table;
-      if (seat === 0) return { x: table.cx, y: this.L.hand.y - (this.L.hand.blockH || 0) / 2 - 30 };
+      if (seat === 0) return { x: table.cx, y: this.L.hand.y - (this.L.hand.up || 0) - 30 };
       if (seat === 1) return { x: this.L.inner.x + this.L.inner.w - 62, y: table.cy - 70 };
       if (seat === 2) return { x: table.cx, y: this.L.inner.y + 76 };
       return { x: this.L.inner.x + 62, y: table.cy - 70 };
@@ -1036,33 +1105,59 @@
       }
     }
 
-    // 副露按行排布，超出宽度自动折行
-    drawMeldRow(melds, anchorX, anchorY, scale, align, maxWidth, growUp) {
-      const step = TILE.faceW * scale + 1;
+    // 副露（吃碰杠）按行排布，超出宽度自动折行。
+    // 传入 bandTop / bandBottom 时，整块副露会被限制在这条水平带里，
+    // 放不下就整体缩小，绝不越界压到弃牌或别人的副露上。
+    drawMeldRow(melds, anchorX, anchorY, scale, align, maxWidth, growUp, bandTop, bandBottom) {
       const gap = 7;
-      const rows = [];
-      let row = [];
-      let rowWidth = 0;
-      melds.forEach((meld) => {
-        const width = (meld.type === 'kong' ? 4 : 3) * step;
-        if (row.length && rowWidth + width > maxWidth) {
-          rows.push({ melds: row, width: rowWidth });
-          row = []; rowWidth = 0;
+      const plan = (s) => {
+        const step = TILE.faceW * s + 1;
+        const rows = [];
+        let row = [];
+        let rowWidth = 0;
+        melds.forEach((meld) => {
+          const width = (meld.type === 'kong' ? 4 : 3) * step;
+          if (row.length && rowWidth + width > maxWidth) {
+            rows.push({ melds: row, width: rowWidth });
+            row = []; rowWidth = 0;
+          }
+          row.push(meld);
+          rowWidth += width + gap;
+        });
+        if (row.length) rows.push({ melds: row, width: rowWidth });
+        const rowStep = TILE.faceH * s + 8;
+        return {
+          rows: rows, step: step, rowStep: rowStep,
+          blockH: (rows.length - 1) * rowStep + TILE.faceH * s,
+        };
+      };
+      const hasBand = bandTop !== undefined && bandBottom !== undefined;
+      let s = scale;
+      let fitted = plan(s);
+      if (hasBand) {
+        const bandH = Math.max(TILE.faceH * 0.2, bandBottom - bandTop);
+        let guard = 0;
+        while (fitted.blockH > bandH && s > 0.06 && guard < 12) {
+          s *= Math.max(0.72, Math.min(0.98, Math.sqrt(bandH / fitted.blockH)));
+          fitted = plan(s);
+          guard += 1;
         }
-        row.push(meld);
-        rowWidth += width + gap;
-      });
-      if (row.length) rows.push({ melds: row, width: rowWidth });
+      }
+      const rows = fitted.rows;
+      const step = fitted.step;
+      const rowStep = fitted.rowStep;
+      const baseY = hasBand
+        ? (growUp ? bandBottom - TILE.faceH * s / 2 : bandTop + TILE.faceH * s / 2)
+        : anchorY;
       rows.forEach((entry, rowIndex) => {
-        const rowStep = TILE.faceH * scale + 8;
-        const y = growUp ? anchorY - (rows.length - 1 - rowIndex) * rowStep : anchorY + rowIndex * rowStep;
+        const y = growUp ? baseY - (rows.length - 1 - rowIndex) * rowStep : baseY + rowIndex * rowStep;
         let x = align === 'right' ? anchorX - entry.width + gap : anchorX;
         entry.melds.forEach((meld) => {
           const count = meld.type === 'kong' ? 4 : 3;
           for (let i = 0; i < count; i += 1) {
             const concealed = meld.concealed && (i === 1 || i === 2);
             const key = concealed ? ART.backKey : ART.faceKey(meld.tile);
-            this.makeTileKey(key, x + i * step + step / 2, y, scale, 0);
+            this.makeTileKey(key, x + i * step + step / 2, y, s, 0);
           }
           x += count * step + gap;
         });
@@ -1074,14 +1169,14 @@
       if (playerMelds.length) {
         const cfg = this.L.playerMeld;
         // 副露多时往上叠，别顶到手牌或掉出牌桌
-        this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400, true);
+        this.drawMeldRow(playerMelds, cfg.right, cfg.y, cfg.scale, 'right', cfg.maxWidth || 400, true, cfg.bandTop, cfg.bandBottom);
       }
       for (const seat of [1, 2, 3]) {
         const melds = this.seats[seat].melds;
         if (!melds.length) continue;
         const anchor = this.L.corner[seat];
         const cfg = this.L.oppMeld[seat];
-        this.drawMeldRow(melds, anchor.x, anchor.y, cfg.scale, anchor.align, cfg.maxWidth, anchor.growUp);
+        this.drawMeldRow(melds, anchor.x, anchor.y, cfg.scale, anchor.align, cfg.maxWidth, anchor.growUp, anchor.bandTop, anchor.bandBottom);
       }
     }
 

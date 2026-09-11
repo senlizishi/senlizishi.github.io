@@ -880,9 +880,12 @@
     faceKey: function (code) { return 'mj-face-' + code; },
     backKey: 'mj-back',
     // 以牌面中心为锚点摆放，布局计算更直观
+    // 贴图是 2 倍烘焙的（texW * bake），所以显示缩放必须再乘 TILE.baseScale，
+    // 这样 faceSize(scale) = faceW * scale 才是屏幕上真实的牌面尺寸；
+    // 漏掉 baseScale 会把每张牌画成两倍大，相邻的牌就会互相压住（手牌看起来是叠在一起的）。
     place: function (image, x, y, scale) {
       image.setOrigin(0.5, TILE.originY);
-      image.setScale(scale === undefined ? TILE.baseScale : scale);
+      image.setScale((scale === undefined ? 1 : scale) * TILE.baseScale);
       image.setPosition(x, y);
       return image;
     },
