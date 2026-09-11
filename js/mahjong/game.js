@@ -224,10 +224,10 @@
       };
       const band = 34;                              // 对手手牌靠边的一条
       const inner = { x: felt.x + band, y: felt.y + band, w: felt.w - band * 2, h: felt.h - band * 2 };
-      // 副露条只要留够「一行副露画得清」的高度：副露的尺寸本来就被横向宽度卡住，
-      // 留太高也换不来更大的副露牌，省下来的高度全给上面的弃牌区。
-      const meldBand = Math.max(46, Math.round(inner.h * 0.16));
-      const region = { x: inner.x, y: inner.y, w: inner.w, h: inner.h - meldBand };
+      // 副露不再挤在牌桌下方那一条里，改成每家摆在自己那一侧的桌沿（木框）上，
+      // 谁碰 / 杠就出现在谁面前，和真打麻将一样；原来那条副露带的地盘还给弃牌区，
+      // 四家的「河」跟着变大，后期牌再多也看得清。
+      const region = { x: inner.x, y: inner.y, w: inner.w, h: inner.h };
 
       // 弃牌区：四家各占一条互不相压的「河」，按主流麻将 App 的风车形咬合排布，
       // 中间留出牌墙的位置。四条河各自是一个矩形、彼此不重叠，所以后期弃牌再多
@@ -258,20 +258,22 @@
       const oppScale = Math.round(clamp((innerMin - 8) / 1185.6, 0.15, 0.26) * 100) / 100;
       const oppPitch = clamp(Math.floor((innerMin - TILE.faceW * oppScale - 6) / 13), 8, 26);
 
-      // 副露条：牌桌下沿那块空地切成四条，一条一个座位（上家 / 对家 / 下家 / 你），
-      // 每条左边一个名牌。每条都按「一行放得下」定尺寸，副露再多也不会缩到看不清，
-      // 也不会像以前那样压到弃牌上。
-      // 弃牌现在铁定落在 region 里（风车形四家互不相压），副露条贴着 region 下沿就行
-      const meldLowTop = region.y + region.h + 4;
-      const meldLowBottom = tableBottom - 6;
-      const meldArea = {
-        left: inner.x,
-        right: inner.x + inner.w,
-        top: meldLowTop,
-        bottom: meldLowBottom,
-        rowH: (meldLowBottom - meldLowTop) / 4,
-        labelW: Math.round(30 * shortFall),
-        scale: 0.26,
+      // 四家副露各自的落点：谁那一侧的桌沿（木框）就归谁，谁碰 / 杠就出现在谁面前。
+      // 横边（对家 / 你）横着排一排；竖边（上家 / 下家）一张一张往下叠，牌一律正着摆
+      // —— 转 90° 虽然更像真桌子，但歪着就看不出是什么牌了。
+      // 每条都按自己那块木框的厚度定尺寸，永远待在自己家里，压不到弃牌也压不到别人。
+      // 木框本身就这么厚，副露牌能被它卡住；留一点点边就行，贴图外侧只是透明留白，
+      // 真压出框 1~2 px 也看不出来，换来的是副露更大更好认。
+      const meldPad = Math.max(2, Math.round(rim * 0.06));
+      const meldMaxScale = clamp((rim - meldPad * 2 - 2) / (TILE.faceH + TILE.thickness), 0.1, 0.26);
+      const meldZone = (left, top, right, bottom, dir) => ({
+        left: left, top: top, right: right, bottom: bottom, dir: dir, maxScale: meldMaxScale,
+      });
+      const meldZones = {
+        2: meldZone(felt.x, table.cy - table.size / 2 + meldPad, felt.x + felt.w, felt.y - meldPad, 'h'),
+        3: meldZone(table.cx - table.size / 2 + meldPad, table.cy - table.size / 2 + meldPad, felt.x - meldPad, table.cy + table.size / 2 - meldPad, 'v'),
+        1: meldZone(felt.x + felt.w + meldPad, table.cy - table.size / 2 + meldPad, table.cx + table.size / 2 - meldPad, table.cy + table.size / 2 - meldPad, 'v'),
+        0: meldZone(felt.x, felt.y + felt.h + meldPad, felt.x + felt.w, table.cy + table.size / 2 - meldPad, 'h'),
       };
 
       return {
@@ -286,8 +288,7 @@
           rowStep: handRowStep, footPitch: true, up: handUp, pitchW: TILE.faceW,
           footW: TILE.footW, footH: TILE.footH, blockH: handBlockH,
         },
-        meldBand: meldBand,
-        meldArea: meldArea,
+        meldZones: meldZones,
         oppScale: oppScale,
         oppPitch: oppPitch,
         dead: dead,
@@ -1243,8 +1244,8 @@
     }
 
     renderMelds() {
-      const area = this.L.meldArea;
-      if (!area) {
+      const zones = this.L.meldZones;
+      if (!zones) {
         // 横屏：桌面下沿没有整条空带，沿用原来分角落的摆法
         const playerMelds = this.seats[0].melds;
         if (playerMelds.length) {
@@ -1261,57 +1262,81 @@
         }
         return;
       }
-      // 画布太矮时副露条会被压扁到看不清，宁可不画（弃牌区还占着位置）
-      if (area.rowH < 11.5) return;
-      // 竖屏：四条固定分给四个座位，位置不随副露多少跳动。上家在最上面，
-      // 自己最下面紧挨手牌，和牌桌上的座次一一对应。
-      [3, 2, 1, 0].forEach((seat, index) => {
+      // 竖屏：谁碰的牌就摆在谁那一侧的桌沿上，位置固定、不随副露多少跳动，
+      // 一眼就能看出是哪一家碰 / 杠了什么。
+      [0, 1, 2, 3].forEach((seat) => {
         const melds = this.seats[seat].melds;
         if (!melds.length) return;
-        this.drawMeldLine(melds, seat, area, area.top + (index + 0.5) * area.rowH);
+        this.drawMeldZone(melds, seat, zones[seat]);
       });
     }
 
-    // 一条副露：左边名牌 + 若干组「碰 / 杠」，整条居中。组内三张（杠四张）首尾相接，
-    // 组与组之间留缝，每组垫一块底板，一眼能看出哪几张是一副；碰是暗底，杠描一圈金边。
-    drawMeldLine(melds, seat, area, y) {
-      const gap = 7;
-      const step = (s) => TILE.faceW * s + 1;
+    // 一家的副露画在它自己那一侧的桌沿（木框）上，整块居中：
+    //  横边（对家 / 你）：牌正着排成一排，同一副 3 张（杠 4 张）首尾相接；
+    //  竖边（上家 / 下家）：牌仍然正着看，一张一张往下叠，纵向留出牌厚度，
+    //    免得上面那张的厚度压住下面那张的牌面。
+    // 每组垫一块底板、杠再描一圈金边，一眼能看出哪几张是一副、哪副是杠。
+    // 整块按木框厚度自动缩放，永远待在自己这条木框里，压不到弃牌也压不到别人。
+    drawMeldZone(melds, seat, zone) {
+      const vertical = zone.dir === 'v';
       const countOf = (meld) => (meld.type === 'kong' ? 4 : 3);
-      const tileCount = melds.reduce((n, meld) => n + countOf(meld), 0);
+      // 垂直于排列方向的可用厚度；排列方向的可用长度 = 那一条木框有多长
+      const thick = vertical ? zone.right - zone.left : zone.bottom - zone.top;
+      const along = vertical ? zone.bottom - zone.top : zone.right - zone.left;
+      // 一张牌沿「厚度」方向要占牌面 + 立体厚度，沿「排列」方向只算牌面（首尾相接）
+      const across = vertical ? TILE.faceW : TILE.faceH + TILE.thickness;
+      const stepUnit = vertical ? TILE.faceH + TILE.thickness : TILE.faceW;
+      const gap = clamp(Math.round(thick * 0.22), 4, 12);
+      const labelSize = clamp(Math.round(thick * 0.34), 8, 13);
+      const labelExtent = labelSize + 6;
+      const count = melds.reduce((n, meld) => n + countOf(meld), 0);
       const gaps = (melds.length - 1) * gap;
-      const avail = area.right - area.left - area.labelW;
-      const widthAt = (s) => tileCount * step(s) + gaps;
-      // 目标尺寸放不下就整条等比缩小，保证永远只占一行、绝不叠到别的东西上
-      let scale = Math.min(area.scale, area.rowH / TILE.faceH * 0.94);
-      if (widthAt(scale) > avail) scale = (avail - gaps - tileCount) / (tileCount * TILE.faceW);
-      scale = Math.min(scale, area.scale);
-      // 一行实在挤不下就整条不画：与其把副露压到旁边的手牌上，不如不画
-      if (scale < 0.06) return;
-      const labelSize = clamp(Math.round(area.rowH * 0.46), 8, 12);
-      const label = text(this, area.left + area.labelW - 7, y, SEAT_NAME[seat], labelSize, seat === 0 ? '#ffd479' : '#e9d8b7', {
-        originX: 1, originY: 0.5, stroke: '#1b1024', strokeThickness: 3,
-      });
+      const extentAt = (s) => count * (stepUnit * s + 1) + gaps;
+      // 目标尺寸放不下就整块等比缩小，保证只占这一条木框、绝不叠到别的东西上
+      let scale = Math.min(zone.maxScale, (thick - 2) / across);
+      const avail = along - 10 - labelExtent;
+      if (extentAt(scale) > avail) scale = (avail - gaps - count) / (count * stepUnit);
+      scale = Math.max(0, Math.min(scale, zone.maxScale));
+      // 木框太窄（小屏平板竖屏）时宁可不画，也别糊成一团看不清
+      if (scale < 0.08 || count <= 0) return;
+      const extent = extentAt(scale);
+      const centerAlong = vertical ? (zone.top + zone.bottom) / 2 : (zone.left + zone.right) / 2;
+      const centerThick = vertical ? (zone.left + zone.right) / 2 : (zone.top + zone.bottom) / 2;
+      let cursor = centerAlong - (extent + labelExtent + 5) / 2;
+      const label = text(this, vertical ? centerThick : cursor, vertical ? cursor + 3 : centerThick,
+        SEAT_NAME[seat], labelSize, seat === 0 ? '#ffd479' : '#e9d8b7', {
+          originX: vertical ? 0.5 : 0, originY: vertical ? 0 : 0.5, stroke: '#1b1024', strokeThickness: 3,
+        });
       this.tileLayer.add(label);
       this.meldDecor.push(label);
-      const half = TILE.faceH * scale / 2;
-      let x = area.left + area.labelW + Math.max(0, (avail - widthAt(scale)) / 2);
+      cursor += labelExtent + 5;
+      const halfThick = across * scale / 2;
+      // 贴图在牌面外还留着立体厚度，锚点往上挪半个厚度，牌面才正好落在木框中间
+      const anchorThick = centerThick - (vertical ? 0 : TILE.thickness / 2 * scale);
       melds.forEach((meld) => {
-        const count = countOf(meld);
-        const groupW = count * step(scale);
+        const n = countOf(meld);
+        const groupLen = n * (stepUnit * scale + 1);
         const plate = this.add.graphics();
         this.tileLayer.add(plate);
         this.meldDecor.push(plate);
-        const r = Math.max(3, step(scale) * 0.24);
-        plate.fillStyle(0x0d0817, 0.4).fillRoundedRect(x - 2, y - half - 2.5, groupW + 4, half * 2 + 5, r);
+        const r = Math.max(3, stepUnit * scale * 0.24);
+        if (vertical) {
+          plate.fillStyle(0x0d0817, 0.4).fillRoundedRect(centerThick - halfThick - 2.5, cursor - 2, halfThick * 2 + 5, groupLen + 4, r);
+        } else {
+          plate.fillStyle(0x0d0817, 0.4).fillRoundedRect(cursor - 2, centerThick - halfThick - 2.5, groupLen + 4, halfThick * 2 + 5, r);
+        }
         if (meld.type === 'kong') {
-          plate.lineStyle(1.4, 0xffd479, 0.55).strokeRoundedRect(x - 2, y - half - 2.5, groupW + 4, half * 2 + 5, r);
+          plate.lineStyle(1.4, 0xffd479, 0.55);
+          if (vertical) plate.strokeRoundedRect(centerThick - halfThick - 2.5, cursor - 2, halfThick * 2 + 5, groupLen + 4, r);
+          else plate.strokeRoundedRect(cursor - 2, centerThick - halfThick - 2.5, groupLen + 4, halfThick * 2 + 5, r);
         }
-        for (let i = 0; i < count; i += 1) {
+        for (let i = 0; i < n; i += 1) {
+          const at = cursor + (i + 0.5) * (stepUnit * scale + 1);
           const concealed = meld.concealed && (i === 1 || i === 2);
-          this.makeTileKey(concealed ? ART.backKey : ART.faceKey(meld.tile), x + i * step(scale) + step(scale) / 2, y, scale, 0);
+          this.makeTileKey(concealed ? ART.backKey : ART.faceKey(meld.tile),
+            vertical ? centerThick : at, vertical ? at : anchorThick, scale, 0);
         }
-        x += groupW + gap;
+        cursor += groupLen + gap;
       });
     }
 
