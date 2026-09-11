@@ -132,24 +132,33 @@
 
       // 底部区块自下而上排：提示 -> 手牌 -> 状态 -> 操作按钮
       const handAvail = WIDTH - side * 2;
-      const hintGap = 28;         // 提示文字到屏幕底
-      const hintToHand = 26;      // 提示到手牌下沿
-      const handToStatus = 30;    // 手牌上沿到状态文字
-      const statusToActions = 48; // 状态到操作按钮
-      const actionsToTable = 42;  // 按钮到牌桌下沿
+      // 画布偏矮（平板竖屏）时把底部几条间距按比例收一收，省下的高度让给牌桌和手牌；
+      // 高瘦的手机画布 HEIGHT >= 900，系数为 1，间距与原来完全一致。
+      const shortFall = Math.min(1, HEIGHT / 900);
+      const hintGap = Math.round(28 * shortFall);          // 提示文字到屏幕底
+      const hintToHand = Math.round(26 * shortFall);       // 提示到手牌下沿
+      const handToStatus = Math.round(30 * shortFall);     // 手牌上沿到状态文字
+      const statusToActions = Math.round(48 * shortFall);  // 状态到操作按钮
+      const actionsToTable = Math.round(42 * shortFall);   // 按钮到牌桌下沿
       const handGapY = 22;        // 两行手牌之间的缝（也够选中抬起 18px）
-      const tableMin = Math.min(handAvail, 300);
+      // 牌桌保留高度的下限：竖屏短屏（如平板竖屏）时让牌桌让出空间给两行手牌
+      const tableMin = Math.min(handAvail, Math.max(220, Math.round(HEIGHT * 0.36)));
 
-      // 竖屏一行 13 张太挤：铺成两行、每行 7 张不重叠，牌面能大一圈。
-      // 竖直空间不够（例如 4:3 平板竖屏）就退回一行，别把牌桌挤没。
+      // 竖屏一行 13 张太挤：铺成两行、每行 7 张，牌与牌之间留出缝，谁也不压谁。
+      // 牌不做满屏那么大（小一点更好认），但也别小到手指点不准。
       const roomForHand = HEIGHT - safe.bottom - tableTop - tableMin
         - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
+      const handSlotGap = Math.round(TILE.faceW * 0.095);   // 牌之间的缝（画布像素）
+      const handTileW = Math.min(
+        TILE.faceW * 0.58,
+        (handAvail - 12 - handSlotGap * (7 - 1)) / 7,
+      );
       const twoRowScale = Math.min(
-        (handAvail - 6) / 7 / TILE.faceW,
+        handTileW / TILE.faceW,
         (roomForHand - handGapY) / (2 * TILE.faceH),
       );
-      const handRows = twoRowScale >= 0.56 ? 2 : 1;
-      const handScale = handRows === 2 ? clamp(twoRowScale, 0.3, 0.7) : 0.55;
+      const handRows = twoRowScale >= 0.42 ? 2 : 1;
+      const handScale = handRows === 2 ? clamp(twoRowScale, 0.34, 0.58) : 0.55;
       const handBlockH = handRows * TILE.faceH * handScale + (handRows - 1) * handGapY;
       const hintY = HEIGHT - safe.bottom - hintGap;
       const handBlockBottom = hintY - hintToHand;
@@ -201,7 +210,7 @@
         inner: inner,
         region: region,
         hud: hud,
-        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, blockH: handBlockH },
+        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, slotGap: handSlotGap, blockH: handBlockH },
         meldBand: meldBand,
         playerMeld: {
           y: region.y + region.h + meldBand / 2 + 12,
@@ -314,7 +323,7 @@
       inner: inner,
       region: region,
       hud: hud,
-      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, blockH: TILE.faceH * handScale },
+      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, slotGap: 0, blockH: TILE.faceH * handScale },
       meldBand: meldBand,
       // 自己的副露靠在操作栏左边、手牌上方
       playerMeld: {
@@ -597,8 +606,8 @@
       if (!count) return;
       const metrics = this.handMetrics();
       // 手牌可能是两行，按最近的一张判定，行与行之间也能点中
-      const slopX = metrics.w / 2 + 8;
-      const slopY = metrics.h / 2 + 16;
+      const slopX = metrics.w / 2 + 5;
+      const slopY = metrics.h / 2 + 12;
       let hit = -1;
       let bestDist = Infinity;
       for (let i = 0; i < count; i += 1) {
@@ -628,9 +637,11 @@
       // 一行时按实际张数铺开（自动居中）；两行时按整副 14 张分成固定的两排，牌不会跳位
       const perRow = rows === 1 ? Math.max(1, count) : Math.max(1, Math.ceil(14 / rows));
       const avail = cfg.avail;
-      const pitch = perRow > 1
+      let pitch = perRow > 1
         ? Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)))
         : 0;
+      // 铺成多行时按「牌宽 + 固定缝」排列，不铺满整屏，两边留白也更清楚
+      if (rows > 1 && cfg.slotGap) pitch = Math.min(pitch, w + cfg.slotGap);
       const total = w + pitch * (perRow - 1);
       const startX = cfg.left + (avail - total) / 2 + w / 2;
       const rowStep = h + gapY;
