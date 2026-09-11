@@ -18,6 +18,10 @@
   TILE.originY = (TILE.faceY + TILE.faceH / 2) / TILE.texH;   // 以“牌面中心”为锚点                 // 贴图 2x -> 显示 1x 的缩放
   TILE.faceDisplayW = TILE.faceW / TILE.bake;
   TILE.faceDisplayH = TILE.faceH / TILE.bake;
+  // 一张牌实际占位的尺寸（含描边留白、厚度与投影）。排版必须按这个算，
+  // 只按牌面宽度排会让相邻两张的贴图互相压住，看起来就是牌叠在一起。
+  TILE.footW = TILE.faceW + TILE.margin * 2;
+  TILE.footH = TILE.faceH + TILE.thickness + TILE.margin * 2;
 
   const CJK = '"Kaiti SC","STKaiti","KaiTi","Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
   const IVORY = '#fbf4e2';

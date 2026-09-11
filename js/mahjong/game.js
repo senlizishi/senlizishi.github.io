@@ -126,6 +126,9 @@
       };
 
       const side = clamp(Math.round(WIDTH * 0.034), 12, 26);
+      // 底部至少留 3%：有些内置浏览器底部工具条会盖住画布，safe-area 却报 0，
+      // 不留这一条手牌下排就会被工具条吃掉。
+      const bottomInset = Math.max(safe.bottom, Math.round(HEIGHT * 0.03));
       // 牌桌上沿要让开标题 + 牌墙/局数那一行，否则牌匾会压到桌面上
       const chipRowBottom = hud.pillY + hud.pillH + 72;
       const tableTop = Math.max(hud.pillY + hud.pillH + 22, chipRowBottom);
@@ -146,21 +149,21 @@
 
       // 竖屏一行 13 张太挤：铺成两行、每行 7 张，牌与牌之间留出缝，谁也不压谁。
       // 牌不做满屏那么大（小一点更好认），但也别小到手指点不准。
-      const roomForHand = HEIGHT - safe.bottom - tableTop - tableMin
+      const roomForHand = HEIGHT - bottomInset - tableTop - tableMin
         - (hintGap + hintToHand + handToStatus + statusToActions + actionsToTable);
-      const handSlotGap = Math.round(TILE.faceW * 0.095);   // 牌之间的缝（画布像素）
-      const handTileW = Math.min(
-        TILE.faceW * 0.58,
-        (handAvail - 12 - handSlotGap * (7 - 1)) / 7,
-      );
-      const twoRowScale = Math.min(
-        handTileW / TILE.faceW,
-        (roomForHand - handGapY) / (2 * TILE.faceH),
-      );
-      const handRows = twoRowScale >= 0.42 ? 2 : 1;
-      const handScale = handRows === 2 ? clamp(twoRowScale, 0.34, 0.58) : 0.55;
+      // 手牌按「整块贴图」排版：footW / footH 是牌面 + 描边留白 + 厚度（见 art.js）。
+      // 只按牌面宽度排，相邻两张的贴图（含投影）会互相压住，看起来就是牌叠在一起。
+      const handCols = 7;                                   // 两行，每行 7 张
+      const handEdge = 6;                                   // 手牌块左右各留的安全边
+      const handGapX = 6;                                   // 牌与牌之间至少留的缝
+      const handScaleW = (handAvail - handEdge * 2 - handGapX * (handCols - 1))
+        / (handCols * TILE.footW);
+      const handScaleH = (roomForHand - handGapY) / (TILE.faceH + TILE.footH);
+      const twoRowScale = Math.min(handScaleW, handScaleH);
+      const handRows = twoRowScale >= 0.3 ? 2 : 1;
+      const handScale = handRows === 2 ? clamp(twoRowScale, 0.28, 0.5) : 0.52;
       const handBlockH = handRows * TILE.faceH * handScale + (handRows - 1) * handGapY;
-      const hintY = HEIGHT - safe.bottom - hintGap;
+      const hintY = HEIGHT - bottomInset - hintGap;
       const handBlockBottom = hintY - hintToHand;
       const handBlockTop = handBlockBottom - handBlockH;
       const handY = (handBlockTop + handBlockBottom) / 2;
@@ -210,7 +213,7 @@
         inner: inner,
         region: region,
         hud: hud,
-        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, slotGap: handSlotGap, blockH: handBlockH },
+        hand: { y: handY, scale: handScale, maxPitch: 78, avail: handAvail, left: side, rows: handRows, gapY: handGapY, gapX: handGapX, footW: TILE.footW, footH: TILE.footH, blockH: handBlockH },
         meldBand: meldBand,
         playerMeld: {
           y: region.y + region.h + meldBand / 2 + 12,
@@ -323,7 +326,7 @@
       inner: inner,
       region: region,
       hud: hud,
-      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, slotGap: 0, blockH: TILE.faceH * handScale },
+      hand: { y: handY, scale: handScale, maxPitch: 44, avail: handAvail, left: handLeft, rows: 1, gapY: 0, gapX: 0, blockH: TILE.faceH * handScale },
       meldBand: meldBand,
       // 自己的副露靠在操作栏左边、手牌上方
       playerMeld: {
@@ -637,13 +640,17 @@
       // 一行时按实际张数铺开（自动居中）；两行时按整副 14 张分成固定的两排，牌不会跳位
       const perRow = rows === 1 ? Math.max(1, count) : Math.max(1, Math.ceil(14 / rows));
       const avail = cfg.avail;
-      let pitch = perRow > 1
-        ? Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)))
-        : 0;
-      // 铺成多行时按「牌宽 + 固定缝」排列，不铺满整屏，两边留白也更清楚
-      if (rows > 1 && cfg.slotGap) pitch = Math.min(pitch, w + cfg.slotGap);
-      const total = w + pitch * (perRow - 1);
-      const startX = cfg.left + (avail - total) / 2 + w / 2;
+      // 一整块贴图的占位宽度：含描边留白与投影，按它排版相邻两张才不会互相压住
+      const footW = (cfg.footW || TILE.footW || TILE.faceW) * scale;
+      const footH = (cfg.footH || TILE.footH || TILE.faceH) * scale;
+      let pitch = 0;
+      if (perRow > 1) {
+        pitch = (rows > 1 && cfg.gapX)
+          ? footW + cfg.gapX
+          : Math.min(cfg.maxPitch, Math.max(w * 0.62, (avail - w) / (perRow - 1)));
+      }
+      const total = footW + pitch * (perRow - 1);
+      const startX = cfg.left + (avail - total) / 2 + footW / 2;
       const rowStep = h + gapY;
       const topY = cfg.y - ((rows - 1) * rowStep) / 2;
       const slotX = (index) => startX + (index % perRow) * pitch;
@@ -653,10 +660,11 @@
         rows: rows, perRow: perRow, gapY: gapY, rowStep: rowStep, topY: topY,
         slotX: slotX, slotY: slotY,
         blockH: rows * h + (rows - 1) * gapY,
-        left: startX - w / 2,
-        right: startX + pitch * (perRow - 1) + w / 2,
-        top: topY - h / 2,
-        bottom: topY + (rows - 1) * rowStep + h / 2,
+        footW: footW, footH: footH,
+        left: startX - footW / 2,
+        right: startX + pitch * (perRow - 1) + footW / 2,
+        top: topY - footH / 2,
+        bottom: topY + (rows - 1) * rowStep + footH / 2,
       };
     }
 
