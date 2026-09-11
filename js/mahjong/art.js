@@ -28,6 +28,19 @@
   const DEEP_GREEN = '#0f5430';
   const BLUE = '#1f4d9b';
   const DEEP_BLUE = '#153a77';
+  // 圈圈牌 / 条子牌 / 字牌配色，取自参考素材：青竹绿、砖红、藏青
+  const DOT_GREEN = '#4b7d55';
+  const DOT_GREEN_DEEP = '#2b5236';
+  const DOT_RED = '#b2544a';
+  const DOT_RED_DEEP = '#82352c';
+  const DOT_NAVY = '#3d4a6c';
+  const DOT_NAVY_DEEP = '#262f47';
+  const DOT_PAIRS = [[DOT_GREEN, DOT_GREEN_DEEP], [DOT_RED, DOT_RED_DEEP], [DOT_NAVY, DOT_NAVY_DEEP]];
+  const STICK_GREEN = '#2f7a4a';
+  const STICK_GREEN_DEEP = '#17482a';
+  const STICK_RED = '#ac4038';
+  const STICK_RED_DEEP = '#6f241d';
+  const WIND_NAVY = '#2c3a63';
 
   function makeRng(seed) {
     let s = (seed >>> 0) || 1;
@@ -88,8 +101,8 @@
 
     // 接触阴影：范围大一点、深一点，牌才不会“飘”在桌面上
     ctx.save();
-    ctx.shadowColor = 'rgba(8,6,3,0.5)';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(8,6,3,0.42)';
+    ctx.shadowBlur = 11;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 7;
     roundRect(ctx, M, M + 2, w, h + t - 2, TILE.radius + 1);
@@ -99,20 +112,20 @@
 
     // 厚度侧面：上沿受光、下沿吃暗
     const side = ctx.createLinearGradient(0, M, 0, M + h + t);
-    side.addColorStop(0, '#f3e8cb');
-    side.addColorStop(0.62, '#e2d3ae');
-    side.addColorStop(0.88, '#c4b087');
-    side.addColorStop(1, '#9c855a');
+    side.addColorStop(0, '#fbf5e4');
+    side.addColorStop(0.62, '#f0e6cd');
+    side.addColorStop(0.88, '#dccdac');
+    side.addColorStop(1, '#b7a37c');
     roundRect(ctx, M, M + 2, w, h + t - 2, TILE.radius + 1);
     ctx.fillStyle = side;
     ctx.fill();
 
     // 正面：象牙底色，左上受光更亮
     const face = ctx.createLinearGradient(M, M, M + w * 0.62, M + h);
-    face.addColorStop(0, '#fffefa');
-    face.addColorStop(0.32, '#fdf8ec');
-    face.addColorStop(0.72, '#f5ead2');
-    face.addColorStop(1, '#e9dbba');
+    face.addColorStop(0, '#ffffff');
+    face.addColorStop(0.32, '#fefaf0');
+    face.addColorStop(0.72, '#f8efdb');
+    face.addColorStop(1, '#eee2c6');
     roundRect(ctx, M, M, w, h, TILE.radius);
     ctx.fillStyle = face;
     ctx.fill();
@@ -129,17 +142,17 @@
     ctx.fillRect(M, M + h - 9, w, 11);
     // 对角反光：象牙的柔和光泽
     const sheen = ctx.createLinearGradient(M, M, M + w * 0.92, M + h * 0.82);
-    sheen.addColorStop(0, 'rgba(255,255,255,0.4)');
+    sheen.addColorStop(0, 'rgba(255,255,255,0.26)');
     sheen.addColorStop(0.42, 'rgba(255,255,255,0.06)');
     sheen.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sheen;
     ctx.fillRect(M, M, w, h);
     // 象牙纹路
     ctx.globalAlpha = 0.42;
-    for (let i = 0; i < 80; i += 1) {
+    for (let i = 0; i < 26; i += 1) {
       const x = M + rnd() * w;
       const y = M + rnd() * h;
-      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(178,155,112,0.32)';
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.34)' : 'rgba(178,155,112,0.2)';
       ctx.fillRect(x, y, 1.1, 1.1);
     }
     ctx.globalAlpha = 1;
@@ -201,89 +214,68 @@
     return { x: px, y: py, w: pw, h: ph };
   }
 
+  // 圈圈牌：彩色外环 + 内圈小环 + 中心点，做成素材里那种空心“圈”而不是实心球
   function drawCoin(ctx, x, y, r, color, deep) {
-    // 落地阴影：让圆点看着是凸起来的
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(x + r * 0.06, y + r * 0.17, r * 1.02, 0, TAU);
-    ctx.fillStyle = 'rgba(56,40,16,0.2)';
-    ctx.fill();
-
-    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.42, color);
-    g.addColorStop(0.84, color);
-    g.addColorStop(1, deep);
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, r * 0.14);
-    ctx.strokeStyle = deep;
-    ctx.stroke();
-
-    // 内圈：白底 + 同色细环，像一枚古钱
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.44, 0, TAU);
-    ctx.fillStyle = '#fdf6e2';
-    ctx.fill();
-    ctx.lineWidth = Math.max(0.8, r * 0.12);
+    ctx.arc(x, y, r * 0.72, 0, TAU);
+    ctx.lineWidth = r * 0.44;
     ctx.strokeStyle = color;
     ctx.stroke();
-
     ctx.beginPath();
-    ctx.arc(x, y, r * 0.14, 0, TAU);
-    ctx.fillStyle = deep;
-    ctx.fill();
-
-    // 左上高光
+    ctx.arc(x, y, r * 0.94, 0, TAU);
+    ctx.lineWidth = Math.max(0.6, r * 0.1);
+    ctx.strokeStyle = deep;
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x - r * 0.42, y - r * 0.44, r * 0.19, 0, TAU);
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.arc(x, y, r * 0.5, 0, TAU);
+    ctx.lineWidth = Math.max(0.5, r * 0.08);
+    ctx.strokeStyle = 'rgba(120,98,58,0.26)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.29, 0, TAU);
+    ctx.lineWidth = Math.max(0.8, r * 0.15);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.12, 0, TAU);
+    ctx.fillStyle = color;
     ctx.fill();
+    ctx.restore();
   }
-
-  function drawStick(ctx, x, y, w, h) {
-    const r = w / 2;
-    const cap = h * 0.24;
-    const body = ctx.createLinearGradient(x - r, 0, x + r, 0);
-    body.addColorStop(0, '#0e5c33');
-    body.addColorStop(0.4, '#27a05c');
-    body.addColorStop(0.6, '#1d8a4b');
-    body.addColorStop(1, '#0d5730');
-    roundRect(ctx, x - r, y - h / 2, w, h, r);
+  // 条子（竹）：细长青竹，两头圆、两道竹节、中间一道浅芯；红色那一根用砖红
+  function drawStick(ctx, x, y, w, h, red) {
+    const r = Math.min(w / 2, h * 0.16);
+    const main = red ? STICK_RED : STICK_GREEN;
+    const deep = red ? STICK_RED_DEEP : STICK_GREEN_DEEP;
+    const light = red ? '#d4786c' : '#78b489';
+    const body = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+    body.addColorStop(0, deep);
+    body.addColorStop(0.3, main);
+    body.addColorStop(0.5, light);
+    body.addColorStop(0.7, main);
+    body.addColorStop(1, deep);
+    roundRect(ctx, x - w / 2, y - h / 2, w, h, r);
     ctx.fillStyle = body;
     ctx.fill();
-    // 竹节：两道横向暗线，条子才像竹子
-    ctx.strokeStyle = 'rgba(6,52,30,0.42)';
-    ctx.lineWidth = Math.max(0.7, w * 0.1);
+    ctx.strokeStyle = deep;
+    ctx.lineWidth = Math.max(0.7, w * 0.14);
+    ctx.lineCap = 'round';
     for (let k = 1; k <= 2; k += 1) {
       const ny = y - h / 2 + (h * k) / 3;
       ctx.beginPath();
-      ctx.moveTo(x - r * 0.86, ny);
-      ctx.lineTo(x + r * 0.86, ny);
+      ctx.moveTo(x - w * 0.32, ny);
+      ctx.lineTo(x + w * 0.32, ny);
       ctx.stroke();
     }
-    const capGrad = ctx.createLinearGradient(x - r, 0, x + r, 0);
-    capGrad.addColorStop(0, DEEP_RED);
-    capGrad.addColorStop(0.45, '#d4452f');
-    capGrad.addColorStop(1, '#8f2015');
-    roundRect(ctx, x - r, y - h / 2, w, cap, r);
-    ctx.fillStyle = capGrad;
+    roundRect(ctx, x - w * 0.15, y - h * 0.33, w * 0.3, h * 0.66, w * 0.15);
+    ctx.fillStyle = red ? 'rgba(255,226,214,0.4)' : 'rgba(232,255,238,0.48)';
     ctx.fill();
-    roundRect(ctx, x - r, y + h / 2 - cap, w, cap, r);
-    ctx.fillStyle = capGrad;
-    ctx.fill();
-    roundRect(ctx, x - r, y - h / 2, w, h, r);
-    ctx.strokeStyle = 'rgba(63,26,10,0.55)';
-    ctx.lineWidth = Math.max(0.8, w * 0.1);
+    roundRect(ctx, x - w / 2, y - h / 2, w, h, r);
+    ctx.lineWidth = Math.max(0.8, w * 0.13);
+    ctx.strokeStyle = deep;
     ctx.stroke();
-    roundRect(ctx, x - r * 0.44, y - h * 0.3, w * 0.22, h * 0.54, w * 0.11);
-    ctx.fillStyle = 'rgba(255,255,255,0.42)';
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.fillRect(x - w * 0.14, y - h * 0.04, w * 0.28, Math.max(1, h * 0.026));
   }
-
   const DOT_LAYOUT = {
     1: { size: 1, pts: [[0, 0]] },
     2: { size: 0.86, pts: [[0, -0.5], [0, 0.5]] },
@@ -296,16 +288,74 @@
     9: { size: 0.55, pts: [[-0.62, -0.62], [0, -0.62], [0.62, -0.62], [-0.62, 0], [0, 0], [0.62, 0], [-0.62, 0.62], [0, 0.62], [0.62, 0.62]] },
   };
 
+  // 每行几根竹节；1 表示这一根是砖红色（素材里只有中间/顶部那几根是红的）
   const STICK_LAYOUT = {
-    2: { rows: [[2]], },
-    3: { rows: [[3]] },
-    4: { rows: [[2], [2]] },
-    5: { rows: [[2], [1], [2]] },
-    6: { rows: [[3], [3]] },
-    7: { rows: [[1], [3], [3]] },
-    8: { rows: [[4], [4]] },
-    9: { rows: [[3], [3], [3]] },
+    2: { rows: [[0, 0]] },
+    3: { rows: [[0], [0, 0]] },
+    4: { rows: [[0, 0], [0, 0]] },
+    5: { rows: [[0, 0], [1], [0, 0]] },
+    6: { rows: [[0, 1, 0], [0, 1, 0]] },
+    7: { rows: [[1], [0, 0, 0], [0, 0, 0]] },
+    8: { rows: [[0, 0, 0, 0], [0, 0, 0, 0]] },
+    9: { rows: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] },
   };
+
+  // 每张牌的圈圈配色，和素材一致：绿 / 砖红 / 藏青 三色搭
+  const DOT_PLAN = {
+    2: [0, 0],
+    3: [2, 1, 2],
+    4: [2, 2, 2, 2],
+    5: [0, 0, 1, 0, 0],
+    6: [2, 2, 1, 1, 2, 2],
+    7: [0, 0, 0, 1, 2, 2, 2],
+    8: [2, 2, 1, 1, 2, 2, 1, 1],
+    9: [2, 2, 2, 1, 1, 1, 2, 2, 2],
+  };
+
+  // 一筒：外圈青绿花瓣环 + 内圈砖红花心，像素材里的“大花心”
+  function drawRosette(ctx, cx, cy, r) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.78, 0, TAU);
+    ctx.lineWidth = r * 0.3;
+    ctx.strokeStyle = DOT_GREEN;
+    ctx.stroke();
+    for (let i = 0; i < 16; i += 1) {
+      const a = (i / 16) * TAU;
+      const px = cx + Math.cos(a) * r * 0.78;
+      const py = cy + Math.sin(a) * r * 0.78;
+      ctx.beginPath();
+      ctx.arc(px, py, r * 0.17, 0, TAU);
+      ctx.fillStyle = DOT_GREEN_DEEP;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py, r * 0.1, 0, TAU);
+      ctx.fillStyle = DOT_GREEN;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.95, 0, TAU);
+    ctx.lineWidth = Math.max(0.7, r * 0.07);
+    ctx.strokeStyle = DOT_GREEN_DEEP;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.5, 0, TAU);
+    ctx.lineWidth = r * 0.14;
+    ctx.strokeStyle = DOT_RED;
+    ctx.stroke();
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i / 8) * TAU + Math.PI / 8;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * r * 0.32, cy + Math.sin(a) * r * 0.32, r * 0.09, 0, TAU);
+      ctx.fillStyle = DOT_RED;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.14, 0, TAU);
+    ctx.fillStyle = DOT_RED;
+    ctx.fill();
+    ctx.restore();
+  }
 
   function drawDots(ctx, plate, n) {
     const layout = DOT_LAYOUT[n];
@@ -313,41 +363,33 @@
     const cy = plate.y + plate.h / 2;
     const base = plate.w * 0.5 * layout.size * 0.5;
     const span = layout.size > 0.9 ? 0.42 : 0.46;
+    if (n === 1) { drawRosette(ctx, cx, cy, base * 1.2); return; }
+    const plan = DOT_PLAN[n] || [];
     for (let i = 0; i < layout.pts.length; i += 1) {
       const px = cx + layout.pts[i][0] * plate.w * span;
       const py = cy + layout.pts[i][1] * plate.h * span;
-      const isCenter = layout.pts[i][0] === 0 && layout.pts[i][1] === 0;
-      const useRed = (n === 1) || isCenter;
-      drawCoin(ctx, px, py, Math.max(6, base), useRed ? '#d0452c' : BLUE, useRed ? DEEP_RED : DEEP_BLUE);
-    }
-    if (n === 1) {
-      ctx.beginPath();
-      ctx.arc(cx, cy, base * 0.72, 0, TAU);
-      ctx.strokeStyle = 'rgba(21,117,63,0.85)';
-      ctx.lineWidth = Math.max(2, base * 0.2);
-      ctx.stroke();
+      const pair = DOT_PAIRS[plan[i] === undefined ? 2 : plan[i]];
+      drawCoin(ctx, px, py, Math.max(6, base), pair[0], pair[1]);
     }
   }
-
   function drawSticks(ctx, plate, n) {
     const layout = STICK_LAYOUT[n];
     const cx = plate.x + plate.w / 2;
     const cy = plate.y + plate.h / 2;
     const rowCount = layout.rows.length;
     const rowH = plate.h / rowCount;
-    const stickH = rowH * 0.8;
+    const stickH = rowH * 0.76;
     for (let r = 0; r < rowCount; r += 1) {
-      const count = layout.rows[r][0];
-      const stickW = Math.min(plate.w * 0.2, plate.w / (count * 1.5));
-      const spread = plate.w * 0.84;
+      const row = layout.rows[r];
+      const stickW = Math.min(plate.w * 0.15, plate.w / (row.length * 1.75));
+      const spread = plate.w * 0.72;
       const y = cy + (r - (rowCount - 1) / 2) * rowH;
-      for (let i = 0; i < count; i += 1) {
-        const x = cx + (count === 1 ? 0 : (i / (count - 1) - 0.5) * spread);
-        drawStick(ctx, x, y, stickW, stickH);
+      for (let i = 0; i < row.length; i += 1) {
+        const x = cx + (row.length === 1 ? 0 : (i / (row.length - 1) - 0.5) * spread);
+        drawStick(ctx, x, y, stickW, stickH, row[i] === 1);
       }
     }
   }
-
   // 一条：传统“幺鸡”，一只侧身站立的鸟
   function drawBird(ctx, plate) {
     const u = plate.w / 100;
@@ -461,24 +503,24 @@
         roundRect(ctx, fx, fy, fw, fh, 7);
         ctx.fillStyle = 'rgba(31,77,155,0.06)';
         ctx.fill();
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = 'rgba(31,77,155,0.92)';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(44,58,99,0.8)';
         ctx.stroke();
         roundRect(ctx, fx + 1.6, fy + 1.6, fw - 3.2, fh - 3.2, 6);
         ctx.strokeStyle = 'rgba(255,255,255,0.55)';
         ctx.lineWidth = 1.2;
         ctx.stroke();
         roundRect(ctx, fx - 2.4, fy - 2.4, fw + 4.8, fh + 4.8, 8);
-        ctx.strokeStyle = 'rgba(31,77,155,0.26)';
+        ctx.strokeStyle = 'rgba(44,58,99,0.22)';
         ctx.lineWidth = 1.2;
         ctx.stroke();
         return;
       }
       const text = idx === 4 ? '中' : (idx === 5 ? '發' : rules.HONOR_TEXT[idx]);
-      const color = idx === 4 ? RED : (idx === 5 ? GREEN : BLUE);
+      const color = idx === 4 ? RED : (idx === 5 ? GREEN : WIND_NAVY);
       // 字牌底纹：一圈极淡的光晕，单字不会显得空
       const halo = ctx.createRadialGradient(cx, cy, plate.w * 0.06, cx, cy, plate.w * 0.58);
-      halo.addColorStop(0, idx === 4 ? 'rgba(188,51,36,0.11)' : (idx === 5 ? 'rgba(21,117,63,0.11)' : 'rgba(31,77,155,0.08)'));
+      halo.addColorStop(0, idx === 4 ? 'rgba(188,51,36,0.11)' : (idx === 5 ? 'rgba(21,117,63,0.11)' : 'rgba(44,58,99,0.09)'));
       halo.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.beginPath();
       ctx.arc(cx, cy, plate.w * 0.58, 0, TAU);
@@ -725,9 +767,9 @@
     const feltW = size - rim * 2;
     const feltH = size - rim * 2;
     const felt = ctx.createRadialGradient(size * 0.5, size * 0.46, feltW * 0.08, size * 0.5, size * 0.5, feltW * 0.78);
-    felt.addColorStop(0, '#20734b');
-    felt.addColorStop(0.55, '#186040');
-    felt.addColorStop(1, '#0d3f29');
+    felt.addColorStop(0, '#24804f');
+    felt.addColorStop(0.55, '#1b6b45');
+    felt.addColorStop(1, '#10492f');
     roundRect(ctx, feltX, feltY, feltW, feltH, size * 0.03);
     ctx.fillStyle = felt;
     ctx.fill();
@@ -801,14 +843,13 @@
     ctx.lineWidth = 4.5;
     ctx.stroke();
     roundRect(ctx, feltX - 4.5, feltY - 4.5, feltW + 9, feltH + 9, size * 0.034);
-    const gold = ctx.createLinearGradient(0, 0, size, size);
-    gold.addColorStop(0, 'rgba(255,236,178,0.95)');
-    gold.addColorStop(0.28, 'rgba(222,174,78,0.9)');
-    gold.addColorStop(0.55, 'rgba(160,116,36,0.85)');
-    gold.addColorStop(0.78, 'rgba(255,232,170,0.9)');
-    gold.addColorStop(1, 'rgba(148,104,32,0.8)');
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 4.4;
+    const ivoryLine = ctx.createLinearGradient(0, 0, size, size);
+    ivoryLine.addColorStop(0, 'rgba(255,252,238,0.88)');
+    ivoryLine.addColorStop(0.3, 'rgba(228,216,188,0.72)');
+    ivoryLine.addColorStop(0.62, 'rgba(196,183,152,0.62)');
+    ivoryLine.addColorStop(1, 'rgba(243,235,212,0.78)');
+    ctx.strokeStyle = ivoryLine;
+    ctx.lineWidth = 3.6;
     ctx.stroke();
     roundRect(ctx, feltX - 2.6, feltY - 2.6, feltW + 5.2, feltH + 5.2, size * 0.031);
     ctx.strokeStyle = 'rgba(255,246,214,0.45)';
