@@ -5,8 +5,8 @@
   const WIDTH = IS_PORTRAIT ? 540 : 960;
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
 
-  const BOARD_COLS = 32;
-  const BOARD_ROWS = 32;
+  const BOARD_COLS = 30;
+  const BOARD_ROWS = 35;
   const BOARD_GAP = 1;
   const BOARD_CELL = IS_PORTRAIT ? 14 : 10;
   const SLOT_COUNT = 5;
@@ -17,7 +17,8 @@
   const ROW_GAP = IS_PORTRAIT ? 10 : 8;
   const DISPATCH_INTERVAL = 260;
   const WORKER_SPEED = 240;
-  const MAX_NUM = 5;
+  const MIN_CARD = 10;
+  const MAX_CARD = 50;
   const COLOR_COUNT = 10;
 
   const PALETTE = [
@@ -204,6 +205,50 @@
         };
       })();
 
+  const corridorY = IS_PORTRAIT
+    ? L.boardY + boardHeight + 17
+    : L.boardY + boardHeight + 18;
+  const gapX = L.boardX + boardWidth + 17;
+  const topLaneY = L.slotsY - 24;
+
+  function buildOutPath(startX, startY, targetX, targetY) {
+    if (IS_PORTRAIT) {
+      return [
+        { x: startX, y: startY },
+        { x: startX, y: corridorY },
+        { x: targetX, y: corridorY },
+        { x: targetX, y: targetY },
+      ];
+    }
+    return [
+      { x: startX, y: startY },
+      { x: startX, y: topLaneY },
+      { x: gapX, y: topLaneY },
+      { x: gapX, y: corridorY },
+      { x: targetX, y: corridorY },
+      { x: targetX, y: targetY },
+    ];
+  }
+
+  function buildReturnPath(startX, startY, targetX, targetY) {
+    if (IS_PORTRAIT) {
+      return [
+        { x: targetX, y: targetY },
+        { x: targetX, y: corridorY },
+        { x: startX, y: corridorY },
+        { x: startX, y: startY },
+      ];
+    }
+    return [
+      { x: targetX, y: targetY },
+      { x: targetX, y: corridorY },
+      { x: gapX, y: corridorY },
+      { x: gapX, y: topLaneY },
+      { x: startX, y: topLaneY },
+      { x: startX, y: startY },
+    ];
+  }
+
   function isExposedInGrid(grid, x, y) {
     if (x === 0 || x === BOARD_COLS - 1 || y === 0 || y === BOARD_ROWS - 1) return true;
     return grid[y][x - 1] === null || grid[y][x + 1] === null || grid[y - 1][x] === null || grid[y + 1][x] === null;
@@ -230,19 +275,37 @@
     return order;
   }
 
-  function buildCards(order) {
+  function colorDistance(colorA, colorB) {
+    const paletteA = PALETTE[colorA];
+    const paletteB = PALETTE[colorB];
+    return (paletteA.base - paletteB.base) ** 2;
+  }
+
+  function buildCardsFromCounts(counts, removalOrder) {
+    const occurrences = new Array(COLOR_COUNT);
+    for (let color = 0; color < COLOR_COUNT; color += 1) occurrences[color] = [];
+    for (let i = 0; i < removalOrder.length; i += 1) occurrences[removalOrder[i]].push(i);
+
     const cards = [];
-    let index = 0;
-    while (index < order.length) {
-      const color = order[index];
-      let count = 0;
-      while (index < order.length && order[index] === color && count < MAX_NUM) {
-        count += 1;
-        index += 1;
+    for (let color = 0; color < COLOR_COUNT; color += 1) {
+      let remaining = counts[color];
+      let cursor = 0;
+      while (remaining > 0) {
+        let take = remaining;
+        if (remaining > MAX_CARD) {
+          const maxTake = Math.min(MAX_CARD, remaining - MIN_CARD);
+          take = randomInt(Math.max(MIN_CARD, 20), Math.min(maxTake, 45));
+        }
+        const occurrenceIndex = Math.min(cursor, occurrences[color].length - 1);
+        const priority = occurrences[color][occurrenceIndex];
+        cards.push({ color: color, count: take, priority: priority });
+        cursor += take;
+        remaining -= take;
       }
-      cards.push({ color: color, count: count });
     }
-    return cards;
+
+    cards.sort((a, b) => a.priority - b.priority);
+    return cards.map((card) => ({ color: card.color, count: card.count }));
   }
 
   class AntsGameScene extends Phaser.Scene {
@@ -258,7 +321,7 @@
       this.workerGraphics = this.add.graphics().setDepth(5);
       this.overlayGraphics = this.add.graphics().setDepth(10);
 
-      const numberFontSize = choose('22px', '26px');
+      const numberFontSize = choose('26px', '30px');
       const numberStyle = {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: numberFontSize,
@@ -301,21 +364,54 @@
       this.workers = [];
       this.effects = [];
 
+      const patternCells = window.AntsPatternData ? window.AntsPatternData.cells : DEFAULT_PATTERN;
+      const sourceCounts = new Array(COLOR_COUNT).fill(0);
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
+          sourceCounts[patternCells[y][x]] += 1;
+        }
+      }
+
+      const remap = new Array(COLOR_COUNT);
+      const candidates = [];
+      for (let color = 0; color < COLOR_COUNT; color += 1) if (sourceCounts[color] >= MIN_CARD) candidates.push(color);
+      if (!candidates.length) {
+        let maxColor = 0;
+        for (let color = 1; color < COLOR_COUNT; color += 1) if (sourceCounts[color] > sourceCounts[maxColor]) maxColor = color;
+        candidates.push(maxColor);
+      }
+      for (let color = 0; color < COLOR_COUNT; color += 1) {
+        if (sourceCounts[color] >= MIN_CARD) {
+          remap[color] = color;
+          continue;
+        }
+        let bestColor = candidates[0];
+        let bestDistance = Infinity;
+        for (const candidate of candidates) {
+          const distance = colorDistance(color, candidate);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestColor = candidate;
+          }
+        }
+        remap[color] = bestColor;
+      }
+
       this.board = [];
-      const patternData = window.AntsPatternData || { cells: DEFAULT_PATTERN };
-      let total = 0;
+      const finalCounts = new Array(COLOR_COUNT).fill(0);
       for (let y = 0; y < BOARD_ROWS; y += 1) {
         const row = [];
         for (let x = 0; x < BOARD_COLS; x += 1) {
-          const color = patternData ? patternData.cells[y][x] : randomInt(0, COLOR_COUNT - 1);
+          const color = remap[patternCells[y][x]];
           row.push({ color: color, reserved: false });
-          total += 1;
+          finalCounts[color] += 1;
         }
         this.board.push(row);
       }
 
-      this.remainingTotal = total;
-      this.cards = buildCards(buildRemovalOrder(this.board));
+      this.remainingTotal = BOARD_COLS * BOARD_ROWS;
+      const removalOrder = buildRemovalOrder(this.board);
+      this.cards = buildCardsFromCounts(finalCounts, removalOrder);
       this.deckIndex = 0;
 
       this.queue = [];
@@ -517,6 +613,17 @@
       return this.board[y][x - 1] === null || this.board[y][x + 1] === null || this.board[y - 1][x] === null || this.board[y + 1][x] === null;
     }
 
+    countColorRemaining(color) {
+      let count = 0;
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
+          const cell = this.board[y][x];
+          if (cell && cell.color === color) count += 1;
+        }
+      }
+      return count;
+    }
+
     hasExposedTarget(color) {
       for (let y = 0; y < BOARD_ROWS; y += 1) {
         for (let x = 0; x < BOARD_COLS; x += 1) {
@@ -578,11 +685,13 @@
             slot.remaining = 0;
             slot.timer = 0;
           }
-        } else {
+        } else if (this.countColorRemaining(slot.tile.color) <= 0) {
           slot.tile = null;
           slot.remaining = 0;
           slot.timer = 0;
           slotsDirty = true;
+        } else {
+          slot.timer = DISPATCH_INTERVAL * 1.5;
         }
       }
       if (boardDirty) this.drawBoard();
@@ -596,11 +705,7 @@
       const startY = L.slotsY + TILE_SIZE / 2;
       const targetX = L.boardX + target.x * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
       const targetY = L.boardY + target.y * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
-      const outPath = [
-        { x: startX, y: startY },
-        { x: targetX, y: startY },
-        { x: targetX, y: targetY },
-      ];
+      const outPath = buildOutPath(startX, startY, targetX, targetY);
       this.workers.push({
         color: this.slots[slotIndex].tile ? this.slots[slotIndex].tile.color : 0,
         x: startX,
@@ -629,11 +734,7 @@
           if (worker.pickupTimer <= 0) {
             worker.carrying = true;
             worker.phase = 'travelBack';
-            worker.waypoints = [
-              { x: worker.targetX, y: worker.targetY },
-              { x: worker.targetX, y: worker.startY },
-              { x: worker.startX, y: worker.startY },
-            ];
+            worker.waypoints = buildReturnPath(worker.startX, worker.startY, worker.targetX, worker.targetY);
             worker.waypointIndex = 1;
           }
           continue;
