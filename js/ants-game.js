@@ -5,9 +5,10 @@
   const WIDTH = IS_PORTRAIT ? 540 : 960;
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
 
-  const BOARD_N = 18;
-  const BOARD_GAP = 2;
-  const BOARD_CELL = IS_PORTRAIT ? 22 : 18;
+  const BOARD_COLS = 32;
+  const BOARD_ROWS = 32;
+  const BOARD_GAP = 1;
+  const BOARD_CELL = IS_PORTRAIT ? 14 : 10;
   const SLOT_COUNT = 5;
   const COL_COUNT = 5;
   const ROW_COUNT = 3;
@@ -17,72 +18,68 @@
   const DISPATCH_INTERVAL = 260;
   const WORKER_SPEED = 240;
   const MAX_NUM = 5;
-  const COLOR_COUNT = 6;
+  const COLOR_COUNT = 10;
 
   const PALETTE = [
-    { base: 0xff5fc8, dark: 0xb83a8c, light: 0xffb1e6 },
-    { base: 0xff8a48, dark: 0xc65a1f, light: 0xffc98a },
-    { base: 0xffd84e, dark: 0xc79d1d, light: 0xfff0a6 },
-    { base: 0x4de5bf, dark: 0x1f9c83, light: 0xa5f7e5 },
-    { base: 0x55a7ff, dark: 0x2b67c8, light: 0xa8d4ff },
-    { base: 0x9b72ff, dark: 0x5d3bb8, light: 0xcab8ff },
+    { base: 0x58a5df, dark: 0x3578a8, light: 0xa7d3f2 },
+    { base: 0x82b8db, dark: 0x4f87ad, light: 0xc2e0f2 },
+    { base: 0x5a90b9, dark: 0x37627f, light: 0xa7c8df },
+    { base: 0xad9c6f, dark: 0x776841, light: 0xd4c9a8 },
+    { base: 0xe3b168, dark: 0xa97734, light: 0xf2d4a5 },
+    { base: 0x669347, dark: 0x42622c, light: 0xa9c98f },
+    { base: 0xb5c934, dark: 0x77871c, light: 0xd7e582 },
+    { base: 0x4d3930, dark: 0x2c201a, light: 0x8c766b },
+    { base: 0xe37724, dark: 0xa24d12, light: 0xf2b16f },
+    { base: 0xf9f6ed, dark: 0xb9b09e, light: 0xffffff },
   ];
+  window.AntsPalette = PALETTE.map((palette) => palette.base);
 
-  function pointInPolygon(x, y, points) {
-    let inside = false;
-    for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
-      const xi = points[i][0];
-      const yi = points[i][1];
-      const xj = points[j][0];
-      const yj = points[j][1];
-      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  const DEFAULT_PATTERN = (function () {
+    const raw = [
+      '99999999999999999999999999',
+      '91199999111111111111911119',
+      '10199999900000000019991009',
+      '10000000220000000211999009',
+      '10000002570000002520000009',
+      '10000002352577752350000009',
+      '10000002737844888752000009',
+      '10000057775444888877500009',
+      '10000258878888888888500009',
+      '10011027788773587347200009',
+      '10199100788839883447200009',
+      '10111100788844887777720009',
+      '10000000788888854444432009',
+      '10000002777888743743332009',
+      '10000118877788343544332009',
+      '10001948888858444444450009',
+      '12223448888844944444322229',
+      '35555344444444999935555559',
+      '46655359994444999993555559',
+      '46663337739999999999356559',
+      '15539445773999449999355559',
+      '35533334333999333399355559',
+      '35573339999999335399946659',
+      '35555449399999335553394469',
+      '15555339399999933555355559',
+      '93333339199999999333943339',
+      '99999434999999999999999999',
+      '99449333499999999999999999',
+      '99433333339999999999999993',
+      '99333333339999999999999994',
+    ];
+    const padRow = '9'.repeat(BOARD_COLS);
+    const topPad = Math.floor((BOARD_ROWS - raw.length) / 2);
+    const bottomPad = BOARD_ROWS - raw.length - topPad;
+    const cells = [];
+    for (let i = 0; i < topPad; i += 1) cells.push(padRow.split('').map(Number));
+    for (const row of raw) {
+      const sidePad = Math.floor((BOARD_COLS - row.length) / 2);
+      const padded = '9'.repeat(sidePad) + row + '9'.repeat(BOARD_COLS - row.length - sidePad);
+      cells.push(padded.split('').map(Number));
     }
-    return inside;
-  }
-
-  function starPoints() {
-    const points = [];
-    for (let i = 0; i < 10; i += 1) {
-      const radius = i % 2 === 0 ? 0.96 : 0.38;
-      const angle = -Math.PI / 2 + i * Math.PI / 5;
-      points.push([Math.cos(angle) * radius, Math.sin(angle) * radius]);
-    }
-    return points;
-  }
-
-  function generatePattern(kind) {
-    const mask = [];
-    const center = (BOARD_N - 1) / 2;
-    const star = starPoints();
-    for (let y = 0; y < BOARD_N; y += 1) {
-      const row = [];
-      const v = (y + 0.5 - center) / (BOARD_N * 0.5);
-      for (let x = 0; x < BOARD_N; x += 1) {
-        const u = (x + 0.5 - center) / (BOARD_N * 0.5);
-        let inside = false;
-        if (kind === 0) {
-          const py = -v;
-          const a = u * u + py * py - 1;
-          inside = a * a * a - u * u * py * py * py <= 0.02;
-        } else if (kind === 1) {
-          inside = pointInPolygon(u, v, star);
-        } else if (kind === 2) {
-          inside = Math.hypot(u, v) <= 0.92;
-        } else if (kind === 3) {
-          inside = Math.abs(u) + Math.abs(v) <= 0.9;
-        } else if (kind === 4) {
-          if (v >= -0.95 && v <= 0.05) inside = Math.abs(u) <= 0.82 * ((v + 0.95) / 1.0);
-          else if (v > 0.05 && v <= 0.55) inside = Math.abs(u) <= 0.13;
-        } else {
-          if (v >= -0.95 && v <= 0.05) inside = (u * u) / (0.9 * 0.9) + ((v + 0.35) * (v + 0.35)) / (0.55 * 0.55) <= 1;
-          else if (v > 0.05 && v <= 0.55) inside = Math.abs(u) <= 0.18;
-        }
-        row.push(inside);
-      }
-      mask.push(row);
-    }
-    return mask;
-  }
+    for (let i = 0; i < bottomPad; i += 1) cells.push(padRow.split('').map(Number));
+    return cells;
+  }());
 
   function randomInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
   function choose(landscape, portrait) { return IS_PORTRAIT ? portrait : landscape; }
@@ -176,23 +173,24 @@
   };
   window.AntsAudio = AntsAudio;
 
-  const boardSize = BOARD_N * BOARD_CELL + (BOARD_N - 1) * BOARD_GAP;
+  const boardWidth = BOARD_COLS * BOARD_CELL + (BOARD_COLS - 1) * BOARD_GAP;
+  const boardHeight = BOARD_ROWS * BOARD_CELL + (BOARD_ROWS - 1) * BOARD_GAP;
   const slotsWidth = SLOT_COUNT * TILE_SIZE + (SLOT_COUNT - 1) * TILE_GAP;
   const queueHeight = ROW_COUNT * TILE_SIZE + (ROW_COUNT - 1) * ROW_GAP;
 
   const L = IS_PORTRAIT
     ? {
-        boardX: (WIDTH - boardSize) / 2,
+        boardX: (WIDTH - boardWidth) / 2,
         boardY: 84,
         slotsX: (WIDTH - slotsWidth) / 2,
-        slotsY: 84 + boardSize + 34,
+        slotsY: 84 + boardHeight + 34,
         queueX: (WIDTH - slotsWidth) / 2,
-        queueY: 84 + boardSize + 34 + TILE_SIZE + 26,
+        queueY: 84 + boardHeight + 34 + TILE_SIZE + 26,
       }
     : (function () {
         const boardX = 42;
-        const boardY = (HEIGHT - boardSize) / 2;
-        const controlsLeft = boardX + boardSize + 38;
+        const boardY = (HEIGHT - boardHeight) / 2;
+        const controlsLeft = boardX + boardWidth + 34;
         const controlsWidth = WIDTH - controlsLeft - 26;
         const slotsX = controlsLeft + (controlsWidth - slotsWidth) / 2;
         const slotsY = 140;
@@ -206,33 +204,20 @@
         };
       })();
 
-  function transpose(mask) {
-    const out = [];
-    for (let x = 0; x < BOARD_N; x += 1) {
-      const row = [];
-      for (let y = 0; y < BOARD_N; y += 1) row.push(mask[y][x]);
-      out.push(row);
-    }
-    return out;
-  }
-
-  function mirrorX(mask) { return mask.map((row) => row.slice().reverse()); }
-  function mirrorY(mask) { return mask.slice().reverse(); }
-
   function isExposedInGrid(grid, x, y) {
-    if (x === 0 || x === BOARD_N - 1 || y === 0 || y === BOARD_N - 1) return true;
-    return !grid[y][x - 1] || !grid[y][x + 1] || !grid[y - 1][x] || !grid[y + 1][x];
+    if (x === 0 || x === BOARD_COLS - 1 || y === 0 || y === BOARD_ROWS - 1) return true;
+    return grid[y][x - 1] === null || grid[y][x + 1] === null || grid[y - 1][x] === null || grid[y + 1][x] === null;
   }
 
   function buildRemovalOrder(board) {
     const grid = board.map((row) => row.map((cell) => (cell ? cell.color : null)));
     const order = [];
     let remaining = 0;
-    for (let y = 0; y < BOARD_N; y += 1) for (let x = 0; x < BOARD_N; x += 1) if (grid[y][x] !== null) remaining += 1;
+    for (let y = 0; y < BOARD_ROWS; y += 1) for (let x = 0; x < BOARD_COLS; x += 1) if (grid[y][x] !== null) remaining += 1;
     while (remaining > 0) {
       const exposed = [];
-      for (let y = 0; y < BOARD_N; y += 1) {
-        for (let x = 0; x < BOARD_N; x += 1) {
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
           if (grid[y][x] !== null && isExposedInGrid(grid, x, y)) exposed.push({ x: x, y: y });
         }
       }
@@ -316,23 +301,13 @@
       this.workers = [];
       this.effects = [];
 
-      const patternIndex = Math.floor(Math.random() * 6);
-      let mask = generatePattern(patternIndex);
-      const transform = Math.floor(Math.random() * 4);
-      if (transform === 0) mask = transpose(mask);
-      else if (transform === 1) mask = mirrorX(mask);
-      else if (transform === 2) mask = mirrorY(mask);
-
       this.board = [];
+      const patternData = window.AntsPatternData || { cells: DEFAULT_PATTERN };
       let total = 0;
-      for (let y = 0; y < BOARD_N; y += 1) {
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
         const row = [];
-        for (let x = 0; x < BOARD_N; x += 1) {
-          if (!mask[y][x]) {
-            row.push(null);
-            continue;
-          }
-          const color = randomInt(0, COLOR_COUNT - 1);
+        for (let x = 0; x < BOARD_COLS; x += 1) {
+          const color = patternData ? patternData.cells[y][x] : randomInt(0, COLOR_COUNT - 1);
           row.push({ color: color, reserved: false });
           total += 1;
         }
@@ -384,9 +359,9 @@
       const g = this.boardGraphics;
       const panelPad = 10;
       g.clear();
-      g.fillStyle(0x1b1830, 0.96).fillRoundedRect(L.boardX - panelPad, L.boardY - panelPad, boardSize + panelPad * 2, boardSize + panelPad * 2, 16);
-      for (let y = 0; y < BOARD_N; y += 1) {
-        for (let x = 0; x < BOARD_N; x += 1) {
+      g.fillStyle(0x1b1830, 0.96).fillRoundedRect(L.boardX - panelPad, L.boardY - panelPad, boardWidth + panelPad * 2, boardHeight + panelPad * 2, 16);
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
           const cell = this.board[y][x];
           if (!cell) continue;
           const px = L.boardX + x * (BOARD_CELL + BOARD_GAP);
@@ -460,10 +435,23 @@
       for (const worker of this.workers) {
         const palette = PALETTE[worker.color];
         const radius = TILE_SIZE * 0.16;
-        const angle = Math.atan2(worker.targetY - worker.y, worker.targetX - worker.x);
+        let angle = worker.angle || 0;
+        if (worker.phase !== 'pickup') {
+          const currentWaypoint = worker.waypoints[Math.min(worker.waypointIndex, worker.waypoints.length - 1)];
+          if (currentWaypoint) angle = Math.atan2(currentWaypoint.y - worker.y, currentWaypoint.x - worker.x);
+          worker.angle = angle;
+        }
         const headX = worker.x + Math.cos(angle) * radius * 0.55;
         const headY = worker.y + Math.sin(angle) * radius * 0.55;
         g.fillStyle(0x0a0812, 0.35).fillEllipse(worker.x + 2, worker.y + 3, radius * 1.4, radius * 0.8);
+        if (worker.carrying || worker.phase === 'pickup') {
+          const blockSize = radius * 1.35;
+          const lift = worker.phase === 'pickup' ? 0.5 + worker.blockLift * 0.95 : 1.75;
+          const blockY = worker.y - radius * lift;
+          g.fillStyle(palette.dark, 0.95).fillRoundedRect(worker.x - blockSize / 2 + 2, blockY + 2, blockSize, blockSize, 2);
+          g.fillStyle(palette.base, 1).fillRoundedRect(worker.x - blockSize / 2, blockY, blockSize, blockSize, 2);
+          g.lineStyle(1, palette.light, 0.9).strokeRoundedRect(worker.x - blockSize / 2, blockY, blockSize, blockSize, 2);
+        }
         g.fillStyle(palette.base, 1).fillCircle(worker.x, worker.y, radius * 0.85);
         g.fillStyle(palette.light, 1).fillCircle(headX, headY, radius * 0.6);
         g.fillStyle(0x1d1a2b, 1).fillCircle(headX - radius * 0.14, headY - radius * 0.12, radius * 0.14);
@@ -525,13 +513,13 @@
     }
 
     isExposed(x, y) {
-      if (x === 0 || x === BOARD_N - 1 || y === 0 || y === BOARD_N - 1) return true;
-      return !this.board[y][x - 1] || !this.board[y][x + 1] || !this.board[y - 1][x] || !this.board[y + 1][x];
+      if (x === 0 || x === BOARD_COLS - 1 || y === 0 || y === BOARD_ROWS - 1) return true;
+      return this.board[y][x - 1] === null || this.board[y][x + 1] === null || this.board[y - 1][x] === null || this.board[y + 1][x] === null;
     }
 
     hasExposedTarget(color) {
-      for (let y = 0; y < BOARD_N; y += 1) {
-        for (let x = 0; x < BOARD_N; x += 1) {
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
           const cell = this.board[y][x];
           if (cell && !cell.reserved && cell.color === color && this.isExposed(x, y)) return true;
         }
@@ -541,8 +529,8 @@
 
     findExposedTarget(color) {
       const candidates = [];
-      for (let y = 0; y < BOARD_N; y += 1) {
-        for (let x = 0; x < BOARD_N; x += 1) {
+      for (let y = 0; y < BOARD_ROWS; y += 1) {
+        for (let x = 0; x < BOARD_COLS; x += 1) {
           const cell = this.board[y][x];
           if (cell && !cell.reserved && cell.color === color && this.isExposed(x, y)) candidates.push({ x: x, y: y });
         }
@@ -591,7 +579,10 @@
             slot.timer = 0;
           }
         } else {
-          slot.timer = DISPATCH_INTERVAL;
+          slot.tile = null;
+          slot.remaining = 0;
+          slot.timer = 0;
+          slotsDirty = true;
         }
       }
       if (boardDirty) this.drawBoard();
@@ -605,44 +596,94 @@
       const startY = L.slotsY + TILE_SIZE / 2;
       const targetX = L.boardX + target.x * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
       const targetY = L.boardY + target.y * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
+      const outPath = [
+        { x: startX, y: startY },
+        { x: targetX, y: startY },
+        { x: targetX, y: targetY },
+      ];
       this.workers.push({
         color: this.slots[slotIndex].tile ? this.slots[slotIndex].tile.color : 0,
         x: startX,
         y: startY,
+        startX: startX,
+        startY: startY,
         targetX: targetX,
         targetY: targetY,
         target: target,
+        waypoints: outPath,
+        waypointIndex: 1,
+        phase: 'travelOut',
+        carrying: false,
+        pickupTimer: 0,
+        blockLift: 0,
+        angle: 0,
         dead: false,
       });
     }
 
     updateWorkers(delta) {
-      const step = WORKER_SPEED * (delta / 1000);
       for (const worker of this.workers) {
-        const dx = worker.targetX - worker.x;
-        const dy = worker.targetY - worker.y;
+        if (worker.phase === 'pickup') {
+          worker.pickupTimer -= delta;
+          worker.blockLift = Math.max(0, Math.min(1, 1 - worker.pickupTimer / 120));
+          if (worker.pickupTimer <= 0) {
+            worker.carrying = true;
+            worker.phase = 'travelBack';
+            worker.waypoints = [
+              { x: worker.targetX, y: worker.targetY },
+              { x: worker.targetX, y: worker.startY },
+              { x: worker.startX, y: worker.startY },
+            ];
+            worker.waypointIndex = 1;
+          }
+          continue;
+        }
+
+        const waypoint = worker.waypoints[worker.waypointIndex];
+        if (!waypoint) {
+          worker.dead = true;
+          continue;
+        }
+        const speed = worker.carrying ? WORKER_SPEED * 0.85 : WORKER_SPEED;
+        const step = speed * (delta / 1000);
+        const dx = waypoint.x - worker.x;
+        const dy = waypoint.y - worker.y;
         const distance = Math.hypot(dx, dy);
         if (distance <= step || distance < 4) {
-          worker.dead = true;
-          this.onWorkerArrive(worker);
+          worker.x = waypoint.x;
+          worker.y = waypoint.y;
+          worker.waypointIndex += 1;
+          if (worker.waypointIndex >= worker.waypoints.length) {
+            if (!worker.carrying) this.onWorkerReachTarget(worker);
+            else this.onWorkerReturn(worker);
+          }
           continue;
         }
         worker.x += dx / distance * step;
         worker.y += dy / distance * step;
+        worker.angle = Math.atan2(dy, dx);
       }
       this.workers = this.workers.filter((worker) => !worker.dead);
+      this.checkEnd();
     }
 
-    onWorkerArrive(worker) {
+    onWorkerReachTarget(worker) {
       const cell = this.board[worker.target.y][worker.target.x];
       if (cell && cell.reserved) {
         this.board[worker.target.y][worker.target.x] = null;
         this.remainingTotal -= 1;
-        this.effects.push({ x: worker.targetX, y: worker.targetY, color: PALETTE[worker.color].base, age: 0, ttl: 180 });
         AntsAudio.remove();
         this.drawBoard();
       }
+      worker.phase = 'pickup';
+      worker.pickupTimer = 120;
+      worker.blockLift = 0;
       this.checkEnd();
+    }
+
+    onWorkerReturn(worker) {
+      worker.dead = true;
+      this.effects.push({ x: worker.startX, y: worker.startY, color: PALETTE[worker.color].base, age: 0, ttl: 190 });
     }
 
     updateEffects(delta) {
@@ -652,7 +693,7 @@
 
     checkEnd() {
       if (this.state !== 'playing') return;
-      if (this.remainingTotal <= 0) {
+      if (this.remainingTotal <= 0 && this.workers.length === 0) {
         this.finish(true);
         return;
       }
