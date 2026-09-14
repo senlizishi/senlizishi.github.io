@@ -5,9 +5,9 @@
   const WIDTH = IS_PORTRAIT ? 540 : 960;
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
 
-  const BOARD_N = 12;
+  const BOARD_N = 18;
   const BOARD_GAP = 2;
-  const BOARD_CELL = IS_PORTRAIT ? 28 : 24;
+  const BOARD_CELL = IS_PORTRAIT ? 22 : 18;
   const SLOT_COUNT = 5;
   const COL_COUNT = 5;
   const ROW_COUNT = 3;
@@ -18,7 +18,6 @@
   const WORKER_SPEED = 240;
   const MAX_NUM = 5;
   const COLOR_COUNT = 6;
-  const BONUS_TILES = 4;
 
   const PALETTE = [
     { base: 0xff5fc8, dark: 0xb83a8c, light: 0xffb1e6 },
@@ -29,105 +28,64 @@
     { base: 0x9b72ff, dark: 0x5d3bb8, light: 0xcab8ff },
   ];
 
-  const PATTERNS = [
-    [
-      '..XX....XX..',
-      '.XXXX..XXXX.',
-      'XXXXXXXXXXXX',
-      'XXXXXXXXXXXX',
-      '.XXXXXXXXXX.',
-      '..XXXXXXXX..',
-      '...XXXXXX...',
-      '....XXXX....',
-      '.....XX.....',
-      '............',
-      '............',
-      '............',
-    ],
-    [
-      '.....XX.....',
-      '.....XX.....',
-      '....XXXX....',
-      '....XXXX....',
-      'XXXXXXXXXXXX',
-      '.XXXXXXXXXX.',
-      '..XXXXXXXX..',
-      '...XXXXXX...',
-      '..XX....XX..',
-      '.XX......XX.',
-      'XX........XX',
-      '............',
-    ],
-    [
-      '...XXXXXX...',
-      '..XXXXXXXX..',
-      '.XXXXXXXXXX.',
-      '.XXXXXXXXXX.',
-      'XXXXXXXXXXXX',
-      'XXXXXXXXXXXX',
-      'XXXXXXXXXXXX',
-      'XXXXXXXXXXXX',
-      '.XXXXXXXXXX.',
-      '.XXXXXXXXXX.',
-      '..XXXXXXXX..',
-      '...XXXXXX...',
-    ],
-    [
-      '.....XX.....',
-      '....XXXX....',
-      '...XXXXXX...',
-      '..XXXXXXXX..',
-      '.XXXXXXXXXX.',
-      'XXXXXXXXXXXX',
-      '.XXXXXXXXXX.',
-      '..XXXXXXXX..',
-      '...XXXXXX...',
-      '....XXXX....',
-      '.....XX.....',
-      '............',
-    ],
-    [
-      '.....XX.....',
-      '....XXXX....',
-      '...XXXXXX...',
-      '..XXXXXXXX..',
-      '.XXXXXXXXXX.',
-      'XXXXXXXXXXXX',
-      '.....XX.....',
-      '.....XX.....',
-      '.....XX.....',
-      '....XXXX....',
-      '............',
-      '............',
-    ],
-    [
-      '...XXXXXX...',
-      '..XXXXXXXX..',
-      '.XXXXXXXXXX.',
-      'XXXXXXXXXXXX',
-      'XXXXXXXXXXXX',
-      '....XXXX....',
-      '....XXXX....',
-      '....XXXX....',
-      '..XXXXXXXX..',
-      '.XXXXXXXXXX.',
-      '............',
-      '............',
-    ],
-  ];
+  function pointInPolygon(x, y, points) {
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+      const xi = points[i][0];
+      const yi = points[i][1];
+      const xj = points[j][0];
+      const yj = points[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  function starPoints() {
+    const points = [];
+    for (let i = 0; i < 10; i += 1) {
+      const radius = i % 2 === 0 ? 0.96 : 0.38;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      points.push([Math.cos(angle) * radius, Math.sin(angle) * radius]);
+    }
+    return points;
+  }
+
+  function generatePattern(kind) {
+    const mask = [];
+    const center = (BOARD_N - 1) / 2;
+    const star = starPoints();
+    for (let y = 0; y < BOARD_N; y += 1) {
+      const row = [];
+      const v = (y + 0.5 - center) / (BOARD_N * 0.5);
+      for (let x = 0; x < BOARD_N; x += 1) {
+        const u = (x + 0.5 - center) / (BOARD_N * 0.5);
+        let inside = false;
+        if (kind === 0) {
+          const py = -v;
+          const a = u * u + py * py - 1;
+          inside = a * a * a - u * u * py * py * py <= 0.02;
+        } else if (kind === 1) {
+          inside = pointInPolygon(u, v, star);
+        } else if (kind === 2) {
+          inside = Math.hypot(u, v) <= 0.92;
+        } else if (kind === 3) {
+          inside = Math.abs(u) + Math.abs(v) <= 0.9;
+        } else if (kind === 4) {
+          if (v >= -0.95 && v <= 0.05) inside = Math.abs(u) <= 0.82 * ((v + 0.95) / 1.0);
+          else if (v > 0.05 && v <= 0.55) inside = Math.abs(u) <= 0.13;
+        } else {
+          if (v >= -0.95 && v <= 0.05) inside = (u * u) / (0.9 * 0.9) + ((v + 0.35) * (v + 0.35)) / (0.55 * 0.55) <= 1;
+          else if (v > 0.05 && v <= 0.55) inside = Math.abs(u) <= 0.18;
+        }
+        row.push(inside);
+      }
+      mask.push(row);
+    }
+    return mask;
+  }
 
   function randomInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
   function choose(landscape, portrait) { return IS_PORTRAIT ? portrait : landscape; }
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = array[i];
-      array[i] = array[j];
-      array[j] = tmp;
-    }
-    return array;
-  }
-
   const AntsAudio = {
     context: null,
     master: null,
@@ -225,11 +183,11 @@
   const L = IS_PORTRAIT
     ? {
         boardX: (WIDTH - boardSize) / 2,
-        boardY: 96,
+        boardY: 84,
         slotsX: (WIDTH - slotsWidth) / 2,
-        slotsY: 96 + boardSize + 36,
+        slotsY: 84 + boardSize + 34,
         queueX: (WIDTH - slotsWidth) / 2,
-        queueY: 96 + boardSize + 36 + TILE_SIZE + 24,
+        queueY: 84 + boardSize + 34 + TILE_SIZE + 26,
       }
     : (function () {
         const boardX = 42;
@@ -248,10 +206,6 @@
         };
       })();
 
-  function cloneMask(rows) {
-    return rows.map((row) => row.split('').map((ch) => ch === 'X'));
-  }
-
   function transpose(mask) {
     const out = [];
     for (let x = 0; x < BOARD_N; x += 1) {
@@ -265,22 +219,45 @@
   function mirrorX(mask) { return mask.map((row) => row.slice().reverse()); }
   function mirrorY(mask) { return mask.slice().reverse(); }
 
-  function buildDeck(counts) {
-    const deck = [];
-    for (let color = 0; color < COLOR_COUNT; color += 1) {
-      let remaining = counts[color] || 0;
-      while (remaining > 0) {
-        let extra = 0;
-        if (remaining > 1 && Math.random() < 0.25) extra = 1;
-        const count = Math.min(MAX_NUM, remaining + extra);
-        deck.push({ color: color, count: count });
-        remaining -= count;
+  function isExposedInGrid(grid, x, y) {
+    if (x === 0 || x === BOARD_N - 1 || y === 0 || y === BOARD_N - 1) return true;
+    return !grid[y][x - 1] || !grid[y][x + 1] || !grid[y - 1][x] || !grid[y + 1][x];
+  }
+
+  function buildRemovalOrder(board) {
+    const grid = board.map((row) => row.map((cell) => (cell ? cell.color : null)));
+    const order = [];
+    let remaining = 0;
+    for (let y = 0; y < BOARD_N; y += 1) for (let x = 0; x < BOARD_N; x += 1) if (grid[y][x] !== null) remaining += 1;
+    while (remaining > 0) {
+      const exposed = [];
+      for (let y = 0; y < BOARD_N; y += 1) {
+        for (let x = 0; x < BOARD_N; x += 1) {
+          if (grid[y][x] !== null && isExposedInGrid(grid, x, y)) exposed.push({ x: x, y: y });
+        }
       }
+      if (!exposed.length) break;
+      const target = exposed[randomInt(0, exposed.length - 1)];
+      order.push(grid[target.y][target.x]);
+      grid[target.y][target.x] = null;
+      remaining -= 1;
     }
-    for (let i = 0; i < BONUS_TILES; i += 1) {
-      deck.push({ color: randomInt(0, COLOR_COUNT - 1), count: randomInt(1, MAX_NUM) });
+    return order;
+  }
+
+  function buildCards(order) {
+    const cards = [];
+    let index = 0;
+    while (index < order.length) {
+      const color = order[index];
+      let count = 0;
+      while (index < order.length && order[index] === color && count < MAX_NUM) {
+        count += 1;
+        index += 1;
+      }
+      cards.push({ color: color, count: count });
     }
-    return shuffle(deck);
+    return cards;
   }
 
   class AntsGameScene extends Phaser.Scene {
@@ -339,15 +316,14 @@
       this.workers = [];
       this.effects = [];
 
-      const patternIndex = Math.floor(Math.random() * PATTERNS.length);
-      let mask = cloneMask(PATTERNS[patternIndex]);
+      const patternIndex = Math.floor(Math.random() * 6);
+      let mask = generatePattern(patternIndex);
       const transform = Math.floor(Math.random() * 4);
       if (transform === 0) mask = transpose(mask);
       else if (transform === 1) mask = mirrorX(mask);
       else if (transform === 2) mask = mirrorY(mask);
 
       this.board = [];
-      const counts = new Array(COLOR_COUNT).fill(0);
       let total = 0;
       for (let y = 0; y < BOARD_N; y += 1) {
         const row = [];
@@ -358,28 +334,32 @@
           }
           const color = randomInt(0, COLOR_COUNT - 1);
           row.push({ color: color, reserved: false });
-          counts[color] += 1;
           total += 1;
         }
         this.board.push(row);
       }
 
       this.remainingTotal = total;
-      this.availableByColor = counts.slice();
-      this.deck = buildDeck(counts);
+      this.cards = buildCards(buildRemovalOrder(this.board));
+      this.deckIndex = 0;
 
       this.queue = [];
-      for (let col = 0; col < COL_COUNT; col += 1) {
-        const column = [null, null, null];
-        for (let row = ROW_COUNT - 1; row >= 0; row -= 1) column[row] = this.deck.pop() || null;
-        this.queue.push(column);
+      for (let col = 0; col < COL_COUNT; col += 1) this.queue.push([null, null, null]);
+      for (let row = 0; row < ROW_COUNT; row += 1) {
+        for (let col = 0; col < COL_COUNT; col += 1) this.queue[col][row] = this.nextCard();
       }
 
       this.slots = [];
       for (let i = 0; i < SLOT_COUNT; i += 1) this.slots.push({ tile: null, remaining: 0, timer: 0 });
 
-      this.ensurePlayableTopRow();
       this.drawAll();
+    }
+
+    nextCard() {
+      if (this.deckIndex >= this.cards.length) return null;
+      const card = this.cards[this.deckIndex];
+      this.deckIndex += 1;
+      return card;
     }
 
     resetGame() {
@@ -441,7 +421,7 @@
       }
     }
 
-    isTilePlayable(tile) { return !!tile && this.availableByColor[tile.color] > 0; }
+    isTilePlayable(tile) { return !!tile && this.hasExposedTarget(tile.color); }
 
     drawQueue() {
       const g = this.tileGraphics;
@@ -532,46 +512,49 @@
 
       this.queue[col][0] = this.queue[col][1];
       this.queue[col][1] = this.queue[col][2];
-      this.queue[col][2] = this.deck.length ? this.deck.pop() : null;
+      this.queue[col][2] = this.nextCard();
 
       AntsAudio.select();
-      this.ensurePlayableTopRow();
       this.drawQueue();
       this.drawSlots();
       this.checkEnd();
     }
 
-    ensurePlayableTopRow() {
-      const topTiles = this.queue.map((column) => column[0]);
-      const hasPlayable = topTiles.some((tile) => this.isTilePlayable(tile));
-      if (hasPlayable) return;
-      const availableColors = [];
-      for (let color = 0; color < COLOR_COUNT; color += 1) if (this.availableByColor[color] > 0) availableColors.push(color);
-      if (!availableColors.length) return;
-      const replaceIndex = topTiles.findIndex((tile) => tile);
-      if (replaceIndex < 0) return;
-      this.queue[replaceIndex][0] = {
-        color: availableColors[randomInt(0, availableColors.length - 1)],
-        count: randomInt(1, MAX_NUM),
-      };
-    }
-
     hasPlayableTopTile() {
-      return this.queue.some((column) => column[0] && this.availableByColor[column[0].color] > 0);
+      return this.queue.some((column) => column[0] && this.hasExposedTarget(column[0].color));
     }
 
-    reserveTarget(color) {
+    isExposed(x, y) {
+      if (x === 0 || x === BOARD_N - 1 || y === 0 || y === BOARD_N - 1) return true;
+      return !this.board[y][x - 1] || !this.board[y][x + 1] || !this.board[y - 1][x] || !this.board[y + 1][x];
+    }
+
+    hasExposedTarget(color) {
+      for (let y = 0; y < BOARD_N; y += 1) {
+        for (let x = 0; x < BOARD_N; x += 1) {
+          const cell = this.board[y][x];
+          if (cell && !cell.reserved && cell.color === color && this.isExposed(x, y)) return true;
+        }
+      }
+      return false;
+    }
+
+    findExposedTarget(color) {
       const candidates = [];
       for (let y = 0; y < BOARD_N; y += 1) {
         for (let x = 0; x < BOARD_N; x += 1) {
           const cell = this.board[y][x];
-          if (cell && !cell.reserved && cell.color === color) candidates.push({ x: x, y: y });
+          if (cell && !cell.reserved && cell.color === color && this.isExposed(x, y)) candidates.push({ x: x, y: y });
         }
       }
       if (!candidates.length) return null;
-      const target = candidates[randomInt(0, candidates.length - 1)];
+      return candidates[randomInt(0, candidates.length - 1)];
+    }
+
+    reserveTarget(color) {
+      const target = this.findExposedTarget(color);
+      if (!target) return null;
       this.board[target.y][target.x].reserved = true;
-      this.availableByColor[color] -= 1;
       return target;
     }
 
@@ -608,12 +591,7 @@
             slot.timer = 0;
           }
         } else {
-          this.effects.push({ x: L.slotsX + i * (TILE_SIZE + TILE_GAP) + TILE_SIZE / 2, y: L.slotsY + TILE_SIZE / 2, color: PALETTE[slot.tile.color].base, age: 0, ttl: 190 });
-          slot.tile = null;
-          slot.remaining = 0;
-          slot.timer = 0;
-          AntsAudio.warning();
-          slotsDirty = true;
+          slot.timer = DISPATCH_INTERVAL;
         }
       }
       if (boardDirty) this.drawBoard();
@@ -679,9 +657,10 @@
         return;
       }
       const hasWorkers = this.workers.length > 0;
-      const hasActiveSlot = this.slots.some((slot) => slot.tile && slot.remaining > 0);
-      const hasPlayable = this.hasPlayableTopTile();
-      if (!hasWorkers && !hasActiveSlot && !hasPlayable) this.finish(false);
+      const hasDispatchable = this.slots.some((slot) => slot.tile && slot.remaining > 0 && this.hasExposedTarget(slot.tile.color));
+      const hasEmptySlot = this.slots.some((slot) => !slot.tile);
+      const hasPlayerMove = hasEmptySlot && this.hasPlayableTopTile();
+      if (!hasWorkers && !hasDispatchable && !hasPlayerMove) this.finish(false);
     }
 
     finish(win) {
