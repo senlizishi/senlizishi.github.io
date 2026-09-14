@@ -21,6 +21,7 @@
     .ctl:hover { background: #2b2346; }
     .ctl:active { transform: scale(0.92); }
     #home-link { left: max(10px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); }
+    #speed-link { width: auto; padding: 0 11px; border-radius: 20px; font-size: 14px; }
     #top-controls {
       position: fixed; z-index: 30; display: flex; gap: 8px;
       right: max(10px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top));
@@ -31,12 +32,68 @@
 </head>
 <body>
 <main id="game-root" aria-label="蚂蚁搬砖游戏"></main>
-<a id="home-link" class="ctl" href="./index.html" aria-label="返回首页">←</a>
+<a id="home-link" class="ctl" href="./index.html" aria-label="返回首页">&#8592;</a>
 <div id="top-controls">
-  <a id="sound-link" class="ctl" href="#" aria-label="声音开关">🔊</a>
-  <a id="restart-link" class="ctl" href="#" aria-label="再来一局">↻</a>
+  <a id="speed-link" class="ctl" href="#" aria-label="速度">中速</a>
+  <a id="sound-link" class="ctl" href="#" aria-label="声音开关">&#128266;</a>
+  <a id="restart-link" class="ctl" href="#" aria-label="再来一局">&#8635;</a>
 </div>
 <script>
+const PATTERN_COLS = 30;
+const PATTERN_ROWS = 35;
+
+function hexToRgb(hex) { return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255]; }
+
+function preparePattern(image, patternIndex) {
+  const palette = (window.AntsPalette || []).map(hexToRgb);
+  if (!palette.length) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = PATTERN_COLS;
+  canvas.height = PATTERN_ROWS;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const targetAspect = PATTERN_COLS / PATTERN_ROWS;
+  const imageWidth = image.naturalWidth || image.width;
+  const imageHeight = image.naturalHeight || image.height;
+  let sourceX = 0;
+  let sourceY = 0;
+  let sourceWidth = imageWidth;
+  let sourceHeight = imageHeight;
+  if (imageWidth / imageHeight > targetAspect) {
+    sourceWidth = Math.round(imageHeight * targetAspect);
+    sourceX = Math.round((imageWidth - sourceWidth) / 2);
+  } else {
+    sourceHeight = Math.round(imageWidth / targetAspect);
+    sourceY = Math.round((imageHeight - sourceHeight) / 2);
+  }
+  ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, PATTERN_COLS, PATTERN_ROWS);
+  const data = ctx.getImageData(0, 0, PATTERN_COLS, PATTERN_ROWS).data;
+  const cells = [];
+  for (let y = 0; y < PATTERN_ROWS; y += 1) {
+    const row = [];
+    for (let x = 0; x < PATTERN_COLS; x += 1) {
+      const offset = (y * PATTERN_COLS + x) * 4;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      let bestIndex = 0;
+      let bestDistance = Infinity;
+      for (let colorIndex = 0; colorIndex < palette.length; colorIndex += 1) {
+        const paletteColor = palette[colorIndex];
+        const distance = (r - paletteColor[0]) ** 2 + (g - paletteColor[1]) ** 2 + (b - paletteColor[2]) ** 2;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = colorIndex;
+        }
+      }
+      row.push(bestIndex);
+    }
+    cells.push(row);
+  }
+  return { cells: cells, label: '样式 ' + (patternIndex + 1) };
+}
+
 function bootGame() {
   const portraitLayout = window.innerHeight > window.innerWidth;
   window.game = new Phaser.Game({
@@ -62,6 +119,7 @@ function bootGame() {
     const scene = window.game.scene.getScene('AntsGameScene');
     const restartLink = document.getElementById('restart-link');
     const soundLink = document.getElementById('sound-link');
+    const speedLink = document.getElementById('speed-link');
     if (restartLink) {
       restartLink.addEventListener('click', (event) => {
         event.preventDefault();
@@ -75,9 +133,47 @@ function bootGame() {
         soundLink.textContent = on ? '\u{1F50A}' : '\u{1F507}';
       });
     }
+    if (speedLink) {
+      const speedLabels = ['慢速', '中速', '快速'];
+      const speedValues = [160, 280, 400];
+      let speedIndex = 1;
+      speedLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        speedIndex = (speedIndex + 1) % speedLabels.length;
+        if (scene && scene.setWorkerSpeed) scene.setWorkerSpeed(speedValues[speedIndex]);
+        speedLink.textContent = speedLabels[speedIndex];
+        if (window.AntsAudio) window.AntsAudio.select();
+      });
+    }
   });
 }
-bootGame();
+
+const patternFiles = ['pattern-01.jpg', 'pattern-02.jpg', 'pattern-03.jpg', 'pattern-04.jpg', 'pattern-05.jpg', 'pattern-06.jpg', 'pattern-07.jpg', 'pattern-08.jpg', 'pattern-09.jpg', 'pattern-10.jpg'];
+const patternSources = patternFiles.map((file) => {
+  const image = new Image();
+  image.src = 'assets/' + encodeURIComponent(file);
+  return image;
+});
+let remainingSources = patternSources.length;
+function onPatternSourceReady() {
+  remainingSources -= 1;
+  if (remainingSources > 0) return;
+  window.AntsPatterns = [];
+  for (let i = 0; i < patternSources.length; i += 1) {
+    if (!patternSources[i].naturalWidth) continue;
+    const pattern = preparePattern(patternSources[i], i);
+    if (pattern) window.AntsPatterns.push(pattern);
+  }
+  if (!window.AntsPatterns.length) window.AntsPatterns = null;
+  bootGame();
+}
+patternSources.forEach((image) => {
+  if (image.complete && image.naturalWidth) onPatternSourceReady();
+  else {
+    image.addEventListener('load', onPatternSourceReady, { once: true });
+    image.addEventListener('error', onPatternSourceReady, { once: true });
+  }
+});
 </script>
 </body>
 </html>

@@ -16,22 +16,23 @@
   const TILE_GAP = IS_PORTRAIT ? 12 : 10;
   const ROW_GAP = IS_PORTRAIT ? 10 : 8;
   const DISPATCH_INTERVAL = 260;
-  const WORKER_SPEED = 280;
+  const SPEED_OPTIONS = [160, 280, 400];
+  let WORKER_SPEED = SPEED_OPTIONS[1];
   const MIN_CARD = 10;
   const MAX_CARD = 50;
   const COLOR_COUNT = 10;
 
   const PALETTE = [
-    { base: 0x58a5df, dark: 0x3578a8, light: 0xa7d3f2 },
-    { base: 0x82b8db, dark: 0x4f87ad, light: 0xc2e0f2 },
-    { base: 0x5a90b9, dark: 0x37627f, light: 0xa7c8df },
-    { base: 0xad9c6f, dark: 0x776841, light: 0xd4c9a8 },
-    { base: 0xe3b168, dark: 0xa97734, light: 0xf2d4a5 },
-    { base: 0x669347, dark: 0x42622c, light: 0xa9c98f },
-    { base: 0xb5c934, dark: 0x77871c, light: 0xd7e582 },
-    { base: 0x4d3930, dark: 0x2c201a, light: 0x8c766b },
-    { base: 0xe37724, dark: 0xa24d12, light: 0xf2b16f },
-    { base: 0xf9f6ed, dark: 0xb9b09e, light: 0xffffff },
+    { base: 0x4890c0, dark: 0x2f6888, light: 0x93cfe6 },
+    { base: 0x60a8d8, dark: 0x3c78a8, light: 0xaddaf0 },
+    { base: 0xa8c030, dark: 0x718318, light: 0xdce99b },
+    { base: 0x489030, dark: 0x2f5f1e, light: 0x9bd48a },
+    { base: 0xd8c090, dark: 0x9a7c55, light: 0xf0e2c8 },
+    { base: 0xd86018, dark: 0x9a3a08, light: 0xf2a073 },
+    { base: 0x301800, dark: 0x180c00, light: 0x8a6448 },
+    { base: 0xf0f0d8, dark: 0xaaa98f, light: 0xffffff },
+    { base: 0x909090, dark: 0x626262, light: 0xc9c9c9 },
+    { base: 0x783018, dark: 0x4c1e0e, light: 0xb8725a },
   ];
   window.AntsPalette = PALETTE.map((palette) => palette.base);
 
@@ -466,7 +467,7 @@
       this.add.text(20, 20, '蚂蚁搬砖', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('24px', '26px'), fontStyle: 'bold', color: '#ffe9f6' }).setDepth(7);
       this.boardLabel = this.add.text(L.boardX, L.boardY - 24, '\u76ee\u6807\u56fe\u6848', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
       this.add.text(L.slotsX, L.slotsY - 24, '槽位', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
-      this.add.text(L.queueX, L.queueY - 24, '选择第一行数字块', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
+      this.add.text(L.queueX, L.queueY - 24, '点击首行入槽，灰牌点掉', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
 
       this.drawBackground();
       this.overlayItems = [];
@@ -490,9 +491,15 @@
 
       let patternCells = DEFAULT_PATTERN;
       let patternLabel = '\u968f\u673a\u56fe\u6848';
-      const generated = buildRandomPattern();
-      patternCells = generated.cells;
-      patternLabel = generated.label;
+      if (window.AntsPatterns && window.AntsPatterns.length) {
+        const chosen = window.AntsPatterns[randomInt(0, window.AntsPatterns.length - 1)];
+        patternCells = chosen.cells;
+        patternLabel = chosen.label;
+      } else {
+        const generated = buildRandomPattern();
+        patternCells = generated.cells;
+        patternLabel = generated.label;
+      }
       this.patternLabel = patternLabel;
       if (this.boardLabel) this.boardLabel.setText('\u76ee\u6807\u56fe\u6848 \u00b7 ' + patternLabel);
       const sourceCounts = new Array(COLOR_COUNT).fill(0);
@@ -563,6 +570,10 @@
       return card;
     }
 
+    setWorkerSpeed(speed) {
+      WORKER_SPEED = speed;
+    }
+
     resetGame() {
       this.clearOverlay();
       this.overlayGraphics.clear();
@@ -622,7 +633,7 @@
       }
     }
 
-    isTilePlayable(tile) { return !!tile && this.hasExposedTarget(tile.color); }
+    isTilePlayable(tile) { return !!tile && this.countColorRemaining(tile.color) > 0; }
 
     drawQueue() {
       const g = this.tileGraphics;
@@ -709,6 +720,7 @@
       const tile = this.queue[col][0];
       if (!tile) return;
       if (!this.isTilePlayable(tile)) {
+        this.discardTopCard(col);
         AntsAudio.warning();
         return;
       }
@@ -735,7 +747,20 @@
     }
 
     hasPlayableTopTile() {
-      return this.queue.some((column) => column[0] && this.hasExposedTarget(column[0].color));
+      return this.queue.some((column) => column[0] && this.isTilePlayable(column[0]));
+    }
+
+    hasDiscardableTopTile() {
+      return this.queue.some((column) => column[0] && !this.isTilePlayable(column[0]));
+    }
+
+    discardTopCard(col) {
+      if (!this.queue[col] || !this.queue[col][0]) return;
+      this.queue[col][0] = this.queue[col][1];
+      this.queue[col][1] = this.queue[col][2];
+      this.queue[col][2] = this.nextCard();
+      this.drawQueue();
+      this.checkEnd();
     }
 
     isExposed(x, y) {
@@ -933,7 +958,7 @@
       const hasWorkers = this.workers.length > 0;
       const hasDispatchable = this.slots.some((slot) => slot.tile && slot.remaining > 0 && this.hasExposedTarget(slot.tile.color));
       const hasEmptySlot = this.slots.some((slot) => !slot.tile);
-      const hasPlayerMove = hasEmptySlot && this.hasPlayableTopTile();
+      const hasPlayerMove = (hasEmptySlot && this.hasPlayableTopTile()) || this.hasDiscardableTopTile();
       if (!hasWorkers && !hasDispatchable && !hasPlayerMove) this.finish(false);
     }
 
