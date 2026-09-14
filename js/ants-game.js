@@ -16,7 +16,7 @@
   const TILE_GAP = IS_PORTRAIT ? 12 : 10;
   const ROW_GAP = IS_PORTRAIT ? 10 : 8;
   const DISPATCH_INTERVAL = 260;
-  const WORKER_SPEED = 240;
+  const WORKER_SPEED = 280;
   const MIN_CARD = 10;
   const MAX_CARD = 50;
   const COLOR_COUNT = 10;
@@ -84,6 +84,128 @@
 
   function randomInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
   function choose(landscape, portrait) { return IS_PORTRAIT ? portrait : landscape; }
+  function makePatternGrid() {
+    return Array.from({ length: BOARD_ROWS }, () => new Array(BOARD_COLS).fill(9));
+  }
+
+  function setPatternPixel(grid, x, y, color) {
+    if (x >= 0 && x < BOARD_COLS && y >= 0 && y < BOARD_ROWS) grid[y][x] = color;
+  }
+
+  function fillPatternCircle(grid, centerX, centerY, radius, color) {
+    const radiusSquared = radius * radius;
+    for (let y = Math.max(0, Math.floor(centerY - radius)); y <= Math.min(BOARD_ROWS - 1, Math.ceil(centerY + radius)); y += 1) {
+      for (let x = Math.max(0, Math.floor(centerX - radius)); x <= Math.min(BOARD_COLS - 1, Math.ceil(centerX + radius)); x += 1) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        if (dx * dx + dy * dy <= radiusSquared) setPatternPixel(grid, x, y, color);
+      }
+    }
+  }
+
+  function fillPatternEllipse(grid, centerX, centerY, radiusX, radiusY, color) {
+    for (let y = Math.max(0, Math.floor(centerY - radiusY)); y <= Math.min(BOARD_ROWS - 1, Math.ceil(centerY + radiusY)); y += 1) {
+      for (let x = Math.max(0, Math.floor(centerX - radiusX)); x <= Math.min(BOARD_COLS - 1, Math.ceil(centerX + radiusX)); x += 1) {
+        const dx = (x - centerX) / radiusX;
+        const dy = (y - centerY) / radiusY;
+        if (dx * dx + dy * dy <= 1) setPatternPixel(grid, x, y, color);
+      }
+    }
+  }
+
+  function fillPatternRect(grid, x, y, width, height, color) {
+    for (let py = y; py < y + height; py += 1) {
+      for (let px = x; px < x + width; px += 1) setPatternPixel(grid, px, py, color);
+    }
+  }
+
+  function fillPatternTriangleUp(grid, baseY, centerX, halfWidth, height, color) {
+    for (let dy = 0; dy <= height; dy += 1) {
+      const y = baseY - dy;
+      if (y < 0 || y >= BOARD_ROWS) continue;
+      const half = Math.round(halfWidth * (dy / Math.max(1, height)));
+      for (let x = centerX - half; x <= centerX + half; x += 1) setPatternPixel(grid, x, y, color);
+    }
+  }
+
+  function buildSceneryPattern() {
+    const grid = makePatternGrid();
+    for (let y = 0; y < 14; y += 1) {
+      const color = y < 7 ? 0 : 1;
+      for (let x = 0; x < BOARD_COLS; x += 1) grid[y][x] = color;
+    }
+    fillPatternCircle(grid, 8, 7, 5, 4);
+    fillPatternCircle(grid, 8, 7, 2, 9);
+    fillPatternTriangleUp(grid, 23, 10, 10, 12, 7);
+    fillPatternTriangleUp(grid, 23, 22, 13, 15, 8);
+    fillPatternTriangleUp(grid, 23, 31, 9, 10, 6);
+    for (let y = 24; y < BOARD_ROWS; y += 1) {
+      for (let x = 0; x < BOARD_COLS; x += 1) grid[y][x] = 5;
+    }
+    return { cells: grid, label: '\u98ce\u666f' };
+  }
+
+  function buildFoodPattern() {
+    const grid = makePatternGrid();
+    const kind = randomInt(0, 2);
+    if (kind === 0) {
+      fillPatternCircle(grid, 15, 19, 11, 8);
+      fillPatternCircle(grid, 10, 13, 3, 9);
+      fillPatternRect(grid, 14, 6, 2, 4, 7);
+      fillPatternEllipse(grid, 21, 7, 5, 3, 5);
+    } else if (kind === 1) {
+      fillPatternCircle(grid, 15, 18, 13, 5);
+      fillPatternCircle(grid, 15, 18, 9, 8);
+      fillPatternCircle(grid, 15, 18, 8, 9);
+      for (const [seedX, seedY] of [[10, 15], [14, 22], [19, 14], [21, 21]]) fillPatternCircle(grid, seedX, seedY, 1, 7);
+    } else {
+      fillPatternTriangleUp(grid, 28, 15, 10, 18, 3);
+      fillPatternCircle(grid, 15, 13, 7, 1);
+      fillPatternCircle(grid, 15, 5, 6, 0);
+      fillPatternCircle(grid, 13, 3, 2, 4);
+    }
+    return { cells: grid, label: '\u98df\u7269' };
+  }
+
+  function buildAnimalPattern() {
+    const grid = makePatternGrid();
+    const kind = randomInt(0, 2);
+    if (kind === 0) {
+      fillPatternCircle(grid, 15, 18, 12, 7);
+      fillPatternTriangleUp(grid, 10, 7, 5, 7, 7);
+      fillPatternTriangleUp(grid, 10, 23, 5, 7, 7);
+      fillPatternCircle(grid, 9, 16, 3, 9);
+      fillPatternCircle(grid, 21, 16, 3, 9);
+      fillPatternCircle(grid, 11, 17, 1, 7);
+      fillPatternCircle(grid, 19, 17, 1, 7);
+      fillPatternCircle(grid, 15, 21, 2, 8);
+    } else if (kind === 1) {
+      fillPatternEllipse(grid, 15, 18, 13, 8, 0);
+      fillPatternTriangleUp(grid, 28, 15, 8, 7, 1);
+      fillPatternCircle(grid, 21, 16, 2, 9);
+      fillPatternEllipse(grid, 14, 11, 6, 3, 2);
+    } else {
+      fillPatternRect(grid, 14, 10, 3, 16, 7);
+      fillPatternEllipse(grid, 7, 12, 8, 6, 8);
+      fillPatternEllipse(grid, 24, 12, 8, 6, 4);
+      fillPatternEllipse(grid, 7, 22, 7, 5, 0);
+      fillPatternEllipse(grid, 24, 22, 7, 5, 0);
+      fillPatternCircle(grid, 15, 8, 2, 7);
+    }
+    return { cells: grid, label: '\u5361\u901a\u52a8\u7269' };
+  }
+
+  const PATTERN_GENERATORS = [
+    { label: '\u98ce\u666f', build: buildSceneryPattern },
+    { label: '\u98df\u7269', build: buildFoodPattern },
+    { label: '\u5361\u901a\u52a8\u7269', build: buildAnimalPattern },
+  ];
+
+  function buildRandomPattern() {
+    const generator = PATTERN_GENERATORS[randomInt(0, PATTERN_GENERATORS.length - 1)];
+    return generator.build();
+  }
+
   const AntsAudio = {
     context: null,
     master: null,
@@ -250,8 +372,10 @@
   }
 
   function isExposedInGrid(grid, x, y) {
-    if (x === 0 || x === BOARD_COLS - 1 || y === 0 || y === BOARD_ROWS - 1) return true;
-    return grid[y][x - 1] === null || grid[y][x + 1] === null || grid[y - 1][x] === null || grid[y + 1][x] === null;
+    for (let checkY = y + 1; checkY < BOARD_ROWS; checkY += 1) {
+      if (grid[checkY][x] !== null) return false;
+    }
+    return true;
   }
 
   function buildRemovalOrder(board) {
@@ -340,7 +464,7 @@
       }
 
       this.add.text(20, 20, '蚂蚁搬砖', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('24px', '26px'), fontStyle: 'bold', color: '#ffe9f6' }).setDepth(7);
-      this.add.text(L.boardX, L.boardY - 24, '目标图案', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
+      this.boardLabel = this.add.text(L.boardX, L.boardY - 24, '\u76ee\u6807\u56fe\u6848', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
       this.add.text(L.slotsX, L.slotsY - 24, '槽位', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
       this.add.text(L.queueX, L.queueY - 24, '选择第一行数字块', { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: choose('15px', '16px'), fontStyle: 'bold', color: '#d9c9f5' }).setDepth(7);
 
@@ -364,7 +488,13 @@
       this.workers = [];
       this.effects = [];
 
-      const patternCells = window.AntsPatternData ? window.AntsPatternData.cells : DEFAULT_PATTERN;
+      let patternCells = DEFAULT_PATTERN;
+      let patternLabel = '\u968f\u673a\u56fe\u6848';
+      const generated = buildRandomPattern();
+      patternCells = generated.cells;
+      patternLabel = generated.label;
+      this.patternLabel = patternLabel;
+      if (this.boardLabel) this.boardLabel.setText('\u76ee\u6807\u56fe\u6848 \u00b7 ' + patternLabel);
       const sourceCounts = new Array(COLOR_COUNT).fill(0);
       for (let y = 0; y < BOARD_ROWS; y += 1) {
         for (let x = 0; x < BOARD_COLS; x += 1) {
@@ -609,8 +739,10 @@
     }
 
     isExposed(x, y) {
-      if (x === 0 || x === BOARD_COLS - 1 || y === 0 || y === BOARD_ROWS - 1) return true;
-      return this.board[y][x - 1] === null || this.board[y][x + 1] === null || this.board[y - 1][x] === null || this.board[y + 1][x] === null;
+      for (let checkY = y + 1; checkY < BOARD_ROWS; checkY += 1) {
+        if (this.board[checkY][x]) return false;
+      }
+      return true;
     }
 
     countColorRemaining(color) {
@@ -655,9 +787,10 @@
 
     update(time, delta) {
       if (this.state !== 'playing') return;
-      this.dispatchSlots(delta);
-      this.updateWorkers(delta);
-      this.updateEffects(delta);
+      const frameDelta = Math.min(delta, 50);
+      this.dispatchSlots(frameDelta);
+      this.updateWorkers(frameDelta);
+      this.updateEffects(frameDelta);
       this.drawWorkers();
     }
 
@@ -745,8 +878,7 @@
           worker.dead = true;
           continue;
         }
-        const speed = worker.carrying ? WORKER_SPEED * 0.85 : WORKER_SPEED;
-        const step = speed * (delta / 1000);
+        const step = WORKER_SPEED * (delta / 1000);
         const dx = waypoint.x - worker.x;
         const dy = waypoint.y - worker.y;
         const distance = Math.hypot(dx, dy);

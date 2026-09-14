@@ -31,54 +31,12 @@
 </head>
 <body>
 <main id="game-root" aria-label="蚂蚁搬砖游戏"></main>
-<img id="pattern-source" src="assets/ants-pattern.png" alt="" style="display:none">
 <a id="home-link" class="ctl" href="./index.html" aria-label="返回首页">←</a>
 <div id="top-controls">
   <a id="sound-link" class="ctl" href="#" aria-label="声音开关">🔊</a>
   <a id="restart-link" class="ctl" href="#" aria-label="再来一局">↻</a>
 </div>
 <script>
-const PATTERN_COLS = 30;
-const PATTERN_ROWS = 35;
-
-function hexToRgb(hex) { return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255]; }
-
-function preparePattern(image) {
-  const palette = (window.AntsPalette || []).map(hexToRgb);
-  if (!palette.length) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = PATTERN_COLS;
-  canvas.height = PATTERN_ROWS;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(image, 0, 0, PATTERN_COLS, PATTERN_ROWS);
-  const data = ctx.getImageData(0, 0, PATTERN_COLS, PATTERN_ROWS).data;
-  const cells = [];
-  for (let y = 0; y < PATTERN_ROWS; y += 1) {
-    const row = [];
-    for (let x = 0; x < PATTERN_COLS; x += 1) {
-      const offset = (y * PATTERN_COLS + x) * 4;
-      const r = data[offset];
-      const g = data[offset + 1];
-      const b = data[offset + 2];
-      let bestIndex = 0;
-      let bestDistance = Infinity;
-      for (let colorIndex = 0; colorIndex < palette.length; colorIndex += 1) {
-        const paletteColor = palette[colorIndex];
-        const distance = (r - paletteColor[0]) ** 2 + (g - paletteColor[1]) ** 2 + (b - paletteColor[2]) ** 2;
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestIndex = colorIndex;
-        }
-      }
-      row.push(bestIndex);
-    }
-    cells.push(row);
-  }
-  window.AntsPatternData = { cols: PATTERN_COLS, rows: PATTERN_ROWS, cells: cells };
-}
-
 function bootGame() {
   const portraitLayout = window.innerHeight > window.innerWidth;
   window.game = new Phaser.Game({
@@ -114,23 +72,12 @@ function bootGame() {
       soundLink.addEventListener('click', (event) => {
         event.preventDefault();
         const on = window.AntsAudio ? window.AntsAudio.toggleMute() : true;
-        soundLink.textContent = on ? '🔊' : '🔇';
+        soundLink.textContent = on ? '\u{1F50A}' : '\u{1F507}';
       });
     }
   });
 }
-
-const patternSource = document.getElementById('pattern-source');
-function startGameWithPattern() {
-  try { preparePattern(patternSource); } catch (_) { window.AntsPatternData = null; }
-  bootGame();
-}
-if (patternSource.complete && patternSource.naturalWidth) {
-  startGameWithPattern();
-} else {
-  patternSource.addEventListener('load', startGameWithPattern);
-  patternSource.addEventListener('error', bootGame);
-}
+bootGame();
 </script>
 </body>
 </html>
