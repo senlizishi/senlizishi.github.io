@@ -400,12 +400,6 @@
     return order;
   }
 
-  function colorDistance(colorA, colorB) {
-    const paletteA = PALETTE[colorA];
-    const paletteB = PALETTE[colorB];
-    return (paletteA.base - paletteB.base) ** 2;
-  }
-
   function buildCardsFromCounts(counts, removalOrder) {
     const occurrences = new Array(COLOR_COUNT);
     for (let color = 0; color < COLOR_COUNT; color += 1) occurrences[color] = [];
@@ -502,37 +496,8 @@
       }
       this.patternLabel = patternLabel;
       if (this.boardLabel) this.boardLabel.setText('\u76ee\u6807\u56fe\u6848 \u00b7 ' + patternLabel);
-      const sourceCounts = new Array(COLOR_COUNT).fill(0);
-      for (let y = 0; y < BOARD_ROWS; y += 1) {
-        for (let x = 0; x < BOARD_COLS; x += 1) {
-          sourceCounts[patternCells[y][x]] += 1;
-        }
-      }
-
       const remap = new Array(COLOR_COUNT);
-      const candidates = [];
-      for (let color = 0; color < COLOR_COUNT; color += 1) if (sourceCounts[color] >= MIN_CARD) candidates.push(color);
-      if (!candidates.length) {
-        let maxColor = 0;
-        for (let color = 1; color < COLOR_COUNT; color += 1) if (sourceCounts[color] > sourceCounts[maxColor]) maxColor = color;
-        candidates.push(maxColor);
-      }
-      for (let color = 0; color < COLOR_COUNT; color += 1) {
-        if (sourceCounts[color] >= MIN_CARD) {
-          remap[color] = color;
-          continue;
-        }
-        let bestColor = candidates[0];
-        let bestDistance = Infinity;
-        for (const candidate of candidates) {
-          const distance = colorDistance(color, candidate);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestColor = candidate;
-          }
-        }
-        remap[color] = bestColor;
-      }
+      for (let color = 0; color < COLOR_COUNT; color += 1) remap[color] = color;
 
       this.board = [];
       const finalCounts = new Array(COLOR_COUNT).fill(0);
@@ -604,9 +569,8 @@
           const px = L.boardX + x * (BOARD_CELL + BOARD_GAP);
           const py = L.boardY + y * (BOARD_CELL + BOARD_GAP);
           const palette = PALETTE[cell.color];
-          const alpha = cell.reserved ? 0.55 : 1;
-          g.fillStyle(palette.base, alpha).fillRoundedRect(px, py, BOARD_CELL, BOARD_CELL, 4);
-          g.lineStyle(1, palette.dark, 0.9 * alpha).strokeRoundedRect(px, py, BOARD_CELL, BOARD_CELL, 4);
+          g.fillStyle(palette.base, 1).fillRoundedRect(px, py, BOARD_CELL, BOARD_CELL, 4);
+          g.lineStyle(1, palette.dark, 0.9).strokeRoundedRect(px, py, BOARD_CELL, BOARD_CELL, 4);
         }
       }
     }
@@ -927,11 +891,25 @@
 
     onWorkerReachTarget(worker) {
       const cell = this.board[worker.target.y][worker.target.x];
-      if (cell && cell.reserved) {
+      if (cell && cell.color === worker.color && cell.reserved) {
         this.board[worker.target.y][worker.target.x] = null;
         this.remainingTotal -= 1;
         AntsAudio.remove();
         this.drawBoard();
+      } else if (cell && cell.reserved) {
+        cell.reserved = false;
+        const newTarget = this.reserveTarget(worker.color);
+        if (newTarget) {
+          worker.target = newTarget;
+          worker.targetX = L.boardX + newTarget.x * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
+          worker.targetY = L.boardY + newTarget.y * (BOARD_CELL + BOARD_GAP) + BOARD_CELL / 2;
+          worker.waypoints = buildOutPath(worker.x, worker.y, worker.targetX, worker.targetY);
+          worker.waypointIndex = 1;
+          return;
+        }
+        worker.dead = true;
+        this.checkEnd();
+        return;
       }
       worker.phase = 'pickup';
       worker.pickupTimer = 120;
