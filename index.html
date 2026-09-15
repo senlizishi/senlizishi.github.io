@@ -45,7 +45,7 @@
     }
     .hero p { margin: 0; font-size: clamp(12px, 2.6vw, 15px); color: #b8a8d6; }
     .cards { display: grid; gap: clamp(12px, 2.4vw, 18px); grid-template-columns: 1fr; }
-    @media (orientation: landscape) and (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr 1fr; } }
+    @media (orientation: landscape) and (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
     .card {
       position: relative; display: flex; align-items: center; gap: clamp(12px, 2.6vw, 18px);
       padding: clamp(13px, 2.4vw, 18px); border-radius: 22px; text-decoration: none; color: inherit;
@@ -64,6 +64,7 @@
     .card.jelly { --glow: #5fd0ff; }
     .card.mahjong { --glow: #35c98a; }
     .card.ants { --glow: #ff9f43; }
+    .card.puck { --glow: #4de5bf; }
     .thumb {
       position: relative; width: clamp(78px, 17vw, 108px); aspect-ratio: 1; flex: none; border-radius: 18px;
       display: grid; place-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 8px 18px rgba(0,0,0,.3);
@@ -72,6 +73,7 @@
     .thumb.jelly { background: linear-gradient(158deg, #cdefff, #e5d4ff 88%); }
     .thumb.mahjong { background: radial-gradient(circle at 50% 32%, #35805a, #10301f 88%); }
     .thumb.ants { background: radial-gradient(circle at 50% 30%, #4a3b78, #1d1731 88%); }
+    .thumb.puck { background: radial-gradient(circle at 50% 30%, #1f3a3f, #0e1a22 88%); }
     .meta { min-width: 0; display: flex; flex-direction: column; }
     .meta h2 { margin: 0 0 4px; font-size: clamp(17px, 2.5vw, 21px); letter-spacing: .03em; }
     .meta p { margin: 0; font-size: clamp(11.5px, 1.9vw, 13px); line-height: 1.55; color: #c3b3e0; }
@@ -162,6 +164,27 @@
         </div>
         <div class="play">▶</div>
       </a>
+
+      <a class="card puck" href="./puck.html">
+        <div class="thumb puck">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <rect x="14" y="14" width="92" height="92" rx="14" fill="#18222e"/>
+            <rect x="14" y="14" width="92" height="92" rx="14" fill="none" stroke="#3d5b6b" stroke-width="2"/>
+            <rect x="22" y="14" width="76" height="8" rx="4" fill="#4de5bf"/>
+            <rect x="22" y="98" width="76" height="8" rx="4" fill="#ff5fc8"/>
+            <circle cx="60" cy="60" r="13" fill="#ffd84e" stroke="#fff2b8" stroke-width="2"/>
+            <circle cx="60" cy="30" r="9" fill="#4de5bf"/>
+            <circle cx="60" cy="90" r="9" fill="#ff5fc8"/>
+          </svg>
+        </div>
+        <div class="meta">
+          <h2>圆片对战</h2>
+          <p>拖动把手撞击圆片，先得 5 分者胜。</p>
+          <div class="tags"><span class="tag">双人对战</span><span class="tag">人机对战</span></div>
+        </div>
+        <div class="play">▶</div>
+      </a>
+
     </section>
 
     <p class="foot">打完一局自动开下一局 · 数据只存在本机</p>
