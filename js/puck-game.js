@@ -258,7 +258,12 @@
 
     onPointerDown(pointer) {
       if (this.state !== 'playing' || !this.mallets) return;
-      const player = this.mode === 'ai' ? 'bottom' : (pointer.y < CY ? 'top' : 'bottom');
+      if (this.mode === 'ai') {
+        this.pointerSlots.bottom = pointer.id;
+        this.pointerTargets.bottom = { x: pointer.x, y: pointer.y };
+        return;
+      }
+      const player = pointer.y < CY ? 'top' : 'bottom';
       if (this.pointerSlots[player] === null) {
         this.pointerSlots[player] = pointer.id;
         this.pointerTargets[player] = { x: pointer.x, y: pointer.y };
@@ -266,8 +271,27 @@
     }
 
     onPointerMove(pointer) {
-      const player = this.pointerPlayerFor(pointer.id);
-      if (player) this.pointerTargets[player] = { x: pointer.x, y: pointer.y };
+      const assignedPlayer = this.pointerPlayerFor(pointer.id);
+      if (assignedPlayer) {
+        this.pointerTargets[assignedPlayer] = { x: pointer.x, y: pointer.y };
+        return;
+      }
+      const isTouch = pointer.pointerType === 'touch';
+      if (this.mode === 'ai') {
+        if (isTouch && !pointer.isDown) return;
+        this.pointerSlots.bottom = pointer.id;
+        this.pointerTargets.bottom = { x: pointer.x, y: pointer.y };
+        return;
+      }
+      if (isTouch) {
+        if (!pointer.isDown) return;
+        const player = pointer.y < CY ? 'top' : 'bottom';
+        if (this.pointerSlots[player] === null) this.pointerSlots[player] = pointer.id;
+        this.pointerTargets[player] = { x: pointer.x, y: pointer.y };
+        return;
+      }
+      const hoverPlayer = pointer.y < CY ? 'top' : 'bottom';
+      this.pointerTargets[hoverPlayer] = { x: pointer.x, y: pointer.y };
     }
 
     onPointerUp(pointer) {

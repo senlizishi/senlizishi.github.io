@@ -10,7 +10,7 @@
     html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: #120d27; touch-action: none; }
     body { position: fixed; inset: 0; }
     #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; }
+    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
     .ctl {
       position: fixed; z-index: 30; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
       border-radius: 50%; background: rgba(31, 26, 51, 0.9); border: 2px solid rgba(176, 160, 226, 0.42);
@@ -38,6 +38,7 @@ window.game = new Phaser.Game({
   height: 960,
   backgroundColor: '#120d27',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
+  input: { activePointers: 2 },
   physics: {
     default: 'matter',
     matter: { gravity: { x: 0, y: 0 }, enableSleeping: false, debug: false },
