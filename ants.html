@@ -104,6 +104,7 @@ function medianCut(pixels, colorCount) {
     if (!left.length || !right.length) break;
     boxes.splice(bestIndex, 1, makeBox(left), makeBox(right));
   }
+
   return boxes.map((box) => {
     const n = box.pixels.length;
     let r = 0;
@@ -116,6 +117,32 @@ function medianCut(pixels, colorCount) {
     }
     return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
   });
+}
+
+function mergeSimilarColors(colors, threshold) {
+  const merged = [];
+  for (let i = 0; i < colors.length; i += 1) {
+    const c = colors[i];
+    let foundIndex = -1;
+    for (let j = 0; j < merged.length; j += 1) {
+      const m = merged[j];
+      const distance = Math.sqrt((c[0] - m[0]) ** 2 + (c[1] - m[1]) ** 2 + (c[2] - m[2]) ** 2);
+      if (distance < threshold) {
+        foundIndex = j;
+        break;
+      }
+    }
+    if (foundIndex >= 0) {
+      merged[foundIndex] = [
+        Math.round((merged[foundIndex][0] + c[0]) / 2),
+        Math.round((merged[foundIndex][1] + c[1]) / 2),
+        Math.round((merged[foundIndex][2] + c[2]) / 2),
+      ];
+    } else {
+      merged.push(c.slice());
+    }
+  }
+  return merged;
 }
 
 function preparePattern(image, patternIndex) {
@@ -148,7 +175,8 @@ function preparePattern(image, patternIndex) {
       pixels.push([data[offset], data[offset + 1], data[offset + 2]]);
     }
   }
-  const paletteRgb = medianCut(pixels, 16);
+  const rawPaletteRgb = medianCut(pixels, 12);
+  const paletteRgb = mergeSimilarColors(rawPaletteRgb, 30);
   const palette = paletteRgb.map((rgb) => {
     const r = rgb[0];
     const g = rgb[1];
