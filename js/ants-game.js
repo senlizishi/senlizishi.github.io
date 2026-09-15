@@ -20,9 +20,8 @@
   let WORKER_SPEED = SPEED_OPTIONS[1];
   const MIN_CARD = 10;
   const MAX_CARD = 50;
-  const COLOR_COUNT = 10;
 
-  const PALETTE = [
+  const FALLBACK_PALETTE = [
     { base: 0x4890c0, dark: 0x2f6888, light: 0x93cfe6 },
     { base: 0x60a8d8, dark: 0x3c78a8, light: 0xaddaf0 },
     { base: 0xa8c030, dark: 0x718318, light: 0xdce99b },
@@ -34,7 +33,8 @@
     { base: 0x909090, dark: 0x626262, light: 0xc9c9c9 },
     { base: 0x783018, dark: 0x4c1e0e, light: 0xb8725a },
   ];
-  window.AntsPalette = PALETTE.map((palette) => palette.base);
+  let PALETTE = FALLBACK_PALETTE;
+  window.AntsPalette = FALLBACK_PALETTE.map((palette) => palette.base);
 
   const DEFAULT_PATTERN = (function () {
     const raw = [
@@ -401,12 +401,12 @@
   }
 
   function buildCardsFromCounts(counts, removalOrder) {
-    const occurrences = new Array(COLOR_COUNT);
-    for (let color = 0; color < COLOR_COUNT; color += 1) occurrences[color] = [];
+    const occurrences = new Array(counts.length);
+    for (let color = 0; color < counts.length; color += 1) occurrences[color] = [];
     for (let i = 0; i < removalOrder.length; i += 1) occurrences[removalOrder[i]].push(i);
 
     const cards = [];
-    for (let color = 0; color < COLOR_COUNT; color += 1) {
+    for (let color = 0; color < counts.length; color += 1) {
       let remaining = counts[color];
       let cursor = 0;
       while (remaining > 0) {
@@ -489,22 +489,22 @@
         const chosen = window.AntsPatterns[randomInt(0, window.AntsPatterns.length - 1)];
         patternCells = chosen.cells;
         patternLabel = chosen.label;
+        PALETTE = (chosen.palette && chosen.palette.length) ? chosen.palette : FALLBACK_PALETTE;
       } else {
         const generated = buildRandomPattern();
         patternCells = generated.cells;
         patternLabel = generated.label;
+        PALETTE = FALLBACK_PALETTE;
       }
       this.patternLabel = patternLabel;
       if (this.boardLabel) this.boardLabel.setText('\u76ee\u6807\u56fe\u6848 \u00b7 ' + patternLabel);
-      const remap = new Array(COLOR_COUNT);
-      for (let color = 0; color < COLOR_COUNT; color += 1) remap[color] = color;
 
       this.board = [];
-      const finalCounts = new Array(COLOR_COUNT).fill(0);
+      const finalCounts = new Array(PALETTE.length).fill(0);
       for (let y = 0; y < BOARD_ROWS; y += 1) {
         const row = [];
         for (let x = 0; x < BOARD_COLS; x += 1) {
-          const color = remap[patternCells[y][x]];
+          const color = patternCells[y][x];
           row.push({ color: color, reserved: false });
           finalCounts[color] += 1;
         }
@@ -689,13 +689,12 @@
         return;
       }
 
-      const slotIndex = this.slots.findIndex((slot) => !slot.tile);
-      if (slotIndex < 0) {
+      const slotIndex = col;
+      const slot = this.slots[slotIndex];
+      if (slot.tile) {
         AntsAudio.warning();
         return;
       }
-
-      const slot = this.slots[slotIndex];
       slot.tile = tile;
       slot.remaining = tile.count;
       slot.timer = 0;
@@ -711,7 +710,7 @@
     }
 
     hasPlayableTopTile() {
-      return this.queue.some((column) => column[0] && this.isTilePlayable(column[0]));
+      return this.queue.some((column, col) => column[0] && this.isTilePlayable(column[0]) && !this.slots[col].tile);
     }
 
     hasDiscardableTopTile() {
@@ -935,8 +934,7 @@
       }
       const hasWorkers = this.workers.length > 0;
       const hasDispatchable = this.slots.some((slot) => slot.tile && slot.remaining > 0 && this.hasExposedTarget(slot.tile.color));
-      const hasEmptySlot = this.slots.some((slot) => !slot.tile);
-      const hasPlayerMove = (hasEmptySlot && this.hasPlayableTopTile()) || this.hasDiscardableTopTile();
+      const hasPlayerMove = this.hasPlayableTopTile() || this.hasDiscardableTopTile();
       if (!hasWorkers && !hasDispatchable && !hasPlayerMove) this.finish(false);
     }
 

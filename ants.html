@@ -42,11 +42,83 @@
 const PATTERN_COLS = 30;
 const PATTERN_ROWS = 35;
 
-function hexToRgb(hex) { return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255]; }
+function rgbToHex(r, g, b) {
+  return (((r & 255) << 16) | ((g & 255) << 8) | (b & 255)) >>> 0;
+}
+
+function clampChannel(value) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function makeBox(pixels) {
+  let rMin = 255;
+  let gMin = 255;
+  let bMin = 255;
+  let rMax = 0;
+  let gMax = 0;
+  let bMax = 0;
+  for (let i = 0; i < pixels.length; i += 1) {
+    const p = pixels[i];
+    if (p[0] < rMin) rMin = p[0];
+    if (p[1] < gMin) gMin = p[1];
+    if (p[2] < bMin) bMin = p[2];
+    if (p[0] > rMax) rMax = p[0];
+    if (p[1] > gMax) gMax = p[1];
+    if (p[2] > bMax) bMax = p[2];
+  }
+  return { pixels: pixels, rMin: rMin, rMax: rMax, gMin: gMin, gMax: gMax, bMin: bMin, bMax: bMax };
+}
+
+function boxRange(box) {
+  return Math.max(box.rMax - box.rMin, box.gMax - box.gMin, box.bMax - box.bMin);
+}
+
+function medianCut(pixels, colorCount) {
+  let boxes = [makeBox(pixels)];
+  while (boxes.length < colorCount) {
+    let bestIndex = 0;
+    let bestRange = -1;
+    for (let i = 0; i < boxes.length; i += 1) {
+      const range = boxRange(boxes[i]);
+      if (range > bestRange) {
+        bestRange = range;
+        bestIndex = i;
+      }
+    }
+    if (bestRange <= 0) break;
+    const box = boxes[bestIndex];
+    let channel = 0;
+    let width = box.rMax - box.rMin;
+    if (box.gMax - box.gMin > width) {
+      channel = 1;
+      width = box.gMax - box.gMin;
+    }
+    if (box.bMax - box.bMin > width) {
+      channel = 2;
+      width = box.bMax - box.bMin;
+    }
+    const sorted = box.pixels.slice().sort((a, b) => a[channel] - b[channel]);
+    const mid = Math.max(1, Math.floor(sorted.length / 2));
+    const left = sorted.slice(0, mid);
+    const right = sorted.slice(mid);
+    if (!left.length || !right.length) break;
+    boxes.splice(bestIndex, 1, makeBox(left), makeBox(right));
+  }
+  return boxes.map((box) => {
+    const n = box.pixels.length;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (let i = 0; i < n; i += 1) {
+      r += box.pixels[i][0];
+      g += box.pixels[i][1];
+      b += box.pixels[i][2];
+    }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  });
+}
 
 function preparePattern(image, patternIndex) {
-  const palette = (window.AntsPalette || []).map(hexToRgb);
-  if (!palette.length) return null;
   const canvas = document.createElement('canvas');
   canvas.width = PATTERN_COLS;
   canvas.height = PATTERN_ROWS;
@@ -69,19 +141,34 @@ function preparePattern(image, patternIndex) {
   }
   ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, PATTERN_COLS, PATTERN_ROWS);
   const data = ctx.getImageData(0, 0, PATTERN_COLS, PATTERN_ROWS).data;
+  const pixels = [];
+  for (let y = 0; y < PATTERN_ROWS; y += 1) {
+    for (let x = 0; x < PATTERN_COLS; x += 1) {
+      const offset = (y * PATTERN_COLS + x) * 4;
+      pixels.push([data[offset], data[offset + 1], data[offset + 2]]);
+    }
+  }
+  const paletteRgb = medianCut(pixels, 16);
+  const palette = paletteRgb.map((rgb) => {
+    const r = rgb[0];
+    const g = rgb[1];
+    const b = rgb[2];
+    return {
+      base: rgbToHex(r, g, b),
+      dark: rgbToHex(clampChannel(r * 0.62), clampChannel(g * 0.62), clampChannel(b * 0.62)),
+      light: rgbToHex(clampChannel(r + (255 - r) * 0.38), clampChannel(g + (255 - g) * 0.38), clampChannel(b + (255 - b) * 0.38)),
+    };
+  });
   const cells = [];
   for (let y = 0; y < PATTERN_ROWS; y += 1) {
     const row = [];
     for (let x = 0; x < PATTERN_COLS; x += 1) {
-      const offset = (y * PATTERN_COLS + x) * 4;
-      const r = data[offset];
-      const g = data[offset + 1];
-      const b = data[offset + 2];
+      const p = pixels[y * PATTERN_COLS + x];
       let bestIndex = 0;
       let bestDistance = Infinity;
-      for (let colorIndex = 0; colorIndex < palette.length; colorIndex += 1) {
-        const paletteColor = palette[colorIndex];
-        const distance = (r - paletteColor[0]) ** 2 + (g - paletteColor[1]) ** 2 + (b - paletteColor[2]) ** 2;
+      for (let colorIndex = 0; colorIndex < paletteRgb.length; colorIndex += 1) {
+        const c = paletteRgb[colorIndex];
+        const distance = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2;
         if (distance < bestDistance) {
           bestDistance = distance;
           bestIndex = colorIndex;
@@ -91,7 +178,7 @@ function preparePattern(image, patternIndex) {
     }
     cells.push(row);
   }
-  return { cells: cells, label: '样式 ' + (patternIndex + 1) };
+  return { cells: cells, palette: palette, label: '样式 ' + (patternIndex + 1) };
 }
 
 function bootGame() {
