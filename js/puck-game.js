@@ -77,6 +77,13 @@
     }
   }
 
+  function safeBodyPosition(body, fallbackX, fallbackY) {
+    if (body && body.position && Number.isFinite(body.position.x) && Number.isFinite(body.position.y)) {
+      return { x: body.position.x, y: body.position.y };
+    }
+    return { x: fallbackX, y: fallbackY };
+  }
+
   class PuckGameScene extends Phaser.Scene {
     constructor() { super('PuckGameScene'); }
 
@@ -188,6 +195,7 @@
       this.resetRound();
       this.state = 'playing';
       this.updateScore();
+      this.drawDynamic();
     }
 
     createMatchBodies() {
@@ -227,6 +235,7 @@
       }
       this.wallBodies.forEach((body) => { try { this.matter.world.remove(body); } catch (e) {} });
       this.wallBodies = [];
+      if (this.puckGraphics) this.puckGraphics.clear();
     }
 
     createScoreTexts() {
@@ -445,14 +454,15 @@
       if (!this.puck || !this.mallets) return;
       const g = this.puckGraphics;
       g.clear();
-      this.drawMallet(g, this.mallets.top.body, COLORS.top);
-      this.drawMallet(g, this.mallets.bottom.body, COLORS.bottom);
-      this.drawPuck(g, this.puck.body);
+      this.drawMallet(g, this.mallets.top.body, COLORS.top, CX, CY - 190);
+      this.drawMallet(g, this.mallets.bottom.body, COLORS.bottom, CX, CY + 190);
+      this.drawPuck(g, this.puck.body, CX, CY);
     }
 
-    drawMallet(g, body, color) {
-      const x = body.position.x;
-      const y = body.position.y;
+    drawMallet(g, body, color, fallbackX, fallbackY) {
+      const pos = safeBodyPosition(body, fallbackX, fallbackY);
+      const x = pos.x;
+      const y = pos.y;
       g.fillStyle(0x0a0812, 0.3).fillCircle(x + 3, y + 4, MALLET_R);
       g.fillStyle(color, 1).fillCircle(x, y, MALLET_R);
       g.lineStyle(3, 0xffffff, 0.85).strokeCircle(x, y, MALLET_R - 4);
@@ -460,9 +470,10 @@
       g.fillStyle(color, 1).fillCircle(x, y, MALLET_R * 0.24);
     }
 
-    drawPuck(g, body) {
-      const x = body.position.x;
-      const y = body.position.y;
+    drawPuck(g, body, fallbackX, fallbackY) {
+      const pos = safeBodyPosition(body, fallbackX, fallbackY);
+      const x = pos.x;
+      const y = pos.y;
       g.fillStyle(COLORS.puck, 0.25).fillCircle(x, y, PUCK_R + 9);
       g.fillStyle(COLORS.puck, 1).fillCircle(x, y, PUCK_R);
       g.lineStyle(3, 0xffffff, 0.9).strokeCircle(x, y, PUCK_R - 4);
