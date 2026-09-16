@@ -4,23 +4,65 @@
   const IS_PORTRAIT = window.innerHeight > window.innerWidth;
   const WIDTH = IS_PORTRAIT ? 540 : 960;
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
-  const COLS = 7;
-  const ROWS = 7;
   const PLAYER_SPEED = 300;
 
-  const MAZE = [
-    [1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1],
-  ];
-  const START_COL = 1;
-  const START_ROW = 1;
-  const GOAL_COL = 5;
-  const GOAL_ROW = 5;
+  const DIFFICULTIES = {
+    easy: { label: '\u7b80\u5355', desc: '7 x 7 \u5c0f\u8ff7\u5bab', cols: 7, rows: 7, bg: 0x4de5bf, line: 0x2f9d7c, stroke: '#2f9d7c', openRate: 0.3 },
+    medium: { label: '\u4e2d\u7b49', desc: '9 x 9 \u8ff7\u5bab', cols: 9, rows: 9, bg: 0xffc24d, line: 0xd18a20, stroke: '#d18a20', openRate: 0.12 },
+    hard: { label: '\u56f0\u96be', desc: '11 x 11 \u5927\u8ff7\u5bab', cols: 11, rows: 11, bg: 0xff8fb3, line: 0xd9668f, stroke: '#d9668f', openRate: 0 },
+  };
+  const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'];
+
+  function generateMaze(cols, rows, openRate) {
+    const grid = [];
+    for (let row = 0; row < rows; row += 1) {
+      grid[row] = [];
+      for (let col = 0; col < cols; col += 1) grid[row][col] = 1;
+    }
+
+    const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+    const stack = [[1, 1]];
+    grid[1][1] = 0;
+    while (stack.length) {
+      const current = stack[stack.length - 1];
+      const row = current[0];
+      const col = current[1];
+      const neighbors = [];
+      for (let d = 0; d < dirs.length; d += 1) {
+        const nextRow = row + dirs[d][0];
+        const nextCol = col + dirs[d][1];
+        if (nextRow > 0 && nextRow < rows - 1 && nextCol > 0 && nextCol < cols - 1 && grid[nextRow][nextCol] === 1) {
+          neighbors.push([nextRow, nextCol, dirs[d][0], dirs[d][1]]);
+        }
+      }
+      if (!neighbors.length) {
+        stack.pop();
+        continue;
+      }
+      const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+      const nextRow = pick[0];
+      const nextCol = pick[1];
+      const wallRow = row + pick[2] / 2;
+      const wallCol = col + pick[3] / 2;
+      grid[nextRow][nextCol] = 0;
+      grid[wallRow][wallCol] = 0;
+      stack.push([nextRow, nextCol]);
+    }
+
+    if (openRate > 0) {
+      for (let row = 1; row < rows - 1; row += 1) {
+        for (let col = 1; col < cols - 1; col += 1) {
+          const horizontalWall = row % 2 === 1 && col % 2 === 0;
+          const verticalWall = row % 2 === 0 && col % 2 === 1;
+          if ((horizontalWall || verticalWall) && grid[row][col] === 1 && Math.random() < openRate) {
+            grid[row][col] = 0;
+          }
+        }
+      }
+    }
+
+    return grid;
+  }
 
   const COLORS = {
     bg: 0xfff3d6,
@@ -40,37 +82,13 @@
     constructor() { super('MazeGameScene'); }
 
     create() {
-      this.state = 'playing';
+      this.state = 'menu';
+      this.difficultyKey = 'easy';
+      this.level = 0;
       this.activePointerId = null;
       this.target = null;
       this.overlayItems = [];
-
-      const minSide = Math.min(WIDTH, HEIGHT);
-      this.cell = Math.floor((minSide - 56) / COLS);
-      this.mazeSize = this.cell * COLS;
-      this.originX = (WIDTH - this.mazeSize) / 2;
-      this.originY = (HEIGHT - this.mazeSize) / 2;
-      this.playerSize = this.cell * 0.5;
-      this.startX = this.cellCenterX(START_COL);
-      this.startY = this.cellCenterY(START_ROW);
-      this.goalX = this.cellCenterX(GOAL_COL);
-      this.goalY = this.cellCenterY(GOAL_ROW);
-      this.playerX = this.startX;
-      this.playerY = this.startY;
-
-      this.walls = [];
-      for (let row = 0; row < ROWS; row += 1) {
-        for (let col = 0; col < COLS; col += 1) {
-          if (MAZE[row][col] === 1) {
-            this.walls.push({
-              x: this.originX + col * this.cell,
-              y: this.originY + row * this.cell,
-              w: this.cell,
-              h: this.cell,
-            });
-          }
-        }
-      }
+      this.menuItems = [];
 
       this.bgGraphics = this.add.graphics().setDepth(0);
       this.mazeGraphics = this.add.graphics().setDepth(1);
@@ -83,9 +101,127 @@
       this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
 
       this.drawBackground();
+      this.showMenu();
+    }
+
+    showMenu() {
+      this.clearMenu();
+      this.mazeGraphics.clear();
+      this.playerGraphics.clear();
+      this.overlayGraphics.clear();
+
+      const title = this.add.text(WIDTH / 2, HEIGHT * 0.16, '\u65b9\u5757\u8d70\u8ff7\u5bab', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '38px',
+        fontStyle: 'bold',
+        color: '#a84e70',
+        stroke: '#fff4e6',
+        strokeThickness: 6,
+      }).setOrigin(0.5).setDepth(4);
+
+      const subtitle = this.add.text(WIDTH / 2, HEIGHT * 0.16 + 50, '\u9009\u4e00\u4e2a\u96be\u5ea6\u5f00\u59cb\u5427\uff01', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '20px',
+        color: '#6b5d82',
+      }).setOrigin(0.5).setDepth(4);
+
+      this.menuItems.push(title, subtitle);
+      DIFFICULTY_ORDER.forEach((key, index) => this.createMenuButton(key, index));
+    }
+
+    clearMenu() {
+      this.menuItems.forEach((item) => item.destroy());
+      this.menuItems = [];
+    }
+
+    createMenuButton(key, index) {
+      const config = DIFFICULTIES[key];
+      const buttonW = Math.min(300, WIDTH - 72);
+      const buttonH = Math.min(72, HEIGHT * 0.11);
+      const gap = Math.min(88, HEIGHT * 0.12);
+      const startY = HEIGHT * 0.38;
+      const x = WIDTH / 2;
+      const y = startY + index * gap;
+
+      const g = this.add.graphics().setDepth(4);
+      g.fillStyle(0x2f1f3a, 0.08).fillRoundedRect(x - buttonW / 2 + 4, y - buttonH / 2 + 6, buttonW, buttonH, 22);
+      g.fillStyle(config.bg, 1).fillRoundedRect(x - buttonW / 2, y - buttonH / 2, buttonW, buttonH, 22);
+      g.lineStyle(3, config.line, 0.9).strokeRoundedRect(x - buttonW / 2, y - buttonH / 2, buttonW, buttonH, 22);
+
+      const zone = this.add.zone(x, y, buttonW, buttonH).setInteractive({ useHandCursor: true }).setDepth(5);
+      const label = this.add.text(x, y - 14, config.label, {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: Math.max(20, Math.min(28, buttonH * 0.42)) + 'px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: config.stroke,
+        strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(6);
+
+      const desc = this.add.text(x, y + 16, config.desc, {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: Math.max(12, Math.min(14, buttonH * 0.22)) + 'px',
+        color: '#ffffff',
+        stroke: config.stroke,
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(6);
+
+      zone.on('pointerdown', (pointer) => this.startGame(key, pointer));
+      this.menuItems.push(g, zone, label, desc);
+    }
+
+    startGame(key, pointer) {
+      this.clearMenu();
+      this.difficultyKey = key;
+      this.level = 1;
+      this.activePointerId = pointer ? pointer.id : null;
+      this.target = null;
+      this.state = 'playing';
+      this.setupMaze();
+      this.drawBackground();
       this.drawMaze();
       this.drawGoal();
       this.drawPlayer();
+    }
+
+    setupMaze() {
+      const config = DIFFICULTIES[this.difficultyKey];
+      this.cols = config.cols;
+      this.rows = config.rows;
+
+      const minSide = Math.min(WIDTH, HEIGHT);
+      this.cell = Math.floor((minSide - 56) / this.cols);
+      this.mazeSize = this.cell * this.cols;
+      this.originX = (WIDTH - this.mazeSize) / 2;
+      this.originY = (HEIGHT - this.mazeSize) / 2;
+      this.playerSize = this.cell * 0.5;
+
+      this.startCol = 1;
+      this.startRow = 1;
+      this.goalCol = this.cols - 2;
+      this.goalRow = this.rows - 2;
+      this.startX = this.cellCenterX(this.startCol);
+      this.startY = this.cellCenterY(this.startRow);
+      this.goalX = this.cellCenterX(this.goalCol);
+      this.goalY = this.cellCenterY(this.goalRow);
+      this.playerX = this.startX;
+      this.playerY = this.startY;
+
+      this.maze = generateMaze(this.cols, this.rows, config.openRate);
+
+      this.walls = [];
+      for (let row = 0; row < this.rows; row += 1) {
+        for (let col = 0; col < this.cols; col += 1) {
+          if (this.maze[row][col] === 1) {
+            this.walls.push({
+              x: this.originX + col * this.cell,
+              y: this.originY + row * this.cell,
+              w: this.cell,
+              h: this.cell,
+            });
+          }
+        }
+      }
     }
 
     cellCenterX(col) { return this.originX + (col + 0.5) * this.cell; }
@@ -105,9 +241,9 @@
       g.clear();
       g.fillStyle(COLORS.path, 1).fillRoundedRect(this.originX, this.originY, this.mazeSize, this.mazeSize, 22);
 
-      for (let row = 0; row < ROWS; row += 1) {
-        for (let col = 0; col < COLS; col += 1) {
-          if (MAZE[row][col] !== 1) continue;
+      for (let row = 0; row < this.rows; row += 1) {
+        for (let col = 0; col < this.cols; col += 1) {
+          if (this.maze[row][col] !== 1) continue;
           const x = this.originX + col * this.cell;
           const y = this.originY + row * this.cell;
           const warm = (row + col) % 2 === 0;
@@ -120,8 +256,8 @@
         }
       }
 
-      const sx = this.cellCenterX(START_COL);
-      const sy = this.cellCenterY(START_ROW);
+      const sx = this.cellCenterX(this.startCol);
+      const sy = this.cellCenterY(this.startRow);
       g.fillStyle(0xb8a4ff, 0.75).fillCircle(sx, sy, this.cell * 0.22);
       g.lineStyle(2, 0x8f7bd8, 0.8).strokeCircle(sx, sy, this.cell * 0.22);
     }
@@ -229,30 +365,53 @@
       g.clear();
       g.fillStyle(0x2f1f3a, 0.3).fillRect(0, 0, WIDTH, HEIGHT);
       const panelW = Math.min(400, WIDTH - 40);
-      const panelH = 232;
+      const panelH = 250;
       g.fillStyle(0xffffff, 0.98).fillRoundedRect((WIDTH - panelW) / 2, (HEIGHT - panelH) / 2, panelW, panelH, 28);
 
-      const title = this.add.text(WIDTH / 2, HEIGHT / 2 - 58, '到达终点！', {
-        fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '38px', fontStyle: 'bold', color: '#ff8a48', stroke: '#fff4e6', strokeThickness: 6,
+      const title = this.add.text(WIDTH / 2, HEIGHT / 2 - 70, '\u5230\u8fbe\u7ec8\u70b9\uff01', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '36px',
+        fontStyle: 'bold',
+        color: '#ff8a48',
+        stroke: '#fff4e6',
+        strokeThickness: 6,
       }).setOrigin(0.5).setDepth(4);
-      const subtitle = this.add.text(WIDTH / 2, HEIGHT / 2 - 6, '真棒，小方块走出迷宫啦！', {
-        fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '18px', color: '#6b5d82',
+
+      const subtitle = this.add.text(WIDTH / 2, HEIGHT / 2 - 16, '\u7b2c ' + this.level + ' \u5173\u901a\u8fc7\uff01\u771f\u68d2\uff01', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '20px',
+        color: '#6b5d82',
       }).setOrigin(0.5).setDepth(4);
-      const button = this.add.rectangle(WIDTH / 2, HEIGHT / 2 + 56, 200, 52, 0xff8a48, 1).setStrokeStyle(3, 0xffd8a8, 0.95).setInteractive({ useHandCursor: true }).setDepth(4);
-      const buttonText = this.add.text(WIDTH / 2, HEIGHT / 2 + 56, '再玩一次', {
-        fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#ffffff', stroke: '#b85c2a', strokeThickness: 3,
+
+      const difficultyText = this.add.text(WIDTH / 2, HEIGHT / 2 + 20, DIFFICULTIES[this.difficultyKey].label + ' \u8ff7\u5bab', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '16px',
+        color: '#a48ab8',
+      }).setOrigin(0.5).setDepth(4);
+
+      const button = this.add.rectangle(WIDTH / 2, HEIGHT / 2 + 74, 220, 54, 0xff8a48, 1).setStrokeStyle(3, 0xffd8a8, 0.95).setInteractive({ useHandCursor: true }).setDepth(4);
+      const buttonText = this.add.text(WIDTH / 2, HEIGHT / 2 + 74, '\u4e0b\u4e00\u5173', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '22px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#b85c2a',
+        strokeThickness: 3,
       }).setOrigin(0.5).setDepth(5);
-      button.on('pointerdown', (pointer) => this.resetGame(pointer));
-      this.overlayItems.push(title, subtitle, button, buttonText);
+
+      button.on('pointerdown', (pointer) => this.nextLevel(pointer));
+      this.overlayItems.push(title, subtitle, difficultyText, button, buttonText);
     }
 
-    resetGame(pointer) {
+    nextLevel(pointer) {
       this.clearOverlay();
-      this.playerX = this.startX;
-      this.playerY = this.startY;
+      this.level += 1;
       this.activePointerId = pointer ? pointer.id : null;
       this.target = null;
       this.state = 'playing';
+      this.setupMaze();
+      this.drawMaze();
+      this.drawGoal();
       this.drawPlayer();
     }
 
