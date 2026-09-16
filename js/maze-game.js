@@ -7,11 +7,10 @@
   const PLAYER_SPEED = 300;
 
   const DIFFICULTIES = {
-    easy: { label: '\u7b80\u5355', desc: '7 x 7 \u5c0f\u8ff7\u5bab', cols: 7, rows: 7, bg: 0x4de5bf, line: 0x2f9d7c, stroke: '#2f9d7c', openRate: 0.3 },
-    medium: { label: '\u4e2d\u7b49', desc: '9 x 9 \u8ff7\u5bab', cols: 9, rows: 9, bg: 0xffc24d, line: 0xd18a20, stroke: '#d18a20', openRate: 0.12 },
-    hard: { label: '\u56f0\u96be', desc: '11 x 11 \u5927\u8ff7\u5bab', cols: 11, rows: 11, bg: 0xff8fb3, line: 0xd9668f, stroke: '#d9668f', openRate: 0 },
+    easy: { label: '\u7b80\u5355', desc: '11 x 11 \u8ff7\u5bab', cols: 11, rows: 11, bg: 0x4de5bf, line: 0x2f9d7c, stroke: '#2f9d7c', openRate: 0 },
+    hard: { label: '\u56f0\u96be', desc: '\u6ee1\u5c4f\u5927\u8ff7\u5bab', cols: 0, rows: 0, fullscreen: true, bg: 0xff8fb3, line: 0xd9668f, stroke: '#d9668f', openRate: 0 },
   };
-  const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'];
+  const DIFFICULTY_ORDER = ['easy', 'hard'];
 
   function generateMaze(cols, rows, openRate) {
     const grid = [];
@@ -138,8 +137,8 @@
       const config = DIFFICULTIES[key];
       const buttonW = Math.min(300, WIDTH - 72);
       const buttonH = Math.min(72, HEIGHT * 0.11);
-      const gap = Math.min(88, HEIGHT * 0.12);
-      const startY = HEIGHT * 0.38;
+      const gap = Math.min(96, HEIGHT * 0.14);
+      const startY = HEIGHT / 2 - ((DIFFICULTY_ORDER.length - 1) * gap) / 2;
       const x = WIDTH / 2;
       const y = startY + index * gap;
 
@@ -186,14 +185,22 @@
 
     setupMaze() {
       const config = DIFFICULTIES[this.difficultyKey];
-      this.cols = config.cols;
-      this.rows = config.rows;
-
       const minSide = Math.min(WIDTH, HEIGHT);
-      this.cell = Math.floor((minSide - 56) / this.cols);
-      this.mazeSize = this.cell * this.cols;
-      this.originX = (WIDTH - this.mazeSize) / 2;
-      this.originY = (HEIGHT - this.mazeSize) / 2;
+      if (config.fullscreen) {
+        this.cell = 35;
+        this.cols = Math.floor(WIDTH / this.cell);
+        this.rows = Math.floor(HEIGHT / this.cell);
+        if (this.cols % 2 === 0) this.cols -= 1;
+        if (this.rows % 2 === 0) this.rows -= 1;
+      } else {
+        this.cols = config.cols;
+        this.rows = config.rows;
+        this.cell = Math.floor((minSide - 56) / this.cols);
+      }
+      this.mazeWidth = this.cell * this.cols;
+      this.mazeHeight = this.cell * this.rows;
+      this.originX = (WIDTH - this.mazeWidth) / 2;
+      this.originY = (HEIGHT - this.mazeHeight) / 2;
       this.playerSize = this.cell * 0.5;
 
       this.startCol = 1;
@@ -239,7 +246,7 @@
     drawMaze() {
       const g = this.mazeGraphics;
       g.clear();
-      g.fillStyle(COLORS.path, 1).fillRoundedRect(this.originX, this.originY, this.mazeSize, this.mazeSize, 22);
+      g.fillStyle(COLORS.path, 1).fillRoundedRect(this.originX, this.originY, this.mazeWidth, this.mazeHeight, 22);
 
       for (let row = 0; row < this.rows; row += 1) {
         for (let col = 0; col < this.cols; col += 1) {
@@ -343,7 +350,7 @@
       const right = centerX + half;
       const top = centerY - half;
       const bottom = centerY + half;
-      if (left < this.originX || right > this.originX + this.mazeSize || top < this.originY || bottom > this.originY + this.mazeSize) return true;
+      if (left < this.originX || right > this.originX + this.mazeWidth || top < this.originY || bottom > this.originY + this.mazeHeight) return true;
       for (let i = 0; i < this.walls.length; i += 1) {
         const w = this.walls[i];
         if (left < w.x + w.w && right > w.x && top < w.y + w.h && bottom > w.y) return true;
