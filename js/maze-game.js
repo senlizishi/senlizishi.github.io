@@ -5,6 +5,7 @@
   const WIDTH = IS_PORTRAIT ? 540 : 960;
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
   const PLAYER_SPEED = 300;
+  const TURTLE_SPEED = 55;
 
   const DIFFICULTIES = {
     easy: { label: '\u7b80\u5355', desc: '11 x 11 \u8ff7\u5bab', cols: 11, rows: 11, bg: 0x4de5bf, line: 0x2f9d7c, stroke: '#2f9d7c', openRate: 0 },
@@ -189,12 +190,14 @@
       this.starCells = [];
       this.collectedStars = 0;
       this.chestOpened = false;
+      this.turtle = null;
 
       this.bgGraphics = this.add.graphics().setDepth(0);
       this.mazeGraphics = this.add.graphics().setDepth(1);
       this.playerGraphics = this.add.graphics().setDepth(2);
       this.overlayGraphics = this.add.graphics().setDepth(3);
       this.goalChestGraphics = this.add.graphics().setDepth(1);
+      this.turtleGraphics = this.add.graphics().setDepth(1);
       this.starHudBg = this.add.rectangle(WIDTH / 2, 34, 132, 32, 0xffffff, 0.85).setStrokeStyle(2, 0xffb1c9, 0.8).setDepth(2);
       this.starHudText = this.add.text(WIDTH / 2, 34, '', {
         fontFamily: 'Microsoft YaHei, sans-serif',
@@ -221,6 +224,8 @@
       this.mazeGraphics.clear();
       this.playerGraphics.clear();
       this.overlayGraphics.clear();
+      if (this.turtleGraphics) this.turtleGraphics.clear();
+      this.turtle = null;
 
       const title = this.add.text(WIDTH / 2, HEIGHT * 0.16, '\u65b9\u5757\u8d70\u8ff7\u5bab', {
         fontFamily: 'Microsoft YaHei, sans-serif',
@@ -296,6 +301,7 @@
       this.drawGoalChest();
       this.updateStarHud();
       this.drawPlayer();
+      this.drawTurtle();
     }
 
     setupMaze() {
@@ -377,10 +383,84 @@
           y: this.cellCenterY(cell.row),
         };
       });
+
+      const starKeys = {};
+      this.starCells.forEach((star) => { starKeys[star.row + ',' + star.col] = true; });
+      const turtleCandidates = pathCells.filter((cell) => {
+        if (starKeys[cell.row + ',' + cell.col]) return false;
+        return Math.abs(cell.row - this.startRow) + Math.abs(cell.col - this.startCol) >= 5;
+      });
+      const turtleCell = turtleCandidates.length
+        ? turtleCandidates[Math.floor(Math.random() * turtleCandidates.length)]
+        : pathCells[pathCells.length - 1];
+      this.turtle = {
+        row: turtleCell.row,
+        col: turtleCell.col,
+        x: this.cellCenterX(turtleCell.col),
+        y: this.cellCenterY(turtleCell.row),
+        prevRow: -1,
+        prevCol: -1,
+        targetRow: turtleCell.row,
+        targetCol: turtleCell.col,
+      };
+      this.pickNextTurtleCell();
     }
 
     cellCenterX(col) { return this.originX + (col + 0.5) * this.cell; }
     cellCenterY(row) { return this.originY + (row + 0.5) * this.cell; }
+
+    isPathCell(row, col) {
+      return row > 0 && row < this.rows - 1 && col > 0 && col < this.cols - 1 && this.maze[row][col] === 0;
+    }
+
+    isTurtlePathCell(row, col) {
+      if (!this.isPathCell(row, col)) return false;
+      if (row === this.startRow && col === this.startCol) return false;
+      if (row === this.goalRow && col === this.goalCol) return false;
+      return true;
+    }
+
+    pickNextTurtleCell() {
+      if (!this.turtle) return;
+      const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      const candidates = [];
+      for (let d = 0; d < dirs.length; d += 1) {
+        const nextRow = this.turtle.row + dirs[d][0];
+        const nextCol = this.turtle.col + dirs[d][1];
+        if (!this.isTurtlePathCell(nextRow, nextCol)) continue;
+        if (nextRow === this.turtle.prevRow && nextCol === this.turtle.prevCol && candidates.length > 0) continue;
+        candidates.push({ row: nextRow, col: nextCol });
+      }
+      if (!candidates.length && this.isTurtlePathCell(this.turtle.prevRow, this.turtle.prevCol)) {
+        candidates.push({ row: this.turtle.prevRow, col: this.turtle.prevCol });
+      }
+      if (!candidates.length) return;
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      this.turtle.prevRow = this.turtle.row;
+      this.turtle.prevCol = this.turtle.col;
+      this.turtle.targetRow = pick.row;
+      this.turtle.targetCol = pick.col;
+    }
+
+    updateTurtle(dt) {
+      if (!this.turtle) return;
+      const targetX = this.cellCenterX(this.turtle.targetCol);
+      const targetY = this.cellCenterY(this.turtle.targetRow);
+      const dx = targetX - this.turtle.x;
+      const dy = targetY - this.turtle.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1.5) {
+        this.turtle.x = targetX;
+        this.turtle.y = targetY;
+        this.turtle.row = this.turtle.targetRow;
+        this.turtle.col = this.turtle.targetCol;
+        this.pickNextTurtleCell();
+        return;
+      }
+      const step = Math.min(TURTLE_SPEED * dt, dist);
+      this.turtle.x += (dx / dist) * step;
+      this.turtle.y += (dy / dist) * step;
+    }
 
     drawBackground() {
       const g = this.bgGraphics;
@@ -540,6 +620,63 @@
       g.lineStyle(2, 0x3a2b12, 1).lineBetween(x - this.playerSize * 0.12, y + this.playerSize * 0.14, x + this.playerSize * 0.12, y + this.playerSize * 0.14);
     }
 
+    drawTurtle() {
+      const g = this.turtleGraphics;
+      g.clear();
+      if (!this.turtle) return;
+      const x = this.turtle.x;
+      const y = this.turtle.y;
+      const s = this.cell * 0.58;
+
+      g.fillStyle(0x2f6b43, 0.16).fillEllipse(x + 2, y + 3, s * 1.02, s * 0.86);
+      g.fillStyle(0x57b56f, 1).fillEllipse(x, y - s * 0.04, s, s * 0.76);
+      g.lineStyle(2, 0x2f7a47, 0.9).strokeEllipse(x, y - s * 0.04, s, s * 0.76);
+      g.fillStyle(0x8fd977, 0.9).fillEllipse(x, y - s * 0.08, s * 0.62, s * 0.44);
+      g.fillStyle(0x2f7a47, 1).fillCircle(x, y - s * 0.05, s * 0.06);
+
+      g.fillStyle(0x8fd977, 1).fillCircle(x + s * 0.52, y - s * 0.06, s * 0.17);
+      g.fillStyle(0x2f4a1e, 1).fillCircle(x + s * 0.59, y - s * 0.17, s * 0.045);
+      g.fillStyle(0xffffff, 1).fillCircle(x + s * 0.61, y - s * 0.18, s * 0.016);
+
+      g.fillStyle(0x6fbf73, 1).fillEllipse(x - s * 0.40, y + s * 0.20, s * 0.18, s * 0.11);
+      g.fillStyle(0x6fbf73, 1).fillEllipse(x + s * 0.40, y + s * 0.20, s * 0.18, s * 0.11);
+      g.fillStyle(0x6fbf73, 1).fillEllipse(x - s * 0.28, y - s * 0.42, s * 0.16, s * 0.10);
+      g.fillStyle(0x6fbf73, 1).fillEllipse(x + s * 0.28, y - s * 0.42, s * 0.16, s * 0.10);
+      g.fillStyle(0x8fd977, 1).fillEllipse(x - s * 0.52, y - s * 0.02, s * 0.20, s * 0.09);
+    }
+
+    turtleTouchesPlayer() {
+      if (!this.turtle || this.state !== 'playing') return false;
+      const dx = this.playerX - this.turtle.x;
+      const dy = this.playerY - this.turtle.y;
+      const radius = (this.playerSize + this.cell * 0.58) / 2;
+      return dx * dx + dy * dy < radius * radius;
+    }
+
+    hitByTurtle() {
+      this.playerX = this.startX;
+      this.playerY = this.startY;
+      this.activePointerId = null;
+      this.target = null;
+      this.drawPlayer();
+      const text = this.add.text(this.startX, this.startY - this.cell * 0.7, '\u54ce\u5440\uff0c\u88ab\u5c0f\u4e4c\u9f9f\u78b0\u5230\u5566', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: Math.max(14, Math.round(this.cell * 0.42)) + 'px',
+        fontStyle: 'bold',
+        color: '#a84e70',
+        stroke: '#fff4e6',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(4);
+      this.tweens.add({
+        targets: text,
+        y: text.y - this.cell * 0.35,
+        alpha: 0,
+        duration: 800,
+        ease: 'Cubic.easeOut',
+        onComplete: () => text.destroy(),
+      });
+    }
+
     onPointerDown(pointer) {
       if (this.state !== 'playing') return;
       if (this.activePointerId !== null) return;
@@ -559,8 +696,17 @@
     }
 
     update(time, delta) {
-      if (this.state !== 'playing' || !this.target) return;
+      if (this.state !== 'playing') return;
       const dt = Math.min(delta, 50) / 1000;
+
+      this.updateTurtle(dt);
+      this.drawTurtle();
+      if (this.turtleTouchesPlayer()) {
+        this.hitByTurtle();
+        return;
+      }
+
+      if (!this.target) return;
       const dx = this.target.x - this.playerX;
       const dy = this.target.y - this.playerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -671,6 +817,7 @@
       this.drawGoalChest();
       this.updateStarHud();
       this.drawPlayer();
+      this.drawTurtle();
     }
 
     clearOverlay() {
