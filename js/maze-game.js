@@ -6,6 +6,8 @@
   const HEIGHT = IS_PORTRAIT ? 960 : 540;
   const PLAYER_SPEED = 300;
   const TURTLE_SPEED = 55;
+  const TURTLE_ROUTE_MIN = 8;
+  const TURTLE_AVOID_RADIUS = 2;
 
   const DIFFICULTIES = {
     easy: { label: '\u7b80\u5355', desc: '11 x 11 \u8ff7\u5bab', cols: 11, rows: 11, bg: 0x4de5bf, line: 0x2f9d7c, stroke: '#2f9d7c', openRate: 0 },
@@ -398,12 +400,10 @@
         col: turtleCell.col,
         x: this.cellCenterX(turtleCell.col),
         y: this.cellCenterY(turtleCell.row),
-        prevRow: -1,
-        prevCol: -1,
-        targetRow: turtleCell.row,
-        targetCol: turtleCell.col,
+        waypoints: [],
+        replanCooldown: 0,
       };
-      this.pickNextTurtleCell();
+      this.planTurtleRoute();
     }
 
     cellCenterX(col) { return this.originX + (col + 0.5) * this.cell; }
@@ -420,46 +420,122 @@
       return true;
     }
 
-    pickNextTurtleCell() {
+    cellKey(row, col) { return row + ',' + col; }
+
+    getPlayerCellRow() {
+      return Math.max(1, Math.min(this.rows - 2, Math.round((this.playerY - this.originY) / this.cell - 0.5)));
+    }
+
+    getPlayerCellCol() {
+      return Math.max(1, Math.min(this.cols - 2, Math.round((this.playerX - this.originX) / this.cell - 0.5)));
+    }
+
+    isNearPlayerCell(row, col, radius) {
+      const playerRow = this.getPlayerCellRow();
+      const playerCol = this.getPlayerCellCol();
+      return Math.abs(row - playerRow) + Math.abs(col - playerCol) <= radius;
+    }
+
+    playerDistanceToTurtle() {
+      if (!this.turtle) return Infinity;
+      const dx = this.playerX - this.turtle.x;
+      const dy = this.playerY - this.turtle.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    buildTurtleRoute(avoidRadius) {
+      if (!this.turtle) return null;
+      const startKey = this.cellKey(this.turtle.row, this.turtle.col);
+      const parents = {};
+      const dists = {};
+      const queue = [{ row: this.turtle.row, col: this.turtle.col }];
+      parents[startKey] = null;
+      dists[startKey] = 0;
+      let head = 0;
+      while (head < queue.length) {
+        const cur = queue[head];
+        head += 1;
+        const curKey = this.cellKey(cur.row, cur.col);
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        for (let d = 0; d < dirs.length; d += 1) {
+          const nextRow = cur.row + dirs[d][0];
+          const nextCol = cur.col + dirs[d][1];
+          if (!this.isTurtlePathCell(nextRow, nextCol)) continue;
+          if (avoidRadius > 0 && this.isNearPlayerCell(nextRow, nextCol, avoidRadius)) continue;
+          const nextKey = this.cellKey(nextRow, nextCol);
+          if (Object.prototype.hasOwnProperty.call(parents, nextKey)) continue;
+          parents[nextKey] = curKey;
+          dists[nextKey] = dists[curKey] + 1;
+          queue.push({ row: nextRow, col: nextCol });
+        }
+      }
+
+      let candidates = [];
+      let maxDist = 0;
+      Object.keys(dists).forEach((key) => {
+        const dist = dists[key];
+        if (dist <= 0) return;
+        if (dist > maxDist) maxDist = dist;
+        const parts = key.split(',');
+        candidates.push({ key: key, row: Number(parts[0]), col: Number(parts[1]), dist: dist });
+      });
+      if (!candidates.length) return null;
+
+      const threshold = Math.max(TURTLE_ROUTE_MIN, Math.ceil(maxDist * 0.6));
+      const farCandidates = candidates.filter((cell) => cell.dist >= threshold);
+      const pool = farCandidates.length ? farCandidates : candidates;
+      const dest = pool[Math.floor(Math.random() * pool.length)];
+
+      const path = [dest];
+      let parentKey = parents[dest.key];
+      while (parentKey) {
+        const parts = parentKey.split(',');
+        path.push({ row: Number(parts[0]), col: Number(parts[1]), key: parentKey });
+        parentKey = parents[parentKey];
+      }
+      path.reverse();
+      return path.slice(1).map((cell) => ({ row: cell.row, col: cell.col }));
+    }
+
+    planTurtleRoute() {
       if (!this.turtle) return;
-      const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-      const candidates = [];
-      for (let d = 0; d < dirs.length; d += 1) {
-        const nextRow = this.turtle.row + dirs[d][0];
-        const nextCol = this.turtle.col + dirs[d][1];
-        if (!this.isTurtlePathCell(nextRow, nextCol)) continue;
-        if (nextRow === this.turtle.prevRow && nextCol === this.turtle.prevCol && candidates.length > 0) continue;
-        candidates.push({ row: nextRow, col: nextCol });
+      let route = this.buildTurtleRoute(TURTLE_AVOID_RADIUS);
+      if (!route && this.playerDistanceToTurtle() > this.cell * 4) {
+        route = this.buildTurtleRoute(0);
       }
-      if (!candidates.length && this.isTurtlePathCell(this.turtle.prevRow, this.turtle.prevCol)) {
-        candidates.push({ row: this.turtle.prevRow, col: this.turtle.prevCol });
+      this.turtle.waypoints = route || [];
+    }
+
+    shouldReplanTurtleRoute() {
+      if (!this.turtle) return false;
+      if (!this.turtle.waypoints || this.turtle.waypoints.length === 0) {
+        return this.turtle.replanCooldown <= 0;
       }
-      if (!candidates.length) return;
-      const pick = candidates[Math.floor(Math.random() * candidates.length)];
-      this.turtle.prevRow = this.turtle.row;
-      this.turtle.prevCol = this.turtle.col;
-      this.turtle.targetRow = pick.row;
-      this.turtle.targetCol = pick.col;
+      if (this.turtle.replanCooldown > 0) return false;
+      return this.playerDistanceToTurtle() < this.cell * 1.35;
     }
 
     updateTurtle(dt) {
-      if (!this.turtle) return;
-      const targetX = this.cellCenterX(this.turtle.targetCol);
-      const targetY = this.cellCenterY(this.turtle.targetRow);
-      const dx = targetX - this.turtle.x;
-      const dy = targetY - this.turtle.y;
+      const turtle = this.turtle;
+      if (!turtle) return;
+      if (!turtle.waypoints || turtle.waypoints.length === 0) return;
+      const next = turtle.waypoints[0];
+      const targetX = this.cellCenterX(next.col);
+      const targetY = this.cellCenterY(next.row);
+      const dx = targetX - turtle.x;
+      const dy = targetY - turtle.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 1.5) {
-        this.turtle.x = targetX;
-        this.turtle.y = targetY;
-        this.turtle.row = this.turtle.targetRow;
-        this.turtle.col = this.turtle.targetCol;
-        this.pickNextTurtleCell();
+        turtle.x = targetX;
+        turtle.y = targetY;
+        turtle.row = next.row;
+        turtle.col = next.col;
+        turtle.waypoints.shift();
         return;
       }
       const step = Math.min(TURTLE_SPEED * dt, dist);
-      this.turtle.x += (dx / dist) * step;
-      this.turtle.y += (dy / dist) * step;
+      turtle.x += (dx / dist) * step;
+      turtle.y += (dy / dist) * step;
     }
 
     drawBackground() {
@@ -699,6 +775,13 @@
       if (this.state !== 'playing') return;
       const dt = Math.min(delta, 50) / 1000;
 
+      if (this.turtle) {
+        this.turtle.replanCooldown -= dt;
+        if (this.shouldReplanTurtleRoute()) {
+          this.planTurtleRoute();
+          this.turtle.replanCooldown = 0.8;
+        }
+      }
       this.updateTurtle(dt);
       this.drawTurtle();
       if (this.turtleTouchesPlayer()) {
