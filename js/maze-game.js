@@ -112,6 +112,16 @@
     return grid;
   }
 
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = array[i];
+      array[i] = array[j];
+      array[j] = tmp;
+    }
+    return array;
+  }
+
   const THEMES = [
     {
       bg: 0xfff3d6, path: 0xfffaf0,
@@ -175,11 +185,27 @@
       this.target = null;
       this.overlayItems = [];
       this.menuItems = [];
+      this.starTexts = [];
+      this.starCells = [];
+      this.collectedStars = 0;
+      this.chestOpened = false;
 
       this.bgGraphics = this.add.graphics().setDepth(0);
       this.mazeGraphics = this.add.graphics().setDepth(1);
       this.playerGraphics = this.add.graphics().setDepth(2);
       this.overlayGraphics = this.add.graphics().setDepth(3);
+      this.goalChestGraphics = this.add.graphics().setDepth(1);
+      this.starHudBg = this.add.rectangle(WIDTH / 2, 34, 132, 32, 0xffffff, 0.85).setStrokeStyle(2, 0xffb1c9, 0.8).setDepth(2);
+      this.starHudText = this.add.text(WIDTH / 2, 34, '', {
+        fontFamily: 'Microsoft YaHei, sans-serif',
+        fontSize: '20px',
+        fontStyle: 'bold',
+        color: '#a84e70',
+        stroke: '#fff4e6',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(3);
+      this.starHudBg.setVisible(false);
+      this.starHudText.setVisible(false);
 
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
@@ -266,7 +292,9 @@
       this.setupMaze();
       this.drawBackground();
       this.drawMaze();
-      this.drawGoal();
+      this.drawStars();
+      this.drawGoalChest();
+      this.updateStarHud();
       this.drawPlayer();
     }
 
@@ -327,6 +355,28 @@
           }
         }
       }
+
+      this.chestOpened = false;
+      this.collectedStars = 0;
+      const pathCells = [];
+      for (let row = 1; row < this.rows - 1; row += 1) {
+        for (let col = 1; col < this.cols - 1; col += 1) {
+          if (this.maze[row][col] !== 0) continue;
+          if (row === this.startRow && col === this.startCol) continue;
+          if (row === this.goalRow && col === this.goalCol) continue;
+          pathCells.push({ row: row, col: col });
+        }
+      }
+      shuffleArray(pathCells);
+      this.starCells = pathCells.slice(0, Math.min(3, pathCells.length)).map((cell) => {
+        return {
+          row: cell.row,
+          col: cell.col,
+          collected: false,
+          x: this.cellCenterX(cell.col),
+          y: this.cellCenterY(cell.row),
+        };
+      });
     }
 
     cellCenterX(col) { return this.originX + (col + 0.5) * this.cell; }
@@ -367,15 +417,107 @@
       g.lineStyle(2, this.theme.startLine, 0.8).strokeCircle(sx, sy, this.cell * 0.22);
     }
 
-    drawGoal() {
-      if (this.goalText) this.goalText.destroy();
-      this.goalText = this.add.text(this.goalX, this.goalY, '★', {
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        fontSize: Math.round(this.cell * 0.66) + 'px',
-        color: '#ffffff',
-        stroke: this.theme.goalStroke,
-        strokeThickness: Math.max(3, Math.round(this.cell * 0.08)),
-      }).setOrigin(0.5).setDepth(1);
+    drawStars() {
+      if (this.starTexts) this.starTexts.forEach((item) => item.destroy());
+      this.starTexts = [];
+      this.starCells.forEach((star) => {
+        if (star.collected) return;
+        const text = this.add.text(star.x, star.y, '★', {
+          fontFamily: 'Microsoft YaHei, sans-serif',
+          fontSize: Math.round(this.cell * 0.55) + 'px',
+          color: '#ffd84e',
+          stroke: '#c78a12',
+          strokeThickness: Math.max(3, Math.round(this.cell * 0.08)),
+        }).setOrigin(0.5).setDepth(1);
+        star.text = text;
+        this.starTexts.push(text);
+      });
+    }
+
+    drawGoalChest() {
+      const g = this.goalChestGraphics;
+      g.clear();
+      const x = this.goalX;
+      const y = this.goalY;
+      const s = this.cell * 0.62;
+      const half = s / 2;
+
+      if (!this.chestOpened) {
+        g.fillStyle(0x8a5428, 1).fillRoundedRect(x - half, y - s * 0.02, s, s * 0.62, Math.max(6, s * 0.12));
+        g.fillStyle(0xb97a3d, 1).fillRoundedRect(x - half, y - s * 0.22, s, s * 0.34, Math.max(6, s * 0.12));
+        g.fillStyle(0xffd84e, 1).fillRect(x - 2, y - s * 0.22, s * 0.12, s * 0.34);
+        g.fillStyle(0xffe36b, 1).fillCircle(x, y + s * 0.10, s * 0.08);
+      } else {
+        g.fillStyle(0x8a5428, 1).fillRoundedRect(x - half, y - s * 0.02, s, s * 0.58, Math.max(6, s * 0.12));
+        g.fillStyle(0xb97a3d, 1).fillRoundedRect(x - half, y - s * 0.48, s, s * 0.28, Math.max(6, s * 0.12));
+        g.fillStyle(0xffe36b, 1).fillRoundedRect(x - s * 0.24, y - s * 0.42, s * 0.48, s * 0.18, 4);
+      }
+    }
+
+    updateStarHud() {
+      if (!this.starHudText || !this.starHudBg) return;
+      this.starHudText.setText('★ ' + this.collectedStars + ' / ' + this.starCells.length);
+      this.starHudBg.setVisible(true);
+      this.starHudText.setVisible(true);
+    }
+
+    checkCollectibles() {
+      if (!this.starCells) return;
+      let changed = false;
+      this.starCells.forEach((star) => {
+        if (star.collected) return;
+        const dx = this.playerX - star.x;
+        const dy = this.playerY - star.y;
+        if (Math.sqrt(dx * dx + dy * dy) >= this.cell * 0.42) return;
+        star.collected = true;
+        this.collectedStars += 1;
+        changed = true;
+        const spark = this.add.text(star.x, star.y, '★', {
+          fontFamily: 'Microsoft YaHei, sans-serif',
+          fontSize: Math.round(this.cell * 0.6) + 'px',
+          color: '#ffd84e',
+          stroke: '#c78a12',
+          strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(2);
+        this.tweens.add({
+          targets: spark,
+          y: star.y - this.cell * 0.45,
+          alpha: 0,
+          scale: 1.5,
+          duration: 360,
+          ease: 'Cubic.easeOut',
+          onComplete: () => spark.destroy(),
+        });
+      });
+      if (changed) {
+        this.drawStars();
+        this.updateStarHud();
+      }
+    }
+
+    spawnWinBurst() {
+      const colors = ['#ffd84e', '#4de5bf', '#ff8fb3', '#8fb8ff'];
+      for (let i = 0; i < 12; i += 1) {
+        const star = this.add.text(this.goalX, this.goalY, '★', {
+          fontFamily: 'Microsoft YaHei, sans-serif',
+          fontSize: Math.round(this.cell * 0.5) + 'px',
+          color: colors[i % colors.length],
+          stroke: '#2f1f3a',
+          strokeThickness: 2,
+        }).setOrigin(0.5).setDepth(3);
+        const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.5;
+        const dist = this.cell * (0.8 + Math.random() * 0.8);
+        this.tweens.add({
+          targets: star,
+          x: this.goalX + Math.cos(angle) * dist,
+          y: this.goalY + Math.sin(angle) * dist,
+          alpha: 0,
+          scale: 0.5,
+          duration: 550 + Math.random() * 250,
+          ease: 'Cubic.easeOut',
+          onComplete: () => star.destroy(),
+        });
+      }
     }
 
     drawPlayer() {
@@ -431,6 +573,7 @@
       this.tryMove(0, moveY);
 
       this.drawPlayer();
+      this.checkCollectibles();
       if (this.isOnGoal()) this.win();
     }
 
@@ -466,6 +609,13 @@
       this.activePointerId = null;
       this.target = null;
 
+      this.chestOpened = true;
+      this.drawGoalChest();
+      this.spawnWinBurst();
+      this.time.delayedCall(550, () => this.showWinOverlay());
+    }
+
+    showWinOverlay() {
       const g = this.overlayGraphics;
       g.clear();
       g.fillStyle(0x2f1f3a, 0.3).fillRect(0, 0, WIDTH, HEIGHT);
@@ -473,7 +623,7 @@
       const panelH = 250;
       g.fillStyle(0xffffff, 0.98).fillRoundedRect((WIDTH - panelW) / 2, (HEIGHT - panelH) / 2, panelW, panelH, 28);
 
-      const title = this.add.text(WIDTH / 2, HEIGHT / 2 - 70, '\u5230\u8fbe\u7ec8\u70b9\uff01', {
+      const title = this.add.text(WIDTH / 2, HEIGHT / 2 - 70, '到达终点！', {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '36px',
         fontStyle: 'bold',
@@ -482,20 +632,20 @@
         strokeThickness: 6,
       }).setOrigin(0.5).setDepth(4);
 
-      const subtitle = this.add.text(WIDTH / 2, HEIGHT / 2 - 16, '\u7b2c ' + this.level + ' \u5173\u901a\u8fc7\uff01\u771f\u68d2\uff01', {
+      const subtitle = this.add.text(WIDTH / 2, HEIGHT / 2 - 16, '第 ' + this.level + ' 关通过！真棒！', {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '20px',
         color: '#6b5d82',
       }).setOrigin(0.5).setDepth(4);
 
-      const difficultyText = this.add.text(WIDTH / 2, HEIGHT / 2 + 20, DIFFICULTIES[this.difficultyKey].label + ' \u8ff7\u5bab', {
+      const difficultyText = this.add.text(WIDTH / 2, HEIGHT / 2 + 20, DIFFICULTIES[this.difficultyKey].label + ' 迷宫', {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '16px',
         color: '#a48ab8',
       }).setOrigin(0.5).setDepth(4);
 
       const button = this.add.rectangle(WIDTH / 2, HEIGHT / 2 + 74, 220, 54, 0xff8a48, 1).setStrokeStyle(3, 0xffd8a8, 0.95).setInteractive({ useHandCursor: true }).setDepth(4);
-      const buttonText = this.add.text(WIDTH / 2, HEIGHT / 2 + 74, '\u4e0b\u4e00\u5173', {
+      const buttonText = this.add.text(WIDTH / 2, HEIGHT / 2 + 74, '下一关', {
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: '22px',
         fontStyle: 'bold',
@@ -517,7 +667,9 @@
       this.setupMaze();
       this.drawBackground();
       this.drawMaze();
-      this.drawGoal();
+      this.drawStars();
+      this.drawGoalChest();
+      this.updateStarHud();
       this.drawPlayer();
     }
 
