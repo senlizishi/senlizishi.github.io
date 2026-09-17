@@ -112,25 +112,63 @@
     return grid;
   }
 
-  const COLORS = {
-    bg: 0xfff3d6,
-    path: 0xfffaf0,
-    wallA: 0xff8fb3,
-    wallB: 0x8fb8ff,
-    wallLineA: 0xd9668f,
-    wallLineB: 0x5f8fd9,
-    wallInnerA: 0xffd9e7,
-    wallInnerB: 0xdfeaff,
-    player: 0xffd84e,
-    playerLine: 0xc78a12,
-    goal: 0x4de5bf,
-  };
+  const THEMES = [
+    {
+      bg: 0xfff3d6, path: 0xfffaf0,
+      wallA: 0xff8fb3, wallB: 0x8fb8ff, wallLineA: 0xd9668f, wallLineB: 0x5f8fd9,
+      wallInnerA: 0xffd9e7, wallInnerB: 0xdfeaff,
+      player: 0xffd84e, playerLine: 0xc78a12,
+      start: 0xb8a4ff, startLine: 0x8f7bd8, goalStroke: '#2f9d7c',
+      accentA: 0xffd6e7, accentB: 0xcfeaff, accentC: 0xfff0b8,
+    },
+    {
+      bg: 0xffe8c2, path: 0xfff4d6,
+      wallA: 0xf2a65a, wallB: 0xe58e4a, wallLineA: 0xb96a2f, wallLineB: 0x9f5524,
+      wallInnerA: 0xffd9a3, wallInnerB: 0xf7c17c,
+      player: 0x7fdcff, playerLine: 0x2f80a6,
+      start: 0xffb26b, startLine: 0xd97c2e, goalStroke: '#1f7a4d',
+      accentA: 0xffd59e, accentB: 0xffc27a, accentC: 0xffe9b0,
+    },
+    {
+      bg: 0xc8f0ff, path: 0xfff7dd,
+      wallA: 0x2f9bd6, wallB: 0x57c8d6, wallLineA: 0x1d6fa8, wallLineB: 0x2a8f9f,
+      wallInnerA: 0xbdeaff, wallInnerB: 0xc8f5f2,
+      player: 0xffd84e, playerLine: 0xd18a20,
+      start: 0x8bd9ff, startLine: 0x3f8fc0, goalStroke: '#d9577f',
+      accentA: 0xa8e6ff, accentB: 0xb7f0ff, accentC: 0xd6fff4,
+    },
+    {
+      bg: 0x171233, path: 0x241b45,
+      wallA: 0x8f7bff, wallB: 0x5f7dff, wallLineA: 0x6f5bd8, wallLineB: 0x435ec7,
+      wallInnerA: 0xcfc5ff, wallInnerB: 0xc8d6ff,
+      player: 0x66e7ff, playerLine: 0x2f8fa6,
+      start: 0xffd84e, startLine: 0xc78a12, goalStroke: '#1f9d7c',
+      accentA: 0x6f5bd8, accentB: 0x3b8fd9, accentC: 0xb36bff,
+    },
+    {
+      bg: 0xd9f2c9, path: 0xf7f3d8,
+      wallA: 0x6fbf73, wallB: 0x4fa36b, wallLineA: 0x3e7d4f, wallLineB: 0x2f6b43,
+      wallInnerA: 0xd3f2c4, wallInnerB: 0xc5e8b5,
+      player: 0xffb84d, playerLine: 0xc77920,
+      start: 0xa9d977, startLine: 0x5f9b4a, goalStroke: '#c24478',
+      accentA: 0xbff0a8, accentB: 0x8fd9a0, accentC: 0xffe7a8,
+    },
+    {
+      bg: 0xffd9c9, path: 0xfff2df,
+      wallA: 0xff8a70, wallB: 0xffb35c, wallLineA: 0xd95f4e, wallLineB: 0xc97f33,
+      wallInnerA: 0xffcbb8, wallInnerB: 0xffdfad,
+      player: 0x8fd9ff, playerLine: 0x4f8fb8,
+      start: 0xffe36b, startLine: 0xc78a20, goalStroke: '#5847d1',
+      accentA: 0xffc2ad, accentB: 0xffe1b8, accentC: 0xffb3d1,
+    },
+  ];
 
   class MazeGameScene extends Phaser.Scene {
     constructor() { super('MazeGameScene'); }
 
     create() {
       this.state = 'menu';
+      this.theme = THEMES[0];
       this.difficultyKey = 'easy';
       this.level = 0;
       this.activePointerId = null;
@@ -234,6 +272,7 @@
 
     setupMaze() {
       const config = DIFFICULTIES[this.difficultyKey];
+      this.theme = THEMES[(this.level - 1) % THEMES.length];
       const minSide = Math.min(WIDTH, HEIGHT);
       if (config.fullscreen) {
         this.cell = 35;
@@ -296,16 +335,16 @@
     drawBackground() {
       const g = this.bgGraphics;
       g.clear();
-      g.fillStyle(COLORS.bg, 1).fillRect(0, 0, WIDTH, HEIGHT);
-      g.fillStyle(0xffd6e7, 0.7).fillCircle(WIDTH * 0.08, HEIGHT * 0.1, Math.min(WIDTH, HEIGHT) * 0.24);
-      g.fillStyle(0xcfeaff, 0.8).fillCircle(WIDTH * 0.94, HEIGHT * 0.88, Math.min(WIDTH, HEIGHT) * 0.28);
-      g.fillStyle(0xfff0b8, 0.65).fillCircle(WIDTH * 0.9, HEIGHT * 0.08, Math.min(WIDTH, HEIGHT) * 0.2);
+      g.fillStyle(this.theme.bg, 1).fillRect(0, 0, WIDTH, HEIGHT);
+      g.fillStyle(this.theme.accentA, 0.7).fillCircle(WIDTH * 0.08, HEIGHT * 0.1, Math.min(WIDTH, HEIGHT) * 0.24);
+      g.fillStyle(this.theme.accentB, 0.8).fillCircle(WIDTH * 0.94, HEIGHT * 0.88, Math.min(WIDTH, HEIGHT) * 0.28);
+      g.fillStyle(this.theme.accentC, 0.65).fillCircle(WIDTH * 0.9, HEIGHT * 0.08, Math.min(WIDTH, HEIGHT) * 0.2);
     }
 
     drawMaze() {
       const g = this.mazeGraphics;
       g.clear();
-      g.fillStyle(COLORS.path, 1).fillRoundedRect(this.originX, this.originY, this.mazeWidth, this.mazeHeight, 22);
+      g.fillStyle(this.theme.path, 1).fillRoundedRect(this.originX, this.originY, this.mazeWidth, this.mazeHeight, 22);
 
       for (let row = 0; row < this.rows; row += 1) {
         for (let col = 0; col < this.cols; col += 1) {
@@ -313,9 +352,9 @@
           const x = this.originX + col * this.cell;
           const y = this.originY + row * this.cell;
           const warm = (row + col) % 2 === 0;
-          const color = warm ? COLORS.wallA : COLORS.wallB;
-          const line = warm ? COLORS.wallLineA : COLORS.wallLineB;
-          const inner = warm ? COLORS.wallInnerA : COLORS.wallInnerB;
+          const color = warm ? this.theme.wallA : this.theme.wallB;
+          const line = warm ? this.theme.wallLineA : this.theme.wallLineB;
+          const inner = warm ? this.theme.wallInnerA : this.theme.wallInnerB;
           g.fillStyle(color, 1).fillRect(x, y, this.cell, this.cell);
           g.fillStyle(inner, 0.9).fillRoundedRect(x + 4, y + 4, this.cell - 8, this.cell - 8, Math.max(6, this.cell * 0.18));
           g.lineStyle(2, line, 0.85).strokeRoundedRect(x + 4, y + 4, this.cell - 8, this.cell - 8, Math.max(6, this.cell * 0.18));
@@ -324,8 +363,8 @@
 
       const sx = this.cellCenterX(this.startCol);
       const sy = this.cellCenterY(this.startRow);
-      g.fillStyle(0xb8a4ff, 0.75).fillCircle(sx, sy, this.cell * 0.22);
-      g.lineStyle(2, 0x8f7bd8, 0.8).strokeCircle(sx, sy, this.cell * 0.22);
+      g.fillStyle(this.theme.start, 0.75).fillCircle(sx, sy, this.cell * 0.22);
+      g.lineStyle(2, this.theme.startLine, 0.8).strokeCircle(sx, sy, this.cell * 0.22);
     }
 
     drawGoal() {
@@ -334,7 +373,7 @@
         fontFamily: 'Microsoft YaHei, sans-serif',
         fontSize: Math.round(this.cell * 0.66) + 'px',
         color: '#ffffff',
-        stroke: '#2f9d7c',
+        stroke: this.theme.goalStroke,
         strokeThickness: Math.max(3, Math.round(this.cell * 0.08)),
       }).setOrigin(0.5).setDepth(1);
     }
@@ -348,8 +387,8 @@
       const r = Math.max(6, this.playerSize * 0.26);
 
       g.fillStyle(0x4a2f18, 0.16).fillRoundedRect(x - half + 2, y - half + 4, this.playerSize, this.playerSize, r);
-      g.fillStyle(COLORS.player, 1).fillRoundedRect(x - half, y - half, this.playerSize, this.playerSize, r);
-      g.lineStyle(2, COLORS.playerLine, 0.95).strokeRoundedRect(x - half, y - half, this.playerSize, this.playerSize, r);
+      g.fillStyle(this.theme.player, 1).fillRoundedRect(x - half, y - half, this.playerSize, this.playerSize, r);
+      g.lineStyle(2, this.theme.playerLine, 0.95).strokeRoundedRect(x - half, y - half, this.playerSize, this.playerSize, r);
 
       const eyeY = y - this.playerSize * 0.08;
       const eyeDX = this.playerSize * 0.16;
@@ -476,6 +515,7 @@
       this.target = null;
       this.state = 'playing';
       this.setupMaze();
+      this.drawBackground();
       this.drawMaze();
       this.drawGoal();
       this.drawPlayer();
