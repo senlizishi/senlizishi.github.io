@@ -65,6 +65,7 @@
     .card.mahjong { --glow: #35c98a; }
     .card.ants { --glow: #9b72ff; }
     .card.maze { --glow: #ffd84e; }
+    .card.memory { --glow: #7de8ff; }
     .thumb {
       position: relative; width: clamp(78px, 17vw, 108px); aspect-ratio: 1; flex: none; border-radius: 18px;
       display: grid; place-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 8px 18px rgba(0,0,0,.3);
@@ -74,6 +75,7 @@
     .thumb.mahjong { background: radial-gradient(circle at 50% 32%, #35805a, #10301f 88%); }
     .thumb.ants { background: radial-gradient(circle at 50% 30%, #4a3b78, #1d1731 88%); }
     .thumb.maze { background: radial-gradient(circle at 50% 30%, #ffe9a8, #ffd1dc 88%); }
+    .thumb.memory { background: radial-gradient(circle at 50% 30%, #d8f9ff, #ffd6e8 88%); }
     .meta { min-width: 0; display: flex; flex-direction: column; }
     .meta h2 { margin: 0 0 4px; font-size: clamp(17px, 2.5vw, 21px); letter-spacing: .03em; }
     .meta p { margin: 0; font-size: clamp(11.5px, 1.9vw, 13px); line-height: 1.55; color: #c3b3e0; }
@@ -183,6 +185,26 @@
           <h2>方块走迷宫</h2>
           <p>手指拖动小方块，穿过迷宫到达终点。</p>
           <div class="tags"><span class="tag">单手指</span><span class="tag">5岁友好</span><span class="tag">入门迷宫</span></div>
+        </div>
+        <div class="play">▶</div>
+      </a>
+      <a class="card memory" href="./memory.html">
+        <div class="thumb memory">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <rect x="18" y="18" width="38" height="48" rx="8" fill="#ffffff" stroke="#ffb1c9" stroke-width="2"/>
+            <text x="37" y="49" text-anchor="middle" font-size="24">&#x1F436;</text>
+            <rect x="64" y="18" width="38" height="48" rx="8" fill="#8fb8ff" stroke="#5f8fd9" stroke-width="2"/>
+            <text x="83" y="49" text-anchor="middle" font-size="24">&#x1F431;</text>
+            <rect x="18" y="72" width="38" height="48" rx="8" fill="#ffd84e" stroke="#c78a12" stroke-width="2"/>
+            <text x="37" y="103" text-anchor="middle" font-size="24">&#x1F436;</text>
+            <rect x="64" y="72" width="38" height="48" rx="8" fill="#4de5bf" stroke="#2f9d7c" stroke-width="2"/>
+            <text x="83" y="103" text-anchor="middle" font-size="24">&#x1F431;</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <h2>翻牌配对</h2>
+          <p>翻到两张相同的小动物就消除，逐关增加卡牌。</p>
+          <div class="tags"><span class="tag">记忆配对</span><span class="tag">无时间限制</span><span class="tag">5岁友好</span></div>
         </div>
         <div class="play">▶</div>
       </a>
