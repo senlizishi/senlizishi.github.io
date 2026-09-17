@@ -63,6 +63,55 @@
     return grid;
   }
 
+  function generatePrimMaze(cols, rows) {
+    const grid = [];
+    for (let row = 0; row < rows; row += 1) {
+      grid[row] = [];
+      for (let col = 0; col < cols; col += 1) grid[row][col] = 1;
+    }
+
+    const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+    const startRow = 1;
+    const startCol = 1;
+    grid[startRow][startCol] = 0;
+    const frontier = [];
+
+    const addFrontiers = (roomRow, roomCol) => {
+      for (let d = 0; d < dirs.length; d += 1) {
+        const nextRow = roomRow + dirs[d][0];
+        const nextCol = roomCol + dirs[d][1];
+        if (nextRow > 0 && nextRow < rows - 1 && nextCol > 0 && nextCol < cols - 1 && grid[nextRow][nextCol] === 1) {
+          grid[nextRow][nextCol] = 2;
+          frontier.push([nextRow, nextCol, roomRow, roomCol]);
+        }
+      }
+    };
+
+    addFrontiers(startRow, startCol);
+
+    while (frontier.length) {
+      const index = Math.floor(Math.random() * frontier.length);
+      const cell = frontier.splice(index, 1)[0];
+      const nextRow = cell[0];
+      const nextCol = cell[1];
+      const fromRow = cell[2];
+      const fromCol = cell[3];
+      const wallRow = (nextRow + fromRow) / 2;
+      const wallCol = (nextCol + fromCol) / 2;
+      grid[nextRow][nextCol] = 0;
+      grid[wallRow][wallCol] = 0;
+      addFrontiers(nextRow, nextCol);
+    }
+
+    for (let row = 1; row < rows - 1; row += 1) {
+      for (let col = 1; col < cols - 1; col += 1) {
+        if (grid[row][col] === 2) grid[row][col] = 1;
+      }
+    }
+
+    return grid;
+  }
+
   const COLORS = {
     bg: 0xfff3d6,
     path: 0xfffaf0,
@@ -203,10 +252,20 @@
       this.originY = (HEIGHT - this.mazeHeight) / 2;
       this.playerSize = this.cell * 0.5;
 
-      this.startCol = 1;
-      this.startRow = 1;
-      this.goalCol = this.cols - 2;
-      this.goalRow = this.rows - 2;
+      const cornerCols = [1, this.cols - 2];
+      const cornerRows = [1, this.rows - 2];
+      if (config.fullscreen) {
+        const startCorner = 1 + Math.floor(Math.random() * 3);
+        this.startCol = cornerCols[startCorner % 2];
+        this.startRow = cornerRows[Math.floor(startCorner / 2)];
+        this.goalCol = cornerCols[1 - (startCorner % 2)];
+        this.goalRow = cornerRows[1 - Math.floor(startCorner / 2)];
+      } else {
+        this.startCol = cornerCols[0];
+        this.startRow = cornerRows[0];
+        this.goalCol = cornerCols[1];
+        this.goalRow = cornerRows[1];
+      }
       this.startX = this.cellCenterX(this.startCol);
       this.startY = this.cellCenterY(this.startRow);
       this.goalX = this.cellCenterX(this.goalCol);
@@ -214,7 +273,7 @@
       this.playerX = this.startX;
       this.playerY = this.startY;
 
-      this.maze = generateMaze(this.cols, this.rows, config.openRate);
+      this.maze = config.fullscreen ? generatePrimMaze(this.cols, this.rows) : generateMaze(this.cols, this.rows, config.openRate);
 
       this.walls = [];
       for (let row = 0; row < this.rows; row += 1) {
