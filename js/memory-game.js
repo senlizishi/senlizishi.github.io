@@ -69,6 +69,57 @@
     return array;
   }
 
+  const SoundFX = (function () {
+    let ctx = null;
+
+    function getCtx() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (!ctx) ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+
+    function tone(freq, endFreq, duration, type, volume, delay) {
+      const audio = getCtx();
+      if (!audio) return;
+      const startAt = audio.currentTime + (delay || 0);
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(Math.max(1, freq), startAt);
+      if (endFreq && endFreq !== freq) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), startAt + duration);
+      }
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(volume || 0.2, startAt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start(startAt);
+      osc.stop(startAt + duration + 0.04);
+    }
+
+    return {
+      flip: function () {
+        tone(430, 660, 0.09, 'triangle', 0.16, 0);
+      },
+      match: function () {
+        tone(523.25, 523.25, 0.12, 'sine', 0.18, 0);
+        tone(783.99, 783.99, 0.16, 'sine', 0.18, 0.09);
+      },
+      mismatch: function () {
+        tone(340, 250, 0.14, 'sine', 0.12, 0);
+        tone(250, 200, 0.16, 'sine', 0.10, 0.10);
+      },
+      win: function () {
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, index) {
+          tone(freq, freq, 0.14, 'triangle', 0.16, index * 0.10);
+        });
+      },
+    };
+  })();
+
   class MemoryGameScene extends Phaser.Scene {
     constructor() {
       super('MemoryGameScene');
@@ -258,6 +309,7 @@
       if (this.state !== 'playing' || this.busy || card.state !== 'faceDown') return;
       this.busy = true;
       this.flipped.push(card);
+      SoundFX.flip();
 
       this.flipCard(card, true).then(() => {
         if (this.flipped.length < 2) {
@@ -268,12 +320,14 @@
         const first = this.flipped.shift();
         const second = this.flipped.shift();
         if (first.pairId === second.pairId) {
+          SoundFX.match();
           this.matchedCount += 2;
           Promise.all([this.removeCard(first), this.removeCard(second)]).then(() => {
             this.busy = false;
             if (this.matchedCount >= this.cards.length) this.win();
           });
         } else {
+          SoundFX.mismatch();
           this.delay(650).then(() => {
             return Promise.all([this.flipCard(first, false), this.flipCard(second, false)]);
           }).then(() => {
@@ -335,6 +389,7 @@
     win() {
       if (this.state !== 'playing') return;
       this.state = 'won';
+      SoundFX.win();
 
       const g = this.overlayGraphics;
       g.clear();
