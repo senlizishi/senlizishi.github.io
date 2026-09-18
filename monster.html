@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>怪兽炸弹人</title>
+  <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: #2a1f3f; touch-action: none; }
+    body { position: fixed; inset: 0; }
+    #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+    #home-link {
+      position: fixed; z-index: 40;
+      left: max(10px, env(safe-area-inset-left));
+      top: max(10px, env(safe-area-inset-top));
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: 2px solid rgba(255, 143, 179, 0.45);
+      color: #a84e70; font-size: 20px; line-height: 1; text-decoration: none;
+      font-family: "Microsoft YaHei", sans-serif; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
+      -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background 0.12s ease;
+    }
+    #home-link:hover { background: #ffffff; }
+    #home-link:active { transform: scale(0.92); }
+    #rotate-hint {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center; text-align: center;
+      background: rgba(24, 15, 46, 0.96); color: #fff4e6;
+      font-family: "Microsoft YaHei", sans-serif; padding: 24px;
+    }
+    #rotate-hint strong { display: block; font-size: 22px; margin-bottom: 10px; }
+    #rotate-hint span { font-size: 14px; color: #cbb8f2; }
+  </style>
+  <script src="./phaser.min.js"></script>
+  <script src="js/monster-game.js"></script>
+</head>
+<body>
+<main id="game-root" aria-label="怪兽炸弹人游戏"></main>
+<a id="home-link" href="./index.html" aria-label="返回首页">&#8592;</a>
+<div id="rotate-hint">
+  <div>
+    <strong>请横屏游玩</strong>
+    <span>把手机横过来，操作会更舒服哦</span>
+  </div>
+</div>
+<script>
+(function () {
+  function isPortrait() { return window.innerHeight > window.innerWidth; }
+  function updateHint() {
+    document.getElementById('rotate-hint').style.display = isPortrait() ? 'flex' : 'none';
+  }
+  updateHint();
+  window.addEventListener('resize', updateHint);
+
+  window.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game-root',
+    width: 960,
+    height: 540,
+    backgroundColor: '#2a1f3f',
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
+    scene: [window.MonsterGameScene],
+  });
+})();
+</script>
+</body>
+</html>
