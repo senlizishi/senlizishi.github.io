@@ -17,10 +17,14 @@
   <circle cx="240" cy="468" r="25" fill="#e9ab7e"/>
   <circle cx="240" cy="468" r="22" fill="#ffd9be"/>
   <path d="M300 298 C252 298 224 316 222 346 C220 380 256 400 258 452 C259 490 244 512 242 536 C241 548 246 556 258 556 L342 556 C354 556 359 548 358 536 C356 512 341 490 342 452 C344 400 380 380 378 346 C376 316 348 298 300 298 Z" fill="#ffd9be"/>
-  <path d="M234 346 C258 330 342 330 366 346 C372 372 372 396 364 406 C344 418 312 418 300 408 C288 418 256 418 236 406 C228 396 228 372 234 346 Z" fill="#ffb3d1"/>
-  <path d="M252 340 L272 304" stroke="#ffc9de" stroke-width="10" stroke-linecap="round" fill="none"/>
-  <path d="M348 340 L328 304" stroke="#ffc9de" stroke-width="10" stroke-linecap="round" fill="none"/>
-  <path d="M238 496 C258 486 342 486 362 496 C366 522 356 546 342 556 C330 564 314 554 300 540 C286 554 270 564 258 556 C244 546 234 522 238 496 Z" fill="#ffb3d1"/>
+  <path d="M244 484 C264 474 336 474 356 484 L360 546 C360 558 354 564 342 564 L314 564 C306 564 302 558 300 550 C298 558 294 564 286 564 L258 564 C246 564 240 558 240 546 Z" fill="#f7fafd" stroke="#dbe6f2" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M244 490 C264 481 336 481 356 490" fill="none" stroke="#dbe6f2" stroke-width="4" opacity="0.85"/>
+  <path d="M230 326 L206 380" stroke="#dbe6f2" stroke-width="58" stroke-linecap="round" fill="none"/>
+  <path d="M370 326 L407 284" stroke="#dbe6f2" stroke-width="58" stroke-linecap="round" fill="none"/>
+  <path d="M230 326 L206 380" stroke="#f7fafd" stroke-width="50" stroke-linecap="round" fill="none"/>
+  <path d="M370 326 L407 284" stroke="#f7fafd" stroke-width="50" stroke-linecap="round" fill="none"/>
+  <path d="M300 298 C266 298 244 302 234 310 C226 318 222 330 220 344 C218 374 236 398 242 424 C246 450 244 472 246 494 C266 504 334 504 354 494 C356 472 354 450 358 424 C364 398 382 374 380 344 C378 330 374 318 366 310 C356 302 334 298 300 298 Z" fill="#f7fafd" stroke="#dbe6f2" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M276 302 Q300 322 324 302" fill="none" stroke="#dbe6f2" stroke-width="5" stroke-linecap="round"/>
   <circle cx="228" cy="212" r="15" fill="#ffd9be"/>
   <circle cx="372" cy="212" r="15" fill="#ffd9be"/>
   <ellipse cx="300" cy="206" rx="74" ry="80" fill="#ffd9be"/>

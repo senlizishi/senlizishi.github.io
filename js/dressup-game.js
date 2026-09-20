@@ -12,10 +12,11 @@
 
   const LAYOUT = IS_PORTRAIT
     ? {
-      trayH: 150,
-      trayPadX: 48,
-      slotW: 100,
-      slotH: 110,
+      trayH: 172,
+      tabH: 44,
+      tabGap: 6,
+      slotW: 96,
+      slotH: 100,
       gap: 10,
       dollScale: 0.62,
       dollFeetY: 748,
@@ -25,13 +26,14 @@
       arrowR: 20,
     }
     : {
-      trayH: 110,
-      trayPadX: 44,
-      slotW: 84,
+      trayH: 150,
+      tabH: 38,
+      tabGap: 10,
+      slotW: 78,
       slotH: 92,
       gap: 8,
-      dollScale: 0.45,
-      dollFeetY: 384,
+      dollScale: 0.44,
+      dollFeetY: 372,
       dropPad: 36,
       lift: 46,
       pickThreshold: 22,
@@ -42,6 +44,14 @@
 
   const SLOT_DEPTH = { bottom: 2, top: 3, shoes: 4, glasses: 7, hat: 8 };
 
+  const CATEGORIES = [
+    { slot: 'hat', label: '帽子' },
+    { slot: 'glasses', label: '眼镜' },
+    { slot: 'top', label: '上衣' },
+    { slot: 'bottom', label: '裤子' },
+    { slot: 'shoes', label: '鞋子' },
+  ];
+
   const ITEMS = [
     { key: 'hat-straw', slot: 'hat', label: '草帽', box: { x: 146, y: 104, w: 308, h: 100 } },
     { key: 'hat-bucket', slot: 'hat', label: '渔夫帽', box: { x: 172, y: 104, w: 256, h: 110 } },
@@ -49,20 +59,29 @@
     { key: 'hat-bow', slot: 'hat', label: '蝴蝶结', box: { x: 194, y: 94, w: 186, h: 80 } },
     { key: 'glasses-round', slot: 'glasses', label: '圆框墨镜', box: { x: 206, y: 180, w: 190, h: 80 } },
     { key: 'glasses-heart', slot: 'glasses', label: '爱心墨镜', box: { x: 206, y: 174, w: 190, h: 78 } },
-    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 184, y: 290, w: 232, h: 230 } },
-    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 184, y: 290, w: 232, h: 230 } },
-    { key: 'top-swim', slot: 'top', label: '泳衣上衣', box: { x: 218, y: 292, w: 164, h: 138 } },
+    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 174, y: 256, w: 264, h: 262 } },
+    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 174, y: 256, w: 264, h: 262 } },
+    { key: 'top-hoodie', slot: 'top', label: '连帽卫衣', box: { x: 174, y: 256, w: 264, h: 262 } },
     { key: 'bottom-shorts', slot: 'bottom', label: '短裤', box: { x: 230, y: 460, w: 140, h: 106 } },
-    { key: 'bottom-skirt', slot: 'bottom', label: '短裙', box: { x: 194, y: 454, w: 212, h: 144 } },
-    { key: 'bottom-swim', slot: 'bottom', label: '泳裤', box: { x: 228, y: 468, w: 144, h: 104 } },
+    { key: 'bottom-skirt', slot: 'bottom', label: '短裙', box: { x: 194, y: 454, w: 212, h: 148 } },
+    { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 228, y: 460, w: 144, h: 238 } },
     { key: 'shoes-sneaker', slot: 'shoes', label: '运动鞋', box: { x: 222, y: 694, w: 158, h: 62 } },
     { key: 'shoes-sandal', slot: 'shoes', label: '凉鞋', box: { x: 228, y: 718, w: 148, h: 36 } },
   ];
 
   const SCENES_DATA = [
-    { key: 'beach', name: '海边', emoji: '🏖️', playable: true, cardColor: 0x9fe4ff, accent: 0x2f9dd0 },
-    { key: 'palace', name: '宫廷', emoji: '🏰', playable: false, cardColor: 0xe3d3f5, accent: 0x7a5bb0 },
-    { key: 'forest', name: '森林', emoji: '🌲', playable: false, cardColor: 0xd2f0d6, accent: 0x3f9d6b },
+    {
+      key: 'beach', name: '海边', playable: true, cardColor: 0x9fe4ff, accent: 0x2f9dd0,
+      ink: '#3f6b86', inkSoft: '#5c7c92', shadow: 0xd0a566,
+    },
+    {
+      key: 'palace', name: '宫廷', playable: true, cardColor: 0xe3d3f5, accent: 0x7a5bb0,
+      ink: '#7a4f9c', inkSoft: '#8f6fb0', shadow: 0xb49ac9,
+    },
+    {
+      key: 'forest', name: '森林', playable: true, cardColor: 0xd2f0d6, accent: 0x3f9d6b,
+      ink: '#2f6b4a', inkSoft: '#4d8265', shadow: 0x7fae87,
+    },
   ];
 
   function textStyle(size, color, bold, lineSpacing) {
@@ -258,6 +277,273 @@
     drawShell(g, WIDTH * 0.88, sandTop + sandH * 0.52, short * 0.028, 0xffe08a);
     drawStarfish(g, WIDTH * 0.2, sandTop + sandH * 0.68, short * 0.036, 0xff9f5f);
   }
+  function drawPineSimple(g, cx, baseY, h, color) {
+    g.fillStyle(0x9a6f47, 1).fillRect(cx - h * 0.05, baseY - h * 0.26, h * 0.1, h * 0.26);
+    g.fillStyle(color, 1);
+    for (let i = 0; i < 3; i += 1) {
+      const topY = baseY - h + h * 0.22 * i;
+      const half = h * (0.2 + i * 0.09);
+      g.fillPoints([
+        new Phaser.Geom.Point(cx, topY),
+        new Phaser.Geom.Point(cx + half, topY + h * 0.4),
+        new Phaser.Geom.Point(cx - half, topY + h * 0.4),
+      ], true);
+    }
+  }
+
+  function drawPalace(g) {
+    const short = Math.min(WIDTH, HEIGHT);
+    const floorY = IS_PORTRAIT ? 468 : 292;
+
+    g.fillStyle(0xf8ecf6, 1).fillRect(0, 0, WIDTH, floorY);
+    g.fillStyle(0xf0d9ef, 1).fillRect(0, 0, WIDTH, floorY * 0.44);
+
+    const stripeW = short * 0.1;
+    g.fillStyle(0xe6c3e4, 0.45);
+    for (let x = stripeW * 0.1; x < WIDTH + stripeW; x += stripeW * 1.45) {
+      g.fillRoundedRect(x, floorY * 0.08, stripeW * 0.28, floorY * 0.84, stripeW * 0.14);
+    }
+
+    const winW = short * 0.19;
+    const winH = floorY * 0.5;
+    const winTop = floorY * 0.2;
+    [0.16, 0.84].forEach(function (fx) {
+      const wx = WIDTH * fx;
+      g.fillStyle(0xd9f2ff, 1);
+      g.beginPath();
+      g.moveTo(wx - winW / 2, winTop + winH);
+      g.lineTo(wx - winW / 2, winTop + winW / 2);
+      g.arc(wx, winTop + winW / 2, winW / 2, Math.PI, Math.PI * 2, false);
+      g.lineTo(wx + winW / 2, winTop + winH);
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(Math.max(6, short * 0.016), 0xf3d383, 1);
+      g.strokePath();
+      g.lineStyle(Math.max(3, short * 0.007), 0xf8e9bd, 0.95);
+      g.lineBetween(wx, winTop + winW * 0.62, wx, winTop + winH);
+      g.lineBetween(wx - winW / 2, winTop + winH * 0.66, wx + winW / 2, winTop + winH * 0.66);
+    });
+
+    g.fillStyle(0xf7d98a, 1).fillRect(0, floorY - short * 0.036, WIDTH, short * 0.036);
+    g.fillStyle(0xdfb95f, 1).fillRect(0, floorY - short * 0.009, WIDTH, short * 0.009);
+
+    const floorH = HEIGHT - floorY;
+    g.fillStyle(0xf1e2d6, 1).fillRect(0, floorY, WIDTH, floorH);
+    let rowY = floorY;
+    let rowH = floorH * 0.1;
+    let rowIndex = 0;
+    while (rowY < HEIGHT - 1) {
+      const h = Math.min(rowH, HEIGHT - rowY);
+      const cols = 6;
+      const cw = WIDTH / cols;
+      for (let c = 0; c < cols; c += 1) {
+        if ((c + rowIndex) % 2 === 0) {
+          g.fillStyle(0xe3d0c1, 1).fillRect(c * cw, rowY, cw, h);
+        }
+      }
+      rowY += h;
+      rowH *= 1.36;
+      rowIndex += 1;
+    }
+
+    const carpetTop = floorY + short * 0.02;
+    const carpetW = short * 0.46;
+    const cxm = WIDTH / 2;
+    g.fillStyle(0xc23a63, 1).fillPoints([
+      new Phaser.Geom.Point(cxm - carpetW * 0.36, carpetTop),
+      new Phaser.Geom.Point(cxm + carpetW * 0.36, carpetTop),
+      new Phaser.Geom.Point(cxm + carpetW * 0.62, HEIGHT),
+      new Phaser.Geom.Point(cxm - carpetW * 0.62, HEIGHT),
+    ], true);
+    g.fillStyle(0xd8567c, 1).fillPoints([
+      new Phaser.Geom.Point(cxm - carpetW * 0.26, carpetTop),
+      new Phaser.Geom.Point(cxm + carpetW * 0.26, carpetTop),
+      new Phaser.Geom.Point(cxm + carpetW * 0.44, HEIGHT),
+      new Phaser.Geom.Point(cxm - carpetW * 0.44, HEIGHT),
+    ], true);
+
+    const colW = short * 0.12;
+    [-1, 1].forEach(function (side) {
+      const ccx = side < 0 ? colW * 0.6 : WIDTH - colW * 0.6;
+      const baseY = floorY + short * 0.06;
+      g.fillStyle(0xfdf7ff, 1).fillRect(ccx - colW / 2, 0, colW, baseY);
+      g.fillStyle(0xeadff2, 1).fillRect(ccx + colW * 0.06, 0, colW * 0.3, baseY);
+      g.fillStyle(0xf7d98a, 1).fillRect(ccx - colW * 0.72, 0, colW * 1.44, short * 0.03);
+      g.fillRect(ccx - colW * 0.72, baseY - short * 0.034, colW * 1.44, short * 0.034);
+      g.fillStyle(0xdfb95f, 1).fillRect(ccx - colW * 0.72, short * 0.03, colW * 1.44, short * 0.008);
+    });
+
+    if (IS_PORTRAIT) {
+      const chX = WIDTH / 2;
+      g.lineStyle(4, 0xdfb95f, 1).lineBetween(chX, 0, chX, short * 0.1);
+      for (let i = 0; i < 5; i += 1) {
+        const bx = chX - short * 0.1 + (i * short * 0.2) / 4;
+        g.fillStyle(0xfff8dd, 1).fillRect(bx - short * 0.008, short * 0.11, short * 0.016, short * 0.05);
+        g.fillStyle(0xffd75e, 1).fillCircle(bx, short * 0.105, short * 0.016);
+      }
+      g.fillStyle(0xfff3c9, 1).fillRect(chX - short * 0.014, short * 0.1, short * 0.028, short * 0.05);
+      g.fillStyle(0xf7d98a, 1).fillCircle(chX, short * 0.165, short * 0.044);
+      g.fillStyle(0xdfb95f, 1).fillCircle(chX, short * 0.182, short * 0.022);
+    }
+  }
+
+  function drawForest(g) {
+    const short = Math.min(WIDTH, HEIGHT);
+    const groundY = IS_PORTRAIT ? 424 : 258;
+
+    g.fillStyle(0xdff3e0, 1).fillRect(0, 0, WIDTH, groundY);
+    g.fillStyle(0xf0fbea, 1).fillRect(0, 0, WIDTH, groundY * 0.5);
+    g.fillStyle(0xc9ebcd, 1).fillRect(0, groundY * 0.7, WIDTH, groundY * 0.3);
+
+    g.fillStyle(0xffffff, 0.26);
+    for (let i = 0; i < 4; i += 1) {
+      const x0 = WIDTH * 0.08 + i * WIDTH * 0.27;
+      g.fillPoints([
+        new Phaser.Geom.Point(x0, 0),
+        new Phaser.Geom.Point(x0 + short * 0.05, 0),
+        new Phaser.Geom.Point(x0 - short * 0.26, groundY),
+        new Phaser.Geom.Point(x0 - short * 0.4, groundY),
+      ], true);
+    }
+
+    const treeBase = groundY + short * 0.03;
+    for (let i = 0; i * short * 0.13 < WIDTH + short * 0.2; i += 1) {
+      drawPineSimple(g, i * short * 0.13 - short * 0.03, treeBase, short * (0.2 + (i % 3) * 0.04), 0xa6dfb4);
+    }
+    for (let i = 0; i * short * 0.19 < WIDTH + short * 0.2; i += 1) {
+      drawPineSimple(g, i * short * 0.19 + short * 0.05, treeBase, short * (0.3 + (i % 2) * 0.07), 0x6ec48c);
+    }
+
+    const grassTop = groundY - short * 0.01;
+    g.fillStyle(0x7fc98f, 1).fillRect(0, grassTop, WIDTH, HEIGHT - grassTop);
+    g.fillStyle(0x9bddaa, 1).fillRect(0, grassTop, WIDTH, short * 0.08);
+    g.fillStyle(0x6fbd82, 1).fillRect(0, grassTop + short * 0.08, WIDTH, short * 0.012);
+
+    const cxm = WIDTH / 2;
+    g.fillStyle(0xdcd6c2, 0.7);
+    for (let i = 0; i < 4; i += 1) {
+      g.fillEllipse(cxm, grassTop + short * (0.13 + i * 0.13), short * (0.17 + i * 0.05), short * 0.045);
+    }
+
+    [-1, 1].forEach(function (side) {
+      const tx = side < 0 ? short * 0.04 : WIDTH - short * 0.04;
+      const trunkTop = grassTop - short * 0.42;
+      const trunkH = HEIGHT - trunkTop;
+      g.fillStyle(0xa8763f, 1).fillRoundedRect(tx - short * 0.04, trunkTop, short * 0.08, trunkH, short * 0.03);
+      g.fillStyle(0x8d5f33, 1).fillRoundedRect(tx + short * 0.01, trunkTop, short * 0.028, trunkH, short * 0.02);
+      [0, 1, 2].forEach(function (k) {
+        g.fillStyle(k === 1 ? 0x4fa877 : 0x5fb987, 1);
+        g.fillCircle(tx + (k - 1) * short * 0.08, trunkTop - short * 0.02 + Math.abs(k - 1) * short * 0.05, short * 0.112);
+      });
+    });
+
+    function mushroom(mx, my, r) {
+      g.fillStyle(0xfff4e4, 1).fillRoundedRect(mx - r * 0.2, my - r * 0.08, r * 0.4, r * 0.85, r * 0.16);
+      g.fillStyle(0xe4576f, 1);
+      g.beginPath();
+      g.arc(mx, my - r * 0.05, r * 0.6, Math.PI, Math.PI * 2, false);
+      g.closePath();
+      g.fillPath();
+      g.fillStyle(0xfff4e4, 1).fillCircle(mx - r * 0.24, my - r * 0.33, r * 0.11);
+      g.fillCircle(mx + r * 0.22, my - r * 0.27, r * 0.09);
+    }
+
+    function flower(fx, fy, r) {
+      g.fillStyle(0xff9ecb, 1);
+      for (let i = 0; i < 5; i += 1) {
+        const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
+        g.fillCircle(fx + Math.cos(a) * r * 0.62, fy + Math.sin(a) * r * 0.62, r * 0.42);
+      }
+      g.fillStyle(0xffd75e, 1).fillCircle(fx, fy, r * 0.36);
+    }
+
+    mushroom(WIDTH * 0.1, grassTop + short * 0.26, short * 0.062);
+    mushroom(WIDTH * 0.18, grassTop + short * 0.36, short * 0.046);
+    mushroom(WIDTH * 0.9, grassTop + short * 0.3, short * 0.056);
+    flower(WIDTH * 0.06, grassTop + short * 0.12, short * 0.032);
+    flower(WIDTH * 0.24, grassTop + short * 0.19, short * 0.026);
+    flower(WIDTH * 0.8, grassTop + short * 0.14, short * 0.03);
+    flower(WIDTH * 0.94, grassTop + short * 0.22, short * 0.025);
+
+    g.fillStyle(0x5fb37a, 1);
+    for (let i = 0; i <= 15; i += 1) {
+      const tx2 = (i * WIDTH) / 15 + short * 0.02;
+      const ty2 = grassTop + short * 0.05 + (i % 3) * short * 0.045;
+      g.fillPoints([
+        new Phaser.Geom.Point(tx2, ty2),
+        new Phaser.Geom.Point(tx2 + short * 0.012, ty2 - short * 0.05),
+        new Phaser.Geom.Point(tx2 + short * 0.024, ty2),
+      ], true);
+    }
+  }
+
+  const SCENE_PAINTERS = {
+    beach: drawBeach,
+    palace: drawPalace,
+    forest: drawForest,
+  };
+
+  const ICON_SHAPES = {
+    top: [[-0.34, -0.5], [0.34, -0.5], [0.8, -0.16], [0.58, 0.1], [0.46, -0.02], [0.46, 0.56], [-0.46, 0.56], [-0.46, -0.02], [-0.58, 0.1], [-0.8, -0.16]],
+    bottom: [[-0.42, -0.52], [0.42, -0.52], [0.56, 0.56], [0.16, 0.56], [0, 0.06], [-0.16, 0.56], [-0.56, 0.56]],
+    shoes: [[-0.6, 0.34], [-0.52, -0.16], [-0.08, -0.34], [0.26, 0.0], [0.62, 0.14], [0.62, 0.34]],
+  };
+
+  function drawSlotIcon(g, slot, cx, cy, s, color) {
+    if (slot === 'hat') {
+      g.fillStyle(color, 1).fillEllipse(cx, cy + s * 0.42, s * 2.1, s * 0.52);
+      g.fillEllipse(cx, cy - s * 0.12, s * 1.16, s * 1);
+      return;
+    }
+    if (slot === 'glasses') {
+      g.lineStyle(Math.max(2, s * 0.26), color, 1);
+      g.strokeCircle(cx - s * 0.48, cy, s * 0.44);
+      g.strokeCircle(cx + s * 0.48, cy, s * 0.44);
+      g.lineBetween(cx - s * 0.12, cy - s * 0.06, cx + s * 0.12, cy - s * 0.06);
+      return;
+    }
+    const shape = ICON_SHAPES[slot];
+    if (!shape) return;
+    g.fillStyle(color, 1);
+    g.fillPoints(shape.map(function (pt) {
+      return new Phaser.Geom.Point(cx + pt[0] * s, cy + pt[1] * s);
+    }), true);
+  }
+
+  function drawSceneIcon(g, key, cx, cy, r) {
+    if (key === 'beach') {
+      g.fillStyle(0xffe08a, 1).fillCircle(cx + r * 0.4, cy - r * 0.44, r * 0.3);
+      g.fillStyle(0x63c8f0, 1).fillRoundedRect(cx - r, cy - r * 0.06, r * 2, r * 0.52, r * 0.14);
+      g.lineStyle(Math.max(2, r * 0.1), 0xffffff, 0.85);
+      g.beginPath();
+      g.arc(cx - r * 0.44, cy + r * 0.16, r * 0.2, Math.PI, Math.PI * 2, false);
+      g.strokePath();
+      g.beginPath();
+      g.arc(cx + r * 0.4, cy + r * 0.16, r * 0.2, Math.PI, Math.PI * 2, false);
+      g.strokePath();
+      g.fillStyle(0xf3d49c, 1).fillRoundedRect(cx - r, cy + r * 0.42, r * 2, r * 0.44, r * 0.16);
+      return;
+    }
+    if (key === 'palace') {
+      g.fillStyle(0xf0d9f2, 1).fillRoundedRect(cx - r, cy + r * 0.52, r * 2, r * 0.34, r * 0.1);
+      g.fillStyle(0xfdf7ff, 1).fillRect(cx - r * 0.9, cy - r * 0.34, r * 0.38, r * 0.86);
+      g.fillRect(cx + r * 0.52, cy - r * 0.34, r * 0.38, r * 0.86);
+      g.fillStyle(0xf7d98a, 1).fillRect(cx - r, cy - r * 0.46, r * 0.58, r * 0.18);
+      g.fillRect(cx + r * 0.42, cy - r * 0.46, r * 0.58, r * 0.18);
+      g.fillStyle(0xf7d98a, 1);
+      g.beginPath();
+      g.arc(cx, cy - r * 0.44, r * 0.52, Math.PI, Math.PI * 2, false);
+      g.closePath();
+      g.fillPath();
+      g.fillStyle(0xffd75e, 1).fillCircle(cx, cy - r * 0.98, r * 0.13);
+      return;
+    }
+    g.fillStyle(0x9bddaa, 1).fillRoundedRect(cx - r, cy + r * 0.36, r * 2, r * 0.5, r * 0.16);
+    drawPineSimple(g, cx - r * 0.66, cy + r * 0.5, r * 1.55, 0x4fa877);
+    drawPineSimple(g, cx + r * 0.64, cy + r * 0.5, r * 1.35, 0x5fb987);
+    drawPineSimple(g, cx, cy + r * 0.68, r * 2.1, 0x3f9d6b);
+  }
+
   class DressupSceneSelectScene extends Phaser.Scene {
     constructor() {
       super('DressupSceneSelectScene');
@@ -302,12 +588,10 @@
       g.lineStyle(5, data.accent, 0.55).strokeRoundedRect(-w / 2, -h / 2, w, h, 28);
       card.add(g);
 
-      const emoji = this.add.text(0, IS_PORTRAIT ? -h * 0.22 : -h * 0.21, data.emoji, {
-        fontFamily: '"Segoe UI Emoji", "Microsoft YaHei", sans-serif',
-        fontSize: (IS_PORTRAIT ? 62 : 58) + 'px',
-      }).setOrigin(0.5);
-      if (!data.playable) emoji.setAlpha(0.42);
-      card.add(emoji);
+      const icon = this.add.graphics();
+      drawSceneIcon(icon, data.key, 0, IS_PORTRAIT ? -h * 0.245 : -h * 0.235, IS_PORTRAIT ? 46 : 42);
+      if (!data.playable) icon.setAlpha(0.42);
+      card.add(icon);
 
       const nameY = IS_PORTRAIT ? h * 0.14 : h * 0.13;
       const name = this.add.text(0, nameY, data.name, textStyle(IS_PORTRAIT ? 28 : 24, data.playable ? '#5b4152' : '#8d8296', true)).setOrigin(0.5);
@@ -365,6 +649,11 @@
       this.drag = null;
       this.trayOffset = 0;
       this.trayOffsetMax = 0;
+      this.category = null;
+      this.itemLayer = null;
+      this.tabs = null;
+      this.arrowLeft = null;
+      this.arrowRight = null;
     }
 
     create() {
@@ -389,14 +678,22 @@
 
     buildBackground() {
       const g = this.add.graphics().setDepth(0);
-      drawBeach(g);
-      this.add.text(22, IS_PORTRAIT ? 68 : 60, this.sceneInfo.name + '换装', textStyle(IS_PORTRAIT ? 22 : 19, '#3f6b86', true)).setDepth(12).setOrigin(0, 0.5);
-      this.add.text(22, IS_PORTRAIT ? 96 : 86, '把配件拖到小姐姐身上', textStyle(IS_PORTRAIT ? 14 : 13, '#5c7c92')).setDepth(12).setOrigin(0, 0.5);
+      const painter = SCENE_PAINTERS[this.sceneKey] || drawBeach;
+      painter(g);
+      const info = this.sceneInfo;
+      const titleStyle = textStyle(IS_PORTRAIT ? 22 : 19, info.ink, true);
+      titleStyle.stroke = '#ffffff';
+      titleStyle.strokeThickness = IS_PORTRAIT ? 5 : 4;
+      const subStyle = textStyle(IS_PORTRAIT ? 14 : 13, info.inkSoft);
+      subStyle.stroke = '#ffffff';
+      subStyle.strokeThickness = 4;
+      this.add.text(22, IS_PORTRAIT ? 68 : 60, info.name + '换装', titleStyle).setDepth(12).setOrigin(0, 0.5);
+      this.add.text(22, IS_PORTRAIT ? 96 : 86, '点分类挑配件，拖到小姐姐身上', subStyle).setDepth(12).setOrigin(0, 0.5);
     }
 
     buildDoll() {
       const centerX = this.dollLeft + (DOLL_W * this.scaleDoll) / 2;
-      this.add.ellipse(centerX, LAYOUT.dollFeetY + 6, 180 * this.scaleDoll, 40 * this.scaleDoll, 0xd0a566, 0.38).setDepth(1);
+      this.add.ellipse(centerX, LAYOUT.dollFeetY + 6, 180 * this.scaleDoll, 40 * this.scaleDoll, this.sceneInfo.shadow, 0.38).setDepth(1);
       this.dollLayer = this.add.container(this.dollLeft, this.dollTop).setDepth(5).setScale(this.scaleDoll);
       this.dollLayer.add(this.add.image(0, 0, 'doll-body').setOrigin(0, 0));
       this.wornLayer = this.add.container(0, 0);
@@ -405,29 +702,86 @@
 
     buildTray() {
       const g = this.add.graphics().setDepth(20);
-      g.fillStyle(0xffe6f2, 0.96).fillRoundedRect(0, TRAY_TOP - 8, WIDTH, LAYOUT.trayH + 8, { tl: 28, tr: 28, bl: 0, br: 0 });
-      g.lineStyle(5, 0xffc0dd, 1).strokeRoundedRect(-2, TRAY_TOP - 8, WIDTH + 4, LAYOUT.trayH + 10, { tl: 28, tr: 28, bl: 0, br: 0 });
+      g.fillStyle(0xffe6f2, 0.97).fillRoundedRect(0, TRAY_TOP - 10, WIDTH, LAYOUT.trayH + 10, { tl: 28, tr: 28, bl: 0, br: 0 });
+      g.lineStyle(5, 0xffc0dd, 1).strokeRoundedRect(-2, TRAY_TOP - 10, WIDTH + 4, LAYOUT.trayH + 12, { tl: 28, tr: 28, bl: 0, br: 0 });
 
-      const panArea = this.add.rectangle(WIDTH / 2, TRAY_TOP + LAYOUT.trayH / 2, WIDTH, LAYOUT.trayH, 0xffffff, 0).setDepth(20.5);
+      this.itemTop = TRAY_TOP + (IS_PORTRAIT ? 58 : 50);
+      const panTop = this.itemTop - 6;
+      const panH = Math.max(28, HEIGHT - panTop);
+
+      const panArea = this.add.rectangle(WIDTH / 2, panTop + panH / 2, WIDTH, panH, 0xffffff, 0).setDepth(20.5);
       panArea.setInteractive();
       panArea.on('pointerdown', (pointer) => this.onGrab(null, pointer, false));
 
       this.trayContent = this.add.container(0, 0).setDepth(21);
       const maskShape = this.make.graphics({ x: 0, y: 0, add: false });
-      maskShape.fillStyle(0xffffff, 1).fillRect(0, TRAY_TOP, WIDTH, LAYOUT.trayH);
+      maskShape.fillStyle(0xffffff, 1).fillRect(0, panTop, WIDTH, panH);
       this.trayContent.setMask(maskShape.createGeometryMask());
 
-      const step = LAYOUT.slotW + LAYOUT.gap;
-      const slotY = TRAY_TOP + (LAYOUT.trayH - LAYOUT.slotH) / 2;
-      ITEMS.forEach((def, index) => {
-        def.slotX = LAYOUT.trayPadX + index * step;
-        def.slotCenterX = def.slotX + LAYOUT.slotW / 2;
-        const plate = this.add.graphics();
-        plate.fillStyle(0xffffff, 0.88).fillRoundedRect(def.slotX, slotY, LAYOUT.slotW, LAYOUT.slotH, 18);
-        plate.lineStyle(3, 0xffc9e0, 1).strokeRoundedRect(def.slotX, slotY, LAYOUT.slotW, LAYOUT.slotH, 18);
-        this.trayContent.add(plate);
+      this.buildTabs();
+      this.buildArrows();
+      this.setCategory(CATEGORIES[0].slot);
+    }
 
-        const fit = Math.min((LAYOUT.slotW - 16) / def.box.w, (LAYOUT.slotH - 22) / def.box.h);
+    buildTabs() {
+      const tabH = LAYOUT.tabH;
+      const gap = LAYOUT.tabGap;
+      const count = CATEGORIES.length;
+      const tabW = Math.min(IS_PORTRAIT ? 100 : 124, Math.floor((WIDTH - 20 - (count - 1) * gap) / count));
+      const totalW = count * tabW + (count - 1) * gap;
+      const startX = Math.round((WIDTH - totalW) / 2);
+      const top = TRAY_TOP + (IS_PORTRAIT ? 8 : 6);
+      const iconSize = tabH * 0.3;
+      const iconGap = IS_PORTRAIT ? 6 : 5;
+      this.tabs = {};
+      CATEGORIES.forEach((cat, index) => {
+        const cx = startX + index * (tabW + gap) + tabW / 2;
+        const cy = top + tabH / 2;
+        const btn = this.add.container(cx, cy).setDepth(22);
+        const bg = this.add.graphics();
+        btn.add(bg);
+        const icon = this.add.graphics();
+        btn.add(icon);
+        const label = this.add.text(0, 0, cat.label, textStyle(IS_PORTRAIT ? 15 : 13, '#9a6b84', true)).setOrigin(0, 0.5);
+        btn.add(label);
+        const dot = this.add.graphics();
+        btn.add(dot);
+        const contentW = iconSize * 2 + iconGap + label.width;
+        const iconX = -contentW / 2 + iconSize;
+        label.x = iconX + iconSize + iconGap;
+        const hit = this.add.rectangle(0, 0, tabW, tabH, 0xffffff, 0).setInteractive({ useHandCursor: true });
+        hit.on('pointerdown', () => this.setCategory(cat.slot));
+        btn.add(hit);
+        this.tabs[cat.slot] = { bg: bg, icon: icon, label: label, dot: dot, iconX: iconX, w: tabW, h: tabH };
+      });
+    }
+
+    setCategory(slot) {
+      if (this.category === slot) return;
+      this.category = slot;
+      this.trayOffset = 0;
+      this.trayOffsetMax = 0;
+      if (this.trayContent) this.trayContent.x = 0;
+      if (this.itemLayer) this.itemLayer.destroy(true);
+      this.itemLayer = this.add.container(0, 0);
+      this.trayContent.add(this.itemLayer);
+      this.thumbByKey = {};
+
+      const items = ITEMS.filter((item) => item.slot === slot);
+      const step = LAYOUT.slotW + LAYOUT.gap;
+      const totalW = items.length * step - LAYOUT.gap;
+      const startX = Math.round((WIDTH - totalW) / 2);
+      const slotY = this.itemTop;
+      items.forEach((def, index) => {
+        def.slotX = startX + index * step;
+        def.slotCenterX = def.slotX + LAYOUT.slotW / 2;
+        def.slotCenterY = slotY + LAYOUT.slotH / 2;
+        const plate = this.add.graphics();
+        plate.fillStyle(0xffffff, 0.9).fillRoundedRect(def.slotX, slotY, LAYOUT.slotW, LAYOUT.slotH, 18);
+        plate.lineStyle(3, 0xffc9e0, 1).strokeRoundedRect(def.slotX, slotY, LAYOUT.slotW, LAYOUT.slotH, 18);
+        this.itemLayer.add(plate);
+
+        const fit = Math.min((LAYOUT.slotW - 14) / def.box.w, (LAYOUT.slotH - 18) / def.box.h);
         def.thumbScale = fit;
         def.thumbX = def.slotX + (LAYOUT.slotW - def.box.w * fit) / 2 - def.box.x * fit;
         def.thumbY = slotY + (LAYOUT.slotH - def.box.h * fit) / 2 - def.box.y * fit;
@@ -435,15 +789,71 @@
         img.setCrop(def.box.x, def.box.y, def.box.w, def.box.h);
         img.setInteractive(new Phaser.Geom.Rectangle(def.box.x, def.box.y, def.box.w, def.box.h), Phaser.Geom.Rectangle.Contains);
         img.on('pointerdown', (pointer) => this.onGrab(def, pointer, false));
-        this.trayContent.add(img);
+        this.itemLayer.add(img);
         this.thumbByKey[def.key] = img;
       });
 
-      const contentRight = LAYOUT.trayPadX + (ITEMS.length - 1) * step + LAYOUT.slotW;
-      this.trayOffsetMax = Math.max(0, contentRight + LAYOUT.trayPadX - WIDTH);
+      this.currentItems = items;
+      this.trayOffsetMax = Math.max(0, startX + totalW + 14 - WIDTH);
+      this.refreshTabs();
+      this.refreshArrows();
+      this.refreshWornMarks();
+    }
 
-      this.buildArrow(-1, LAYOUT.arrowR + 4);
-      this.buildArrow(1, WIDTH - LAYOUT.arrowR - 4);
+    refreshWornMarks() {
+      Object.keys(this.thumbByKey).forEach((key) => {
+        const worn = Object.keys(this.equipped).some((slot) => this.equipped[slot].key === key);
+        this.thumbByKey[key].setAlpha(worn ? 0.32 : 1);
+      });
+      this.refreshTabDots();
+    }
+
+    refreshTabDots() {
+      if (!this.tabs) return;
+      CATEGORIES.forEach((cat) => {
+        const tab = this.tabs[cat.slot];
+        if (!tab) return;
+        tab.dot.clear();
+        if (this.equipped[cat.slot]) {
+          tab.dot.fillStyle(0xffd75e, 1).fillCircle(tab.w / 2 - 9, -tab.h / 2 + 8, 5);
+          tab.dot.lineStyle(2, 0xffffff, 1).strokeCircle(tab.w / 2 - 9, -tab.h / 2 + 8, 5);
+        }
+      });
+    }
+
+    refreshTabs() {
+      if (!this.tabs) return;
+      CATEGORIES.forEach((cat) => {
+        const tab = this.tabs[cat.slot];
+        if (!tab) return;
+        const active = cat.slot === this.category;
+        tab.bg.clear();
+        tab.bg.fillStyle(active ? 0xff8fb3 : 0xffffff, active ? 1 : 0.92);
+        tab.bg.fillRoundedRect(-tab.w / 2, -tab.h / 2, tab.w, tab.h, tab.h / 2);
+        if (!active) {
+          tab.bg.lineStyle(3, 0xffc9e0, 1);
+          tab.bg.strokeRoundedRect(-tab.w / 2, -tab.h / 2, tab.w, tab.h, tab.h / 2);
+        }
+        tab.label.setColor(active ? '#ffffff' : '#9a6b84');
+        tab.icon.clear();
+        drawSlotIcon(tab.icon, cat.slot, tab.iconX, 0, tab.h * 0.3, active ? 0xffffff : 0xff9ecb);
+      });
+    }
+
+    buildArrows() {
+      this.arrowLeft = this.buildArrow(-1, LAYOUT.arrowR + 6);
+      this.arrowRight = this.buildArrow(1, WIDTH - LAYOUT.arrowR - 6);
+      this.refreshArrows();
+    }
+
+    refreshArrows() {
+      const show = this.trayOffsetMax > 0.5;
+      [this.arrowLeft, this.arrowRight].forEach((arrow) => {
+        if (!arrow) return;
+        arrow.container.setVisible(show);
+        if (show) arrow.hit.setInteractive(new Phaser.Geom.Circle(LAYOUT.arrowR, LAYOUT.arrowR, LAYOUT.arrowR), Phaser.Geom.Circle.Contains);
+        else arrow.hit.disableInteractive();
+      });
     }
 
     buildArrow(dir, cx) {
@@ -481,6 +891,7 @@
       hit.on('pointerup', stop);
       hit.on('pointerout', stop);
       hit.on('pointerupoutside', stop);
+      return { container: btn, hit: hit };
     }
 
     buildTopButtons() {
@@ -662,6 +1073,7 @@
     setThumbDim(key, dim) {
       const thumb = this.thumbByKey[key];
       if (thumb) thumb.setAlpha(dim ? 0.32 : 1);
+      this.refreshTabDots();
     }
 
     sparkle(dollX, dollY) {
