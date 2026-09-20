@@ -42,16 +42,25 @@
 
   const TRAY_TOP = HEIGHT - LAYOUT.trayH;
 
-  const SLOT_DEPTH = { bottom: 2, skirt: 2.5, top: 3, shoes: 4, hair: 5, face: 7, hat: 8 };
+  const SLOT_DEPTH = {
+    bottom: 2, skirt: 2.5, top: 3, shoes: 4, hair: 5, neck: 6, ear: 6.5, face: 7, hat: 8, hand: 9,
+    waist: 3.5, pet: 1.5, back: 1,
+  };
+  const SLOT_BEHIND = { back: true };
+
+  function itemCat(def) {
+    return def.cat || def.slot;
+  }
 
   const CATEGORIES = [
-    { slot: 'hat', label: '帽子' },
-    { slot: 'hair', label: '发型' },
-    { slot: 'face', label: '脸部' },
-    { slot: 'top', label: '上衣' },
-    { slot: 'skirt', label: '裙子' },
-    { slot: 'bottom', label: '裤子' },
-    { slot: 'shoes', label: '鞋子' },
+    { key: 'hat', label: '帽子' },
+    { key: 'hair', label: '发型' },
+    { key: 'face', label: '脸部' },
+    { key: 'top', label: '上衣' },
+    { key: 'skirt', label: '裙子' },
+    { key: 'bottom', label: '裤子' },
+    { key: 'shoes', label: '鞋子' },
+    { key: 'accessory', label: '配饰' },
   ];
 
   const ITEMS = [
@@ -79,7 +88,17 @@
     { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 232, y: 466, w: 136, h: 226 } },
     { key: 'shoes-sneaker', slot: 'shoes', label: '运动鞋', box: { x: 222, y: 694, w: 158, h: 62 } },
     { key: 'shoes-sandal', slot: 'shoes', label: '凉鞋', box: { x: 228, y: 718, w: 148, h: 36 } },
-  ];
+    { key: 'beach-sunnies', slot: 'face', scene: 'beach', label: '沙滩太阳镜', box: { x: 206, y: 186, w: 190, h: 70 } },
+    { key: 'beach-necklace', slot: 'neck', cat: 'accessory', scene: 'beach', label: '贝壳项链', box: { x: 258, y: 292, w: 84, h: 108 } },
+    { key: 'beach-ring', slot: 'waist', cat: 'accessory', scene: 'beach', label: '泳圈', box: { x: 236, y: 440, w: 128, h: 144 } },
+    { key: 'palace-cape', slot: 'back', cat: 'accessory', scene: 'palace', label: '公主披风', box: { x: 184, y: 274, w: 232, h: 422 } },
+    { key: 'palace-wand', slot: 'hand', cat: 'accessory', scene: 'palace', label: '魔法权杖', box: { x: 370, y: 398, w: 100, h: 164 } },
+    { key: 'palace-earrings', slot: 'ear', cat: 'accessory', scene: 'palace', label: '珍珠耳环', box: { x: 220, y: 218, w: 160, h: 46 } },
+    { key: 'palace-necklace', slot: 'neck', cat: 'accessory', scene: 'palace', label: '宝石项链', box: { x: 262, y: 294, w: 76, h: 106 } },
+    { key: 'forest-flowercrown', slot: 'hat', scene: 'forest', label: '花环', box: { x: 206, y: 96, w: 188, h: 120 } },
+    { key: 'forest-backpack', slot: 'back', cat: 'accessory', scene: 'forest', label: '小背包', box: { x: 196, y: 318, w: 208, h: 234 } },
+    { key: 'forest-squirrel', slot: 'pet', cat: 'accessory', scene: 'forest', label: '小松鼠', box: { x: 392, y: 540, w: 112, h: 172 } },
+    { key: 'forest-basket', slot: 'hand', cat: 'accessory', scene: 'forest', label: '小篮子', box: { x: 180, y: 548, w: 100, h: 120 } },  ];
 
   const SCENES_DATA = [
     {
@@ -531,6 +550,14 @@
       g.strokePath();
       return;
     }
+    if (slot === 'accessory') {
+      g.lineStyle(Math.max(2, s * 0.22), color, 1);
+      g.beginPath();
+      g.arc(cx, cy - s * 0.5, s * 0.72, Math.PI * 0.12, Math.PI * 0.88, false);
+      g.strokePath();
+      g.fillStyle(color, 1).fillCircle(cx, cy + s * 0.5, s * 0.3);
+      return;
+    }
     if (slot === 'glasses') {
       g.lineStyle(Math.max(2, s * 0.26), color, 1);
       g.strokeCircle(cx - s * 0.48, cy, s * 0.44);
@@ -732,6 +759,8 @@
       this.add.ellipse(centerX, LAYOUT.dollFeetY + 6, 180 * this.scaleDoll, 40 * this.scaleDoll, this.sceneInfo.shadow, 0.38).setDepth(1);
       this.dollLayer = this.add.container(this.dollLeft, this.dollTop).setDepth(5).setScale(this.scaleDoll);
       this.dollLayer.add(this.add.image(0, 0, 'doll-body').setOrigin(0, 0));
+      this.backLayer = this.add.container(0, 0);
+      this.dollLayer.add(this.backLayer);
       this.wornLayer = this.add.container(0, 0);
       this.dollLayer.add(this.wornLayer);
     }
@@ -756,7 +785,7 @@
 
       this.buildTabs();
       this.buildArrows();
-      this.setCategory(CATEGORIES[0].slot);
+      this.setCategory(CATEGORIES[0].key);
     }
 
     buildTabs() {
@@ -767,8 +796,9 @@
       const totalW = count * tabW + (count - 1) * gap;
       const startX = Math.round((WIDTH - totalW) / 2);
       const top = TRAY_TOP + (IS_PORTRAIT ? 8 : 6);
-      const iconSize = tabH * 0.3;
-      const iconGap = 4;
+      const tight = count >= 8;
+      const iconSize = tabH * (tight ? 0.26 : 0.3);
+      const iconGap = tight ? 3 : 4;
       this.tabs = {};
       CATEGORIES.forEach((cat, index) => {
         const cx = startX + index * (tabW + gap) + tabW / 2;
@@ -778,7 +808,7 @@
         btn.add(bg);
         const icon = this.add.graphics();
         btn.add(icon);
-        const label = this.add.text(0, 0, cat.label, textStyle(13, '#9a6b84', true)).setOrigin(0, 0.5);
+        const label = this.add.text(0, 0, cat.label, textStyle(tight ? 11.5 : 13, '#9a6b84', true)).setOrigin(0, 0.5);
         btn.add(label);
         const dot = this.add.graphics();
         btn.add(dot);
@@ -786,15 +816,15 @@
         const iconX = -contentW / 2 + iconSize;
         label.x = iconX + iconSize + iconGap;
         const hit = this.add.rectangle(0, 0, tabW, tabH, 0xffffff, 0).setInteractive({ useHandCursor: true });
-        hit.on('pointerdown', () => this.setCategory(cat.slot));
+        hit.on('pointerdown', () => this.setCategory(cat.key));
         btn.add(hit);
-        this.tabs[cat.slot] = { bg: bg, icon: icon, label: label, dot: dot, iconX: iconX, w: tabW, h: tabH };
+        this.tabs[cat.key] = { bg: bg, icon: icon, label: label, dot: dot, iconX: iconX, w: tabW, h: tabH, iconS: iconSize };
       });
     }
 
-    setCategory(slot) {
-      if (this.category === slot) return;
-      this.category = slot;
+    setCategory(key) {
+      if (this.category === key) return;
+      this.category = key;
       this.trayOffset = 0;
       this.trayOffsetMax = 0;
       if (this.trayContent) this.trayContent.x = 0;
@@ -803,7 +833,7 @@
       this.trayContent.add(this.itemLayer);
       this.thumbByKey = {};
 
-      const items = ITEMS.filter((item) => item.slot === slot);
+      const items = ITEMS.filter((item) => itemCat(item) === key && (!item.scene || item.scene === this.sceneKey));
       const step = LAYOUT.slotW + LAYOUT.gap;
       const totalW = items.length * step - LAYOUT.gap;
       const startX = Math.round((WIDTH - totalW) / 2);
@@ -846,10 +876,11 @@
     refreshTabDots() {
       if (!this.tabs) return;
       CATEGORIES.forEach((cat) => {
-        const tab = this.tabs[cat.slot];
+        const tab = this.tabs[cat.key];
         if (!tab) return;
         tab.dot.clear();
-        if (this.equipped[cat.slot]) {
+        const worn = Object.keys(this.equipped).some((slot) => itemCat(this.equipped[slot].def) === cat.key);
+        if (worn) {
           tab.dot.fillStyle(0xffd75e, 1).fillCircle(tab.w / 2 - 9, -tab.h / 2 + 8, 5);
           tab.dot.lineStyle(2, 0xffffff, 1).strokeCircle(tab.w / 2 - 9, -tab.h / 2 + 8, 5);
         }
@@ -859,9 +890,9 @@
     refreshTabs() {
       if (!this.tabs) return;
       CATEGORIES.forEach((cat) => {
-        const tab = this.tabs[cat.slot];
+        const tab = this.tabs[cat.key];
         if (!tab) return;
-        const active = cat.slot === this.category;
+        const active = cat.key === this.category;
         tab.bg.clear();
         tab.bg.fillStyle(active ? 0xff8fb3 : 0xffffff, active ? 1 : 0.92);
         tab.bg.fillRoundedRect(-tab.w / 2, -tab.h / 2, tab.w, tab.h, tab.h / 2);
@@ -871,7 +902,7 @@
         }
         tab.label.setColor(active ? '#ffffff' : '#9a6b84');
         tab.icon.clear();
-        drawSlotIcon(tab.icon, cat.slot, tab.iconX, 0, tab.h * 0.3, active ? 0xffffff : 0xff9ecb);
+        drawSlotIcon(tab.icon, cat.key, tab.iconX, 0, tab.iconS, active ? 0xffffff : 0xff9ecb);
       });
     }
 
@@ -1088,8 +1119,9 @@
       img.setDepth(SLOT_DEPTH[slot]);
       img.setScale(0.9).setAlpha(0.7);
       this.makeGrabbable(img, def, true);
-      this.wornLayer.add(img);
-      this.wornLayer.sort('depth');
+      const layer = SLOT_BEHIND[slot] ? this.backLayer : this.wornLayer;
+      layer.add(img);
+      layer.sort('depth');
       this.equipped[slot] = { key: def.key, def: def, image: img };
       this.tweens.add({ targets: img, scaleX: 1, scaleY: 1, alpha: 1, duration: 280, ease: 'Back.Out' });
       this.setThumbDim(def.key, true);

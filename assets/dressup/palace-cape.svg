@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <path d="M250 300 C214 344 192 470 190 608 C189 660 214 690 254 690 L346 690 C386 690 411 660 410 608 C408 470 386 344 350 300 Z" fill="#a86fd6" stroke="#8755b5" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M258 326 C232 370 214 474 212 604" fill="none" stroke="#c79aeb" stroke-width="9" opacity="0.65"/>
+  <path d="M342 326 C368 370 386 474 388 604" fill="none" stroke="#c79aeb" stroke-width="9" opacity="0.65"/>
+  <path d="M214 660 C244 686 356 686 386 660" fill="none" stroke="#ffe08a" stroke-width="8" opacity="0.9" stroke-linecap="round"/>
+  <path d="M228 630 C238 640 250 646 262 648" fill="none" stroke="#c79aeb" stroke-width="6" opacity="0.5"/>
+  <path d="M372 630 C362 640 350 646 338 648" fill="none" stroke="#c79aeb" stroke-width="6" opacity="0.5"/>
+  <ellipse cx="300" cy="300" rx="62" ry="22" fill="#fff6fb" stroke="#e6d5f0" stroke-width="5"/>
+</svg>
