@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <defs>
+    <clipPath id="teeBody">
+      <path d="M300 296 C270 296 246 300 234 306 C212 314 196 336 190 362 L224 378 C230 362 238 350 246 344 C242 376 242 406 246 436 C250 468 252 490 254 506 C270 514 330 514 346 506 C348 490 350 468 354 436 C358 406 358 376 354 344 C362 350 370 362 376 378 L410 362 C404 336 388 314 366 306 C354 300 330 296 300 296 Z"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#teeBody)">
+    <rect x="180" y="286" width="240" height="240" fill="#ffffff"/>
+    <rect x="180" y="316" width="240" height="22" fill="#4fa8dc"/>
+    <rect x="180" y="366" width="240" height="22" fill="#4fa8dc"/>
+    <rect x="180" y="416" width="240" height="22" fill="#4fa8dc"/>
+    <rect x="180" y="466" width="240" height="22" fill="#4fa8dc"/>
+  </g>
+  <path d="M300 296 C270 296 246 300 234 306 C212 314 196 336 190 362 L224 378 C230 362 238 350 246 344 C242 376 242 406 246 436 C250 468 252 490 254 506 C270 514 330 514 346 506 C348 490 350 468 354 436 C358 406 358 376 354 344 C362 350 370 362 376 378 L410 362 C404 336 388 314 366 306 C354 300 330 296 300 296 Z" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M276 300 Q300 320 324 300" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linecap="round"/>
+</svg>
