@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="311" viewBox="170 70 260 311">
+  <defs><mask id="faceMask" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900"><rect x="0" y="0" width="600" height="900" fill="#ffffff"/><ellipse cx="300" cy="212" rx="70" ry="76" fill="#000000"/><ellipse cx="300" cy="300" rx="52" ry="50" fill="#000000"/><circle cx="233" cy="218" r="15" fill="#000000"/><circle cx="367" cy="218" r="15" fill="#000000"/></mask></defs>
+  <g mask="url(#faceMask)"><ellipse cx="300" cy="204" rx="118" ry="122" fill="#c86a3c"/><path d="M238 198 C202 228 186 300 188 356 C190 342 206 374 226 368 C240 370 248 338 248 294 C246 198 242 300 250 240 C252 218 246 202 238 198 Z" fill="#c86a3c"/><path d="M362 198 C398 228 414 300 412 356 C410 342 394 374 374 368 C360 370 352 338 352 294 C354 198 358 300 350 240 C348 218 354 202 362 198 Z" fill="#c86a3c"/></g>
+  <path d="M224 210 C218 132 248 88 300 88 C352 88 382 132 376 210 C370 192 346 166 318 162 C330 198 270 198 282 162 C254 166 230 192 224 210 Z" fill="#c86a3c"/>
+  <path d="M240 124 C240 100 268 90 300 90 C332 90 360 100 360 124 L360 206 C360 210 356 212 352 212 L248 212 C244 212 240 210 240 206 Z" fill="#c86a3c"/>
+</svg>

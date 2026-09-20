@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="262" height="498" viewBox="169 66 262 498">
+  <defs><mask id="faceMask" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900"><rect x="0" y="0" width="600" height="900" fill="#ffffff"/><ellipse cx="300" cy="212" rx="70" ry="76" fill="#000000"/><ellipse cx="300" cy="300" rx="52" ry="50" fill="#000000"/></mask></defs>
+  <g mask="url(#faceMask)"><ellipse cx="300" cy="200" rx="118" ry="122" fill="#3a2f3a"/><path d="M238 198 C200 228 178 296 194 360 C212 416 164 452 188 526 C204 562 232 560 246 516 C254 426 238 430 248 330 C252 252 246 206 238 198 Z" fill="#3a2f3a"/><path d="M362 198 C400 228 422 296 406 360 C388 416 436 452 412 526 C396 562 368 560 354 516 C346 426 362 430 352 330 C348 252 354 206 362 198 Z" fill="#3a2f3a"/></g>
+  <path d="M224 210 C218 132 248 88 300 88 C352 88 382 132 376 210 C370 192 346 166 318 162 C330 198 270 198 282 162 C254 166 230 192 224 210 Z" fill="#3a2f3a"/>
+</svg>

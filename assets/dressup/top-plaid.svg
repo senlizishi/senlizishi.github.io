@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="421" height="506" viewBox="72 179 421 506">
+  <path d="M242 330 C228 372 222 420 224 470 C225 496 226 516 228 534" fill="none" stroke="#b23a52" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358 330 C372 372 378 420 376 470 C375 496 374 516 372 534" fill="none" stroke="#b23a52" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M242 330 C228 372 222 420 224 470 C225 496 226 516 228 534" fill="none" stroke="#e05a72" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358 330 C372 372 378 420 376 470 C375 496 374 516 372 534" fill="none" stroke="#e05a72" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M204 520 L248 520" fill="none" stroke="#b23a52" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M352 520 L396 520" fill="none" stroke="#b23a52" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs><clipPath id="torsoClip"><path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z"/></clipPath></defs><g clip-path="url(#torsoClip)"><path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="#e05a72" stroke="none" stroke-width="6" stroke-linejoin="round"/><rect x="200" y="300" width="200" height="16" fill="#f2809a"/><rect x="200" y="344" width="200" height="16" fill="#f2809a"/><rect x="200" y="388" width="200" height="16" fill="#f2809a"/><rect x="200" y="432" width="200" height="16" fill="#f2809a"/><rect x="200" y="476" width="200" height="16" fill="#f2809a"/><rect x="214" y="280" width="16" height="250" fill="#f2809a"/><rect x="258" y="280" width="16" height="250" fill="#f2809a"/><rect x="302" y="280" width="16" height="250" fill="#f2809a"/><rect x="346" y="280" width="16" height="250" fill="#f2809a"/><rect x="200" y="322" width="200" height="6" fill="#ffe9a0"/><rect x="200" y="410" width="200" height="6" fill="#ffe9a0"/><rect x="200" y="498" width="200" height="6" fill="#ffe9a0"/><rect x="236" y="280" width="6" height="250" fill="#ffe9a0"/><rect x="324" y="280" width="6" height="250" fill="#ffe9a0"/></g>
+  <path d="M276 298 Q300 316 324 298" fill="none" stroke="#b23a52" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M276 298 L300 320 L292 336 L268 314 Z" fill="#b23a52"/>
+  <path d="M324 298 L300 320 L308 336 L332 314 Z" fill="#b23a52"/>
+  <circle cx="300" cy="370" r="5" fill="#ffe9a0"/>
+  <circle cx="300" cy="410" r="5" fill="#ffe9a0"/>
+  <circle cx="300" cy="450" r="5" fill="#ffe9a0"/>
+</svg>

@@ -1,16 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+<svg xmlns="http://www.w3.org/2000/svg" width="530" height="480" viewBox="40 164 530 480">
   <defs>
-    <clipPath id="shirtBody">
-      <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z"/>
-    </clipPath>
+  <clipPath id="shirtBody">
+  <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z"/>
+  </clipPath>
   </defs>
   <g clip-path="url(#shirtBody)">
-    <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="#ffffff"/>
-    <rect x="170" y="316" width="270" height="22" fill="#4fa8dc"/>
-    <rect x="170" y="360" width="270" height="22" fill="#4fa8dc"/>
-    <rect x="170" y="404" width="270" height="22" fill="#4fa8dc"/>
-    <rect x="170" y="448" width="270" height="22" fill="#4fa8dc"/>
-    <rect x="170" y="492" width="270" height="22" fill="#4fa8dc"/>
+  <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="#ffffff"/>
+  <rect x="170" y="316" width="270" height="22" fill="#4fa8dc"/>
+  <rect x="170" y="360" width="270" height="22" fill="#4fa8dc"/>
+  <rect x="170" y="404" width="270" height="22" fill="#4fa8dc"/>
+  <rect x="170" y="448" width="270" height="22" fill="#4fa8dc"/>
+  <rect x="170" y="492" width="270" height="22" fill="#4fa8dc"/>
   </g>
   <path d="M242 330 C232 360 226 392 224 424" stroke="#4fa8dc" stroke-width="56" stroke-linecap="round" fill="none"/>
   <path d="M358 330 C368 360 374 392 376 424" stroke="#4fa8dc" stroke-width="56" stroke-linecap="round" fill="none"/>

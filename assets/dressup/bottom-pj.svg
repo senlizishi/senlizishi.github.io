@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="406" height="586" viewBox="65 312 406 586">
+  <path d="M276 506 L259 704" fill="none" stroke="#9b7ad1" stroke-width="70" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M276 506 L259 704" fill="none" stroke="#c9a8f0" stroke-width="58" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M324 506 L341 704" fill="none" stroke="#9b7ad1" stroke-width="70" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M324 506 L341 704" fill="none" stroke="#c9a8f0" stroke-width="58" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M251 478 C272 470 328 470 349 478 L353 502 L361 532 L362 548 C362 558 352 566 338 566 L320 566 C310 566 305 560 303 552 L300 544 L297 552 C295 560 290 566 280 566 L262 566 C248 566 238 558 238 548 L239 532 L247 502 Z" fill="#c9a8f0" stroke="#9b7ad1" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M248 530 L300 530" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M300 530 L352 530" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M244 576 L296 576" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M304 576 L356 576" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M240 622 L292 622" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M308 622 L360 622" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M236 668 L288 668" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M312 668 L364 668" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M250 496 L350 496" fill="none" stroke="#9b7ad1" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+</svg>

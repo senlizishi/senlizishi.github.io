@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+<svg xmlns="http://www.w3.org/2000/svg" width="204" height="243" viewBox="198 425 204 243">
   <path d="M228 552 C252 578 276 552 300 574 C324 596 348 570 372 590 L380 606 C358 634 330 646 300 646 C270 646 242 634 220 606 Z" fill="#ffcfe7" stroke="#e795c6" stroke-width="5" stroke-linejoin="round"/>
   <path d="M242 506 C264 530 288 506 312 524 C334 540 352 530 360 518 L368 554 C350 576 326 586 300 586 C274 586 250 576 232 554 Z" fill="#ffe3f2" stroke="#f0a8d0" stroke-width="5" stroke-linejoin="round"/>
   <path d="M256 450 C276 440 324 440 344 450 L356 512 C344 530 324 538 300 538 C276 538 256 530 244 512 Z" fill="#fff2f9" stroke="#f0a8d0" stroke-width="5" stroke-linejoin="round"/>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="268" height="347" viewBox="166 6 268 347">
+  <defs><mask id="faceMask" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900"><rect x="0" y="0" width="600" height="900" fill="#ffffff"/><ellipse cx="300" cy="212" rx="70" ry="76" fill="#000000"/><ellipse cx="300" cy="300" rx="52" ry="50" fill="#000000"/></mask></defs>
+  <g mask="url(#faceMask)"><ellipse cx="300" cy="206" rx="118" ry="122" fill="#c9ced8"/><path d="M238 198 C202 228 180 300 182 337 C184 304 206 336 226 330 C240 332 248 300 248 256 C246 160 242 300 250 240 C252 218 246 202 238 198 Z" fill="#c9ced8"/><path d="M362 198 C398 228 420 300 418 337 C416 304 394 336 374 330 C360 332 352 300 352 256 C354 160 358 300 350 240 C348 218 354 202 362 198 Z" fill="#c9ced8"/></g>
+  <path d="M224 210 C218 132 248 88 300 88 C352 88 382 132 376 210 C370 192 346 166 318 162 C330 198 270 198 282 162 C254 166 230 192 224 210 Z" fill="#c9ced8"/>
+  <circle cx="300" cy="70" r="48" fill="#c9ced8"/>
+  <path d="M264 88 C286 72 314 72 336 88" fill="none" stroke="#a8aeb9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M300 46L304.33 56.05L315.22 57.06L307 64.27L309.4 74.94L300 69.36L290.6 74.94L293 64.27L284.78 57.06L295.67 56.05 Z" fill="#ffffff"/>
+</svg>

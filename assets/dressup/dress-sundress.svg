@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="330" height="418" viewBox="118 225 330 418">
+  <path d="M242 330 C228 372 222 420 224 468 C225 498 226 520 228 538" fill="none" stroke="#e9ab7e" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M242 330 C228 372 222 420 224 468 C225 498 226 520 228 538" fill="none" stroke="#ffd9be" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358 330 C372 372 378 420 376 468 C375 498 374 520 372 538" fill="none" stroke="#e9ab7e" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358 330 C372 372 378 420 376 468 C375 498 374 520 372 538" fill="none" stroke="#ffd9be" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="#fff2a8" stroke="#dfae3c" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M248 466 C236 496 182 542 182 592 C241 614 359 614 418 592 C418 542 364 496 352 466 Z" fill="#ffe08a" stroke="#dfae3c" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M266 300 Q300 326 334 300" fill="none" stroke="#dfae3c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M268 302 L262 470 M332 302 L338 470" fill="none" stroke="#ffe08a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M268 302 L262 470 M332 302 L338 470" fill="none" stroke="#dfae3c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M246 458 L354 458 L356 484 L244 484 Z" fill="#ff9ecb" stroke="#e0689f" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M300 530.2 C283.8 517.6 293.4 506.8 300 516.16 C306.6 506.8 316.2 517.6 300 530.2 Z" fill="#ff9ecb"/>
+  <path d="M268 564.5 C254.5 554 262.5 545 268 552.8 C273.5 545 281.5 554 268 564.5 Z" fill="#ff9ecb"/>
+  <path d="M334 556.5 C320.5 546 328.5 537 334 544.8 C339.5 537 347.5 546 334 556.5 Z" fill="#ff9ecb"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="292" height="289" viewBox="154 54 292 289">
+  <defs><mask id="faceMask" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900"><rect x="0" y="0" width="600" height="900" fill="#ffffff"/><ellipse cx="300" cy="212" rx="70" ry="76" fill="#000000"/><ellipse cx="300" cy="300" rx="52" ry="50" fill="#000000"/></mask></defs>
+  <g mask="url(#faceMask)"><ellipse cx="300" cy="206" rx="118" ry="122" fill="#ff9ecb"/><path d="M238 198 C202 228 176 300 178 331 C180 292 206 324 226 318 C240 320 248 288 248 244 C246 148 242 300 250 240 C252 218 246 202 238 198 Z" fill="#ff9ecb"/><path d="M362 198 C398 228 424 300 422 331 C420 292 394 324 374 318 C360 320 352 288 352 244 C354 148 358 300 350 240 C348 218 354 202 362 198 Z" fill="#ff9ecb"/></g>
+  <path d="M224 210 C218 132 248 88 300 88 C352 88 382 132 376 210 C370 192 346 166 318 162 C330 198 270 198 282 162 C254 166 230 192 224 210 Z" fill="#ff9ecb"/>
+  <circle cx="212" cy="112" r="46" fill="#ff9ecb"/>
+  <circle cx="388" cy="112" r="46" fill="#ff9ecb"/>
+  <ellipse cx="212" cy="150" rx="22" ry="12" fill="#ff8fb3"/>
+  <ellipse cx="388" cy="150" rx="22" ry="12" fill="#ff8fb3"/>
+</svg>

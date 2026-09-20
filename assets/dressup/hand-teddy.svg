@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="134" height="192" viewBox="329 523 134 192">
+  <path d="M372 552 L386 588" fill="none" stroke="#c99a6a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="396" cy="646" rx="40" ry="42" fill="#c99a6a" stroke="#a87a4e" stroke-width="5"/>
+  <circle cx="396" cy="592" r="30" fill="#d9ae80" stroke="#a87a4e" stroke-width="5"/>
+  <circle cx="376" cy="572" r="12" fill="#d9ae80" stroke="#a87a4e" stroke-width="4"/>
+  <circle cx="416" cy="572" r="12" fill="#d9ae80" stroke="#a87a4e" stroke-width="4"/>
+  <circle cx="386" cy="588" r="4" fill="#3c2f3a"/>
+  <circle cx="406" cy="588" r="4" fill="#3c2f3a"/>
+  <ellipse cx="396" cy="600" rx="8" ry="6" fill="#f0dcc4" stroke="#a87a4e" stroke-width="3"/>
+  <ellipse cx="372" cy="650" rx="12" ry="16" fill="#d9ae80" stroke="#a87a4e" stroke-width="4"/>
+  <ellipse cx="420" cy="650" rx="12" ry="16" fill="#d9ae80" stroke="#a87a4e" stroke-width="4"/>
+  <path d="M396 650.2 C379.8 637.6 389.4 626.8 396 636.16 C402.6 626.8 412.2 637.6 396 650.2 Z" fill="#ff8fb3"/>
+</svg>

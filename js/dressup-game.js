@@ -9,6 +9,7 @@
   const DOLL_H = 900;
   const DOLL_FEET = 762;
   const DIR = 'assets/dressup/';
+  const TEX_SCALE = 1;
 
   const LAYOUT = IS_PORTRAIT
     ? {
@@ -44,7 +45,7 @@
 
   const SLOT_DEPTH = {
     bottom: 2, skirt: 2.5, top: 3, shoes: 4, hair: 5, neck: 6, ear: 6.5, face: 7, hat: 8, hand: 9,
-    waist: 3.5, pet: 1.5, back: 1,
+    waist: 3.5, pet: 1.5, back: 1, scarf: 6.2, lip: 6.8, leg: 3.8,
   };
   const SLOT_BEHIND = { back: true };
 
@@ -63,42 +64,181 @@
     { key: 'accessory', label: '配饰' },
   ];
 
+  // >>> GEN:ITEMS >>>
   const ITEMS = [
-    { key: 'hat-straw', slot: 'hat', label: '草帽', box: { x: 166, y: 102, w: 268, h: 90 } },
-    { key: 'hat-bucket', slot: 'hat', label: '渔夫帽', box: { x: 172, y: 104, w: 256, h: 110 } },
-    { key: 'hat-crown', slot: 'hat', label: '皇冠', box: { x: 218, y: 54, w: 164, h: 122 } },
-    { key: 'hat-bow', slot: 'hat', label: '蝴蝶结', box: { x: 194, y: 94, w: 186, h: 80 } },
-    { key: 'hair-long', slot: 'hair', label: '长直发', box: { x: 184, y: 92, w: 232, h: 464 },
-      hit: [{ x: 220, y: 94, w: 160, h: 214 }, { x: 180, y: 236, w: 76, h: 324 }, { x: 344, y: 236, w: 76, h: 324 }] },
-    { key: 'hair-twin', slot: 'hair', label: '双马尾', box: { x: 162, y: 94, w: 276, h: 376 },
-      hit: [{ x: 220, y: 96, w: 160, h: 216 }, { x: 166, y: 228, w: 72, h: 236 }, { x: 362, y: 228, w: 72, h: 236 }] },
-    { key: 'hair-curly', slot: 'hair', label: '公主卷', box: { x: 166, y: 88, w: 268, h: 478 },
-      hit: [{ x: 220, y: 96, w: 160, h: 212 }, { x: 164, y: 228, w: 84, h: 336 }, { x: 352, y: 228, w: 84, h: 336 }] },
-    { key: 'eyes-star', slot: 'face', label: '星星眼', box: { x: 246, y: 178, w: 108, h: 68 } },
-    { key: 'eyes-heart', slot: 'face', label: '爱心眼', box: { x: 240, y: 172, w: 120, h: 74 } },
-    { key: 'glasses-round', slot: 'face', label: '圆框墨镜', box: { x: 206, y: 180, w: 190, h: 80 } },
-    { key: 'glasses-heart', slot: 'face', label: '爱心墨镜', box: { x: 209, y: 177, w: 182, h: 64 } },
-    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 192, y: 288, w: 216, h: 230 } },
-    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 192, y: 288, w: 216, h: 230 } },
-    { key: 'top-hoodie', slot: 'top', label: '连帽卫衣', box: { x: 192, y: 288, w: 216, h: 230 } },
-    { key: 'bottom-skirt', slot: 'skirt', label: '短裙', box: { x: 194, y: 454, w: 212, h: 148 } },
-    { key: 'dress-princess', slot: 'skirt', label: '公主裙', box: { x: 190, y: 432, w: 220, h: 222 } },
-    { key: 'dress-tutu', slot: 'skirt', label: '蓬蓬裙', box: { x: 202, y: 432, w: 196, h: 222 } },
-    { key: 'bottom-shorts', slot: 'bottom', label: '短裤', box: { x: 234, y: 468, w: 132, h: 102 } },
-    { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 232, y: 466, w: 136, h: 226 } },
-    { key: 'shoes-sneaker', slot: 'shoes', label: '运动鞋', box: { x: 222, y: 694, w: 158, h: 62 } },
-    { key: 'shoes-sandal', slot: 'shoes', label: '凉鞋', box: { x: 228, y: 718, w: 148, h: 36 } },
-    { key: 'beach-sunnies', slot: 'face', scene: 'beach', label: '沙滩太阳镜', box: { x: 206, y: 186, w: 190, h: 70 } },
-    { key: 'beach-necklace', slot: 'neck', cat: 'accessory', scene: 'beach', label: '贝壳项链', box: { x: 258, y: 292, w: 84, h: 108 } },
-    { key: 'beach-ring', slot: 'waist', cat: 'accessory', scene: 'beach', label: '泳圈', box: { x: 236, y: 440, w: 128, h: 144 } },
-    { key: 'palace-cape', slot: 'back', cat: 'accessory', scene: 'palace', label: '公主披风', box: { x: 184, y: 274, w: 232, h: 422 } },
-    { key: 'palace-wand', slot: 'hand', cat: 'accessory', scene: 'palace', label: '魔法权杖', box: { x: 370, y: 398, w: 100, h: 164 } },
-    { key: 'palace-earrings', slot: 'ear', cat: 'accessory', scene: 'palace', label: '珍珠耳环', box: { x: 220, y: 218, w: 160, h: 46 } },
-    { key: 'palace-necklace', slot: 'neck', cat: 'accessory', scene: 'palace', label: '宝石项链', box: { x: 262, y: 294, w: 76, h: 106 } },
-    { key: 'forest-flowercrown', slot: 'hat', scene: 'forest', label: '花环', box: { x: 206, y: 96, w: 188, h: 120 } },
-    { key: 'forest-backpack', slot: 'back', cat: 'accessory', scene: 'forest', label: '小背包', box: { x: 196, y: 318, w: 208, h: 234 } },
-    { key: 'forest-squirrel', slot: 'pet', cat: 'accessory', scene: 'forest', label: '小松鼠', box: { x: 392, y: 540, w: 112, h: 172 } },
-    { key: 'forest-basket', slot: 'hand', cat: 'accessory', scene: 'forest', label: '小篮子', box: { x: 180, y: 548, w: 100, h: 120 } },  ];
+    { key: 'hair-long', slot: 'hair', label: '长直发', box: { x: 158, y: 67, w: 284, h: 511 }, hit: [{ x: 220, y: 94, w: 160, h: 214 }, { x: 180, y: 236, w: 76, h: 324 }, { x: 344, y: 236, w: 76, h: 324 }] },
+    { key: 'hair-twin', slot: 'hair', label: '双马尾', box: { x: 150, y: 77, w: 300, h: 399 }, hit: [{ x: 220, y: 96, w: 160, h: 216 }, { x: 166, y: 228, w: 72, h: 236 }, { x: 362, y: 228, w: 72, h: 236 }] },
+    { key: 'hair-curly', slot: 'hair', label: '公主卷', box: { x: 146, y: 78, w: 308, h: 493 }, hit: [{ x: 220, y: 96, w: 160, h: 212 }, { x: 164, y: 228, w: 84, h: 336 }, { x: 352, y: 228, w: 84, h: 336 }] },
+    { key: 'hair-bob', slot: 'hair', label: '波波头', box: { x: 170, y: 70, w: 260, h: 295 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 160 }, { x: 320, y: 200, w: 104, h: 160 }] },
+    { key: 'hair-bob-ginger', slot: 'hair', label: '姜糖波波', box: { x: 170, y: 70, w: 260, h: 311 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 160 }, { x: 320, y: 200, w: 104, h: 160 }] },
+    { key: 'hair-wavy', slot: 'hair', label: '波浪长发', box: { x: 165, y: 70, w: 270, h: 478 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 168, y: 200, w: 96, h: 340 }, { x: 336, y: 200, w: 96, h: 340 }] },
+    { key: 'hair-wavy-black', slot: 'hair', label: '乌黑波浪', box: { x: 169, y: 66, w: 262, h: 498 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 169, y: 200, w: 95, h: 340 }, { x: 336, y: 200, w: 95, h: 340 }] },
+    { key: 'hair-pixie', slot: 'hair', label: '俏皮短发', box: { x: 174, y: 70, w: 252, h: 268 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 138 }, { x: 320, y: 200, w: 104, h: 138 }] },
+    { key: 'hair-pixie-blonde', slot: 'hair', label: '金色短发', box: { x: 172, y: 74, w: 256, h: 266 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 140 }, { x: 320, y: 200, w: 104, h: 140 }] },
+    { key: 'hair-twin-star', slot: 'hair', label: '星星双马尾', box: { x: 92, y: 70, w: 436, h: 456 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 100, y: 250, w: 108, h: 276 }, { x: 392, y: 250, w: 108, h: 276 }] },
+    { key: 'hair-pony', slot: 'hair', label: '高马尾', box: { x: 166, y: 66, w: 308, h: 490 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 166, y: 250, w: 42, h: 290 }, { x: 392, y: 250, w: 82, h: 290 }] },
+    { key: 'hair-pony-brown', slot: 'hair', label: '棕色马尾', box: { x: 126, y: 66, w: 308, h: 496 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 126, y: 250, w: 82, h: 290 }, { x: 392, y: 250, w: 42, h: 290 }] },
+    { key: 'hair-braid', slot: 'hair', label: '双麻花辫', box: { x: 154, y: 63, w: 292, h: 517 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 168, y: 270, w: 84, h: 280 }, { x: 348, y: 270, w: 84, h: 280 }] },
+    { key: 'hair-braid-plum', slot: 'hair', label: '紫麻花辫', box: { x: 159, y: 66, w: 282, h: 523 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 168, y: 270, w: 84, h: 280 }, { x: 348, y: 270, w: 84, h: 280 }] },
+    { key: 'hair-bun', slot: 'hair', label: '丸子头', box: { x: 164, y: 8, w: 272, h: 338 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 146 }, { x: 320, y: 200, w: 104, h: 146 }] },
+    { key: 'hair-bun-silver', slot: 'hair', label: '银灰丸子', box: { x: 166, y: 6, w: 268, h: 347 }, hit: [{ x: 186, y: 86, w: 228, h: 140 }, { x: 176, y: 200, w: 104, h: 153 }, { x: 320, y: 200, w: 104, h: 153 }] },
+    { key: 'hair-spacebun-pink', slot: 'hair', label: '粉色双丸子', box: { x: 154, y: 54, w: 292, h: 289 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 154, y: 250, w: 54, h: 93 }, { x: 392, y: 250, w: 54, h: 93 }] },
+    { key: 'hair-spacebun-mint', slot: 'hair', label: '薄荷双丸子', box: { x: 158, y: 52, w: 284, h: 288 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 158, y: 250, w: 50, h: 90 }, { x: 392, y: 250, w: 50, h: 90 }] },
+    { key: 'hair-halfup', slot: 'hair', label: '公主半扎发', box: { x: 167, y: 44, w: 266, h: 484 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 168, y: 200, w: 96, h: 328 }, { x: 336, y: 200, w: 96, h: 328 }] },
+    { key: 'hair-curls-honey', slot: 'hair', label: '蜂蜜卷', box: { x: 133, y: 63, w: 334, h: 506 }, hit: [{ x: 190, y: 88, w: 220, h: 130 }, { x: 168, y: 200, w: 96, h: 340 }, { x: 336, y: 200, w: 96, h: 340 }] },
+    { key: 'hat-straw', slot: 'hat', label: '草帽', box: { x: 148, y: 84, w: 304, h: 124 } },
+    { key: 'hat-bucket', slot: 'hat', label: '渔夫帽', box: { x: 158, y: 102, w: 284, h: 124 } },
+    { key: 'hat-crown', slot: 'hat', label: '皇冠', box: { x: 208, y: 43, w: 183, h: 147 } },
+    { key: 'hat-bow', slot: 'hat', label: '蝴蝶结发箍', box: { x: 180, y: 80, w: 213, h: 109 } },
+    { key: 'hat-beanie', slot: 'hat', label: '针织帽', box: { x: 194, y: 7, w: 212, h: 214 } },
+    { key: 'hat-beret', slot: 'hat', label: '贝雷帽', box: { x: 172, y: 70, w: 240, h: 150 } },
+    { key: 'hat-cap', slot: 'hat', label: '棒球帽', box: { x: 195, y: 69, w: 241, h: 184 } },
+    { key: 'hat-visor', slot: 'hat', label: '遮阳空顶帽', box: { x: 192, y: 150, w: 241, h: 100 } },
+    { key: 'hat-wizard', slot: 'hat', label: '巫师帽', box: { x: 163, y: 2, w: 274, h: 229 } },
+    { key: 'hat-party', slot: 'hat', label: '派对帽', box: { x: 223, y: 24, w: 154, h: 185 } },
+    { key: 'hat-cat', slot: 'hat', label: '猫耳发箍', box: { x: 181, y: 60, w: 238, h: 157 } },
+    { key: 'hat-bunny', slot: 'hat', label: '兔耳发箍', box: { x: 187, y: -7, w: 226, h: 222 } },
+    { key: 'hat-santa', slot: 'hat', label: '圣诞帽', box: { x: 191, y: 71, w: 281, h: 145 } },
+    { key: 'hat-flower', slot: 'hat', label: '花朵发箍', box: { x: 190, y: 80, w: 220, h: 128 } },
+    { key: 'hat-pirate', slot: 'hat', label: '海盗帽', box: { x: 175, y: 87, w: 250, h: 133 } },
+    { key: 'hat-chef', slot: 'hat', label: '厨师帽', box: { x: 187, y: 25, w: 226, h: 184 } },
+    { key: 'hat-cowboy', slot: 'hat', label: '牛仔帽', box: { x: 143, y: 84, w: 314, h: 153 } },
+    { key: 'hat-tiara', slot: 'hat', label: '小皇冠', box: { x: 215, y: 87, w: 170, h: 114 } },
+    { key: 'hat-lace-band', slot: 'hat', label: '蕾丝发带', box: { x: 181, y: 87, w: 238, h: 132 } },
+    { key: 'hat-veil', slot: 'hat', label: '新娘头纱', box: { x: 176, y: 116, w: 248, h: 306 } },
+    { key: 'eyes-star', slot: 'face', label: '星星眼', box: { x: 233, y: 172, w: 132, h: 89 } },
+    { key: 'eyes-heart', slot: 'face', label: '爱心眼', box: { x: 220, y: 164, w: 158, h: 102 } },
+    { key: 'glasses-round', slot: 'face', label: '圆框眼镜', box: { x: 180, y: 164, w: 237, h: 112 } },
+    { key: 'glasses-heart', slot: 'face', label: '爱心眼镜', box: { x: 177, y: 149, w: 242, h: 117 } },
+    { key: 'eyes-round', slot: 'face', label: '圆亮大眼', box: { x: 233, y: 181, w: 134, h: 82 } },
+    { key: 'eyes-blue', slot: 'face', label: '蓝色大眼', box: { x: 233, y: 181, w: 134, h: 82 } },
+    { key: 'eyes-green', slot: 'face', label: '绿色大眼', box: { x: 233, y: 181, w: 134, h: 82 } },
+    { key: 'eyes-closed', slot: 'face', label: '弯弯笑眼', box: { x: 230, y: 178, w: 140, h: 88 } },
+    { key: 'eyes-wink', slot: 'face', label: '俏皮眨眼', box: { x: 233, y: 181, w: 134, h: 82 } },
+    { key: 'eyes-lashes', slot: 'face', label: '长睫毛', box: { x: 225, y: 163, w: 148, h: 105 } },
+    { key: 'glasses-cat', slot: 'face', label: '猫眼墨镜', box: { x: 201, y: 171, w: 198, h: 98 } },
+    { key: 'glasses-star', slot: 'face', label: '星星墨镜', box: { x: 197, y: 173, w: 206, h: 93 } },
+    { key: 'glasses-oval', slot: 'face', label: '金丝眼镜', box: { x: 195, y: 180, w: 210, h: 84 } },
+    { key: 'glasses-mask', slot: 'face', label: '舞会面具', box: { x: 197, y: 158, w: 206, h: 120 } },
+    { key: 'lips-pink', slot: 'lip', cat: 'face', label: '粉粉唇', box: { x: 258, y: 230, w: 84, h: 64 } },
+    { key: 'lips-red', slot: 'lip', cat: 'face', label: '红唇', box: { x: 258, y: 230, w: 84, h: 66 } },
+    { key: 'lips-gloss', slot: 'lip', cat: 'face', label: '闪亮唇彩', box: { x: 260, y: 232, w: 80, h: 60 } },
+    { key: 'cheek-blush', slot: 'lip', cat: 'face', label: '红脸蛋', box: { x: 214, y: 223, w: 172, h: 54 } },
+    { key: 'cheek-freckles', slot: 'lip', cat: 'face', label: '小雀斑', box: { x: 219, y: 225, w: 162, h: 49 } },
+    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 99, y: 205, w: 374, h: 344 } },
+    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 40, y: 164, w: 530, h: 480 } },
+    { key: 'top-hoodie', slot: 'top', label: '连帽卫衣', box: { x: 96, y: 176, w: 400, h: 376 } },
+    { key: 'top-tank', slot: 'top', label: '小背心', box: { x: 134, y: 201, w: 331, h: 427 } },
+    { key: 'top-blouse', slot: 'top', label: '泡泡袖衬衫', box: { x: 37, y: 147, w: 483, h: 442 } },
+    { key: 'top-sailor', slot: 'top', label: '水手服', box: { x: 74, y: 180, w: 418, h: 394 } },
+    { key: 'top-plaid', slot: 'top', label: '格子衬衫', box: { x: 72, y: 179, w: 421, h: 506 } },
+    { key: 'top-sweater', slot: 'top', label: '针织毛衣', box: { x: 71, y: 177, w: 423, h: 510 } },
+    { key: 'top-turtle', slot: 'top', label: '高领毛衣', box: { x: 69, y: 176, w: 427, h: 512 } },
+    { key: 'top-puffer', slot: 'top', label: '羽绒服', box: { x: 24, y: 134, w: 509, h: 468 } },
+    { key: 'top-denim', slot: 'top', label: '牛仔外套', box: { x: 58, y: 165, w: 449, h: 534 } },
+    { key: 'top-lace', slot: 'top', label: '蕾丝上衣', box: { x: 67, y: 173, w: 432, h: 408 } },
+    { key: 'top-dot', slot: 'top', label: '波点衫', box: { x: 85, y: 191, w: 396, h: 372 } },
+    { key: 'top-heart', slot: 'top', label: '爱心衫', box: { x: 82, y: 188, w: 402, h: 378 } },
+    { key: 'top-kimono', slot: 'top', label: '和服上衣', box: { x: 40, y: 149, w: 477, h: 438 } },
+    { key: 'top-sport', slot: 'top', label: '运动衫', box: { x: 71, y: 177, w: 424, h: 400 } },
+    { key: 'top-rainbow', slot: 'top', label: '彩虹衫', box: { x: 85, y: 191, w: 396, h: 372 } },
+    { key: 'scarf-knit', slot: 'scarf', cat: 'top', label: '针织围巾', box: { x: 233, y: 266, w: 148, h: 133 } },
+    { key: 'scarf-silk', slot: 'scarf', cat: 'top', label: '小丝巾', box: { x: 240, y: 272, w: 120, h: 117 } },
+    { key: 'scarf-collar', slot: 'scarf', cat: 'top', label: '毛领', box: { x: 209, y: 279, w: 182, h: 90 } },
+    { key: 'bottom-skirt', slot: 'skirt', label: '短裙', box: { x: 177, y: 437, w: 246, h: 175 } },
+    { key: 'dress-princess', slot: 'skirt', label: '公主裙', box: { x: 176, y: 422, w: 248, h: 255 } },
+    { key: 'dress-tutu', slot: 'skirt', label: '芭蕾蓬蓬裙', box: { x: 198, y: 425, w: 204, h: 243 } },
+    { key: 'skirt-pleated', slot: 'skirt', label: '百褶裙', box: { x: 148, y: 425, w: 304, h: 214 } },
+    { key: 'skirt-denim', slot: 'skirt', label: '牛仔裙', box: { x: 175, y: 438, w: 250, h: 173 } },
+    { key: 'skirt-layered', slot: 'skirt', label: '蛋糕裙', box: { x: 167, y: 443, w: 266, h: 192 } },
+    { key: 'skirt-long', slot: 'skirt', label: '长裙', box: { x: 160, y: 445, w: 280, h: 256 } },
+    { key: 'dress-sundress', slot: 'skirt', label: '吊带连衣裙', box: { x: 118, y: 225, w: 330, h: 418 } },
+    { key: 'dress-mermaid', slot: 'skirt', label: '美人鱼裙', box: { x: 72, y: 178, w: 422, h: 518 } },
+    { key: 'dress-pinafore', slot: 'skirt', label: '背带裙', box: { x: 166, y: 384, w: 268, h: 235 } },
+    { key: 'dress-party', slot: 'skirt', label: '亮片礼服', box: { x: 42, y: 151, w: 473, h: 532 } },
+    { key: 'dress-lace', slot: 'skirt', label: '蕾丝长裙', box: { x: 56, y: 162, w: 454, h: 560 } },
+    { key: 'dress-rainbow', slot: 'skirt', label: '彩虹裙', box: { x: 77, y: 183, w: 412, h: 451 } },
+    { key: 'skirt-tulip', slot: 'skirt', label: '郁金香裙', box: { x: 225, y: 438, w: 150, h: 164 } },
+    { key: 'dress-flower', slot: 'skirt', label: '碎花裙', box: { x: 42, y: 151, w: 473, h: 470 } },
+    { key: 'dress-snow', slot: 'skirt', label: '冰雪裙', box: { x: 68, y: 174, w: 429, h: 525 } },
+    { key: 'skirt-star', slot: 'skirt', label: '星星纱裙', box: { x: 158, y: 445, w: 284, h: 189 } },
+    { key: 'belt-bow', slot: 'waist', cat: 'skirt', label: '蝴蝶结腰带', box: { x: 219, y: 429, w: 162, h: 82 } },
+    { key: 'belt-gold', slot: 'waist', cat: 'skirt', label: '金腰带', box: { x: 219, y: 428, w: 162, h: 85 } },
+    { key: 'belt-flower', slot: 'waist', cat: 'skirt', label: '花朵腰带', box: { x: 226, y: 453, w: 148, h: 57 } },
+    { key: 'bottom-shorts', slot: 'bottom', label: '短裤', box: { x: 211, y: 445, w: 178, h: 148 } },
+    { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 124, y: 376, w: 323, h: 448 } },
+    { key: 'bottom-jeans', slot: 'bottom', label: '牛仔裤', box: { x: 101, y: 348, w: 334, h: 514 } },
+    { key: 'bottom-leggings', slot: 'bottom', label: '打底裤', box: { x: 136, y: 384, w: 276, h: 450 } },
+    { key: 'bottom-cargo', slot: 'bottom', label: '工装裤', box: { x: 100, y: 347, w: 336, h: 516 } },
+    { key: 'bottom-overall', slot: 'bottom', label: '背带裤', box: { x: 105, y: 352, w: 326, h: 506 } },
+    { key: 'bottom-capri', slot: 'bottom', label: '七分裤', box: { x: 77, y: 321, w: 384, h: 528 } },
+    { key: 'bottom-flare', slot: 'bottom', label: '喇叭裤', box: { x: 179, y: 442, w: 239, h: 293 } },
+    { key: 'bottom-jogger', slot: 'bottom', label: '运动裤', box: { x: 98, y: 346, w: 340, h: 526 } },
+    { key: 'bottom-bloomer', slot: 'bottom', label: '灯笼裤', box: { x: 217, y: 451, w: 166, h: 204 } },
+    { key: 'bottom-pj', slot: 'bottom', label: '睡裤', box: { x: 65, y: 312, w: 406, h: 586 } },
+    { key: 'bottom-snow', slot: 'bottom', label: '雪地裤', box: { x: 81, y: 329, w: 372, h: 560 } },
+    { key: 'bottom-sweat', slot: 'bottom', label: '卫裤', box: { x: 99, y: 346, w: 338, h: 518 } },
+    { key: 'bottom-plaid', slot: 'bottom', label: '格子裤', box: { x: 38, y: 285, w: 460, h: 640 } },
+    { key: 'bottom-shorts-sport', slot: 'bottom', label: '运动短裤', box: { x: 106, y: 344, w: 332, h: 418 } },
+    { key: 'bottom-shorts-lace', slot: 'bottom', label: '蕾丝短裤', box: { x: 105, y: 343, w: 334, h: 416 } },
+    { key: 'bottom-culottes', slot: 'bottom', label: '阔腿裤', box: { x: 198, y: 442, w: 201, h: 267 } },
+    { key: 'bottom-heart', slot: 'bottom', label: '爱心裤', box: { x: 110, y: 357, w: 316, h: 496 } },
+    { key: 'bottom-shorts-denim', slot: 'bottom', label: '牛仔短裤', box: { x: 112, y: 349, w: 321, h: 398 } },
+    { key: 'bottom-pants-star', slot: 'bottom', label: '星星长裤', box: { x: 110, y: 357, w: 316, h: 496 } },
+    { key: 'shoes-sneaker', slot: 'shoes', label: '运动鞋', box: { x: 203, y: 673, w: 186, h: 104 } },
+    { key: 'shoes-sandal', slot: 'shoes', label: '凉鞋', box: { x: 211, y: 699, w: 173, h: 66 } },
+    { key: 'shoes-mary', slot: 'shoes', label: '玛丽珍鞋', box: { x: 201, y: 675, w: 196, h: 100 } },
+    { key: 'shoes-boot', slot: 'shoes', label: '小皮靴', box: { x: 205, y: 613, w: 188, h: 160 } },
+    { key: 'shoes-rain', slot: 'shoes', label: '雨靴', box: { x: 212, y: 634, w: 176, h: 136 } },
+    { key: 'shoes-ballet', slot: 'shoes', label: '芭蕾舞鞋', box: { x: 205, y: 682, w: 189, h: 91 } },
+    { key: 'shoes-slipper', slot: 'shoes', label: '小兔拖鞋', box: { x: 210, y: 654, w: 179, h: 115 } },
+    { key: 'shoes-jelly', slot: 'shoes', label: '果冻凉鞋', box: { x: 209, y: 691, w: 182, h: 82 } },
+    { key: 'shoes-glass', slot: 'shoes', label: '水晶鞋', box: { x: 219, y: 692, w: 166, h: 67 } },
+    { key: 'shoes-cowboy', slot: 'shoes', label: '牛仔靴', box: { x: 208, y: 622, w: 186, h: 147 } },
+    { key: 'shoes-snow', slot: 'shoes', label: '雪地靴', box: { x: 201, y: 633, w: 196, h: 142 } },
+    { key: 'shoes-flip', slot: 'shoes', label: '人字拖', box: { x: 213, y: 697, w: 172, h: 74 } },
+    { key: 'shoes-sport', slot: 'shoes', label: '跑鞋', box: { x: 195, y: 671, w: 208, h: 109 } },
+    { key: 'shoes-platform', slot: 'shoes', label: '厚底鞋', box: { x: 208, y: 683, w: 180, h: 96 } },
+    { key: 'shoes-ice', slot: 'shoes', label: '滑冰鞋', box: { x: 194, y: 608, w: 205, h: 172 } },
+    { key: 'shoes-roller', slot: 'shoes', label: '轮滑鞋', box: { x: 202, y: 622, w: 182, h: 156 } },
+    { key: 'socks-white', slot: 'leg', cat: 'shoes', label: '白色长袜', box: { x: 144, y: 505, w: 263, h: 324 } },
+    { key: 'socks-stripe', slot: 'leg', cat: 'shoes', label: '条纹长袜', box: { x: 103, y: 460, w: 343, h: 410 } },
+    { key: 'socks-knee', slot: 'leg', cat: 'shoes', label: '薄荷长袜', box: { x: 139, y: 482, w: 271, h: 352 } },
+    { key: 'socks-star', slot: 'leg', cat: 'shoes', label: '星星长袜', box: { x: 143, y: 496, w: 263, h: 334 } },
+    { key: 'neck-pearl', slot: 'neck', cat: 'accessory', label: '珍珠项链', box: { x: 245, y: 277, w: 110, h: 86 } },
+    { key: 'neck-heart', slot: 'neck', cat: 'accessory', label: '爱心项链', box: { x: 251, y: 283, w: 98, h: 96 } },
+    { key: 'neck-flower', slot: 'neck', cat: 'accessory', label: '花朵项链', box: { x: 253, y: 285, w: 94, h: 94 } },
+    { key: 'neck-bow', slot: 'neck', cat: 'accessory', label: '蝴蝶结项圈', box: { x: 248, y: 282, w: 104, h: 68 } },
+    { key: 'ear-star', slot: 'ear', cat: 'accessory', label: '星星耳钉', box: { x: 209, y: 198, w: 182, h: 46 } },
+    { key: 'ear-hoop', slot: 'ear', cat: 'accessory', label: '圆环耳环', box: { x: 201, y: 200, w: 195, h: 64 } },
+    { key: 'ear-flower', slot: 'ear', cat: 'accessory', label: '花朵耳夹', box: { x: 206, y: 198, w: 188, h: 58 } },
+    { key: 'hand-balloon', slot: 'hand', cat: 'accessory', label: '小气球', box: { x: 345, y: 323, w: 110, h: 228 } },
+    { key: 'hand-umbrella', slot: 'hand', cat: 'accessory', label: '小雨伞', box: { x: 316, y: 372, w: 168, h: 189 } },
+    { key: 'hand-bag', slot: 'hand', cat: 'accessory', label: '小手提包', box: { x: 354, y: 526, w: 109, h: 143 } },
+    { key: 'hand-teddy', slot: 'hand', cat: 'accessory', label: '泰迪熊', box: { x: 329, y: 523, w: 134, h: 192 } },
+    { key: 'hand-bouquet', slot: 'hand', cat: 'accessory', label: '花束', box: { x: 349, y: 500, w: 102, h: 156 } },
+    { key: 'pet-cat', slot: 'pet', cat: 'accessory', label: '小猫咪', box: { x: 396, y: 539, w: 144, h: 221 } },
+    { key: 'pet-puppy', slot: 'pet', cat: 'accessory', label: '小狗', box: { x: 385, y: 561, w: 169, h: 201 } },
+    { key: 'pet-duck', slot: 'pet', cat: 'accessory', label: '小鸭子', box: { x: 388, y: 567, w: 140, h: 181 } },
+    { key: 'pet-bunny', slot: 'pet', cat: 'accessory', label: '小兔子', box: { x: 396, y: 533, w: 134, h: 227 } },
+    { key: 'back-wings', slot: 'back', cat: 'accessory', label: '天使翅膀', box: { x: 96, y: 291, w: 405, h: 202 } },
+    { key: 'back-cape', slot: 'back', cat: 'accessory', label: '红披风', box: { x: 183, y: 269, w: 234, h: 362 } },
+    { key: 'back-bag', slot: 'back', cat: 'accessory', label: '双肩包', box: { x: 200, y: 298, w: 200, h: 192 } },
+    { key: 'waist-sash', slot: 'waist', cat: 'accessory', label: '丝带腰带', box: { x: 219, y: 453, w: 162, h: 91 } },
+    { key: 'waist-bow', slot: 'waist', cat: 'accessory', label: '蝴蝶结腰饰', box: { x: 238, y: 432, w: 124, h: 106 } },
+    { key: 'beach-sunnies', slot: 'face', scene: 'beach', label: '沙滩太阳镜', box: { x: 177, y: 161, w: 243, h: 118 } },
+    { key: 'beach-necklace', slot: 'neck', cat: 'accessory', scene: 'beach', label: '贝壳项链', box: { x: 237, y: 269, w: 126, h: 146 } },
+    { key: 'beach-ring', slot: 'waist', cat: 'accessory', scene: 'beach', label: '泳圈', box: { x: 207, y: 409, w: 186, h: 204 } },
+    { key: 'palace-cape', slot: 'back', cat: 'accessory', scene: 'palace', label: '公主披风', box: { x: 153, y: 263, w: 294, h: 464 } },
+    { key: 'palace-wand', slot: 'hand', cat: 'accessory', scene: 'palace', label: '魔法权杖', box: { x: 353, y: 385, w: 129, h: 196 } },
+    { key: 'palace-earrings', slot: 'ear', cat: 'accessory', scene: 'palace', label: '珍珠耳环', box: { x: 207, y: 203, w: 183, h: 73 } },
+    { key: 'palace-necklace', slot: 'neck', cat: 'accessory', scene: 'palace', label: '宝石项链', box: { x: 248, y: 280, w: 104, h: 133 } },
+    { key: 'forest-flowercrown', slot: 'hat', scene: 'forest', label: '花环', box: { x: 195, y: 87, w: 210, h: 84 } },
+    { key: 'forest-backpack', slot: 'back', cat: 'accessory', scene: 'forest', label: '小背包', box: { x: 171, y: 295, w: 255, h: 282 } },
+    { key: 'forest-squirrel', slot: 'pet', cat: 'accessory', scene: 'forest', label: '小松鼠', box: { x: 361, y: 506, w: 199, h: 240 } },
+    { key: 'forest-basket', slot: 'hand', cat: 'accessory', scene: 'forest', label: '小篮子', box: { x: 163, y: 526, w: 132, h: 161 } },
+  ];
+  // <<< GEN:ITEMS <<<
 
   const SCENES_DATA = [
     {
@@ -614,12 +754,25 @@
 
     preload() {
       const tip = this.add.text(WIDTH / 2, HEIGHT / 2, '加载中…', textStyle(IS_PORTRAIT ? 24 : 20, '#a0708c', true)).setOrigin(0.5);
+      const barW = Math.min(WIDTH * 0.62, 460);
+      const bar = this.add.graphics().setDepth(4);
+      const drawBar = (progress) => {
+        bar.clear();
+        bar.fillStyle(0xffffff, 0.95).fillRoundedRect((WIDTH - barW) / 2, HEIGHT / 2 + 14, barW, 22, 11);
+        bar.fillStyle(0xff8fb3, 1).fillRoundedRect((WIDTH - barW) / 2 + 3, HEIGHT / 2 + 17, Math.max(8, (barW - 6) * progress), 16, 8);
+      };
+      drawBar(0);
+      this.load.on('progress', (progress) => drawBar(progress));
       this.load.once('complete', function () {
         tip.destroy();
+        bar.destroy();
       });
       this.load.svg('doll-body', DIR + 'body.svg', { width: DOLL_W, height: DOLL_H });
       ITEMS.forEach((item) => {
-        this.load.svg(item.key, DIR + item.key + '.svg', { width: DOLL_W, height: DOLL_H });
+        this.load.svg(item.key, DIR + item.key + '.svg', {
+          width: Math.round(item.box.w * TEX_SCALE),
+          height: Math.round(item.box.h * TEX_SCALE),
+        });
       });
     }
 
@@ -836,7 +989,8 @@
       const items = ITEMS.filter((item) => itemCat(item) === key && (!item.scene || item.scene === this.sceneKey));
       const step = LAYOUT.slotW + LAYOUT.gap;
       const totalW = items.length * step - LAYOUT.gap;
-      const startX = Math.round((WIDTH - totalW) / 2);
+      const pad = IS_PORTRAIT ? 16 : 24;
+      const startX = totalW + pad * 2 <= WIDTH ? Math.round((WIDTH - totalW) / 2) : pad;
       const slotY = this.itemTop;
       items.forEach((def, index) => {
         def.slotX = startX + index * step;
@@ -847,19 +1001,16 @@
         plate.lineStyle(3, 0xffc9e0, 1).strokeRoundedRect(def.slotX, slotY, LAYOUT.slotW, LAYOUT.slotH, 18);
         this.itemLayer.add(plate);
 
-        const fit = Math.min((LAYOUT.slotW - 14) / def.box.w, (LAYOUT.slotH - 18) / def.box.h);
+        const fit = Math.min((LAYOUT.slotW - 14) / def.box.w, (LAYOUT.slotH - 18) / def.box.h) / TEX_SCALE;
         def.thumbScale = fit;
-        def.thumbX = def.slotX + (LAYOUT.slotW - def.box.w * fit) / 2 - def.box.x * fit;
-        def.thumbY = slotY + (LAYOUT.slotH - def.box.h * fit) / 2 - def.box.y * fit;
-        const img = this.add.image(def.thumbX, def.thumbY, def.key).setOrigin(0, 0).setScale(fit);
-        img.setCrop(def.box.x, def.box.y, def.box.w, def.box.h);
+        const img = this.add.image(def.slotCenterX, def.slotCenterY, def.key).setOrigin(0.5).setScale(fit);
         this.makeGrabbable(img, def, false);
         this.itemLayer.add(img);
         this.thumbByKey[def.key] = img;
       });
 
       this.currentItems = items;
-      this.trayOffsetMax = Math.max(0, startX + totalW + 14 - WIDTH);
+      this.trayOffsetMax = Math.max(0, totalW + pad * 2 - WIDTH);
       this.refreshTabs();
       this.refreshArrows();
       this.refreshWornMarks();
@@ -962,10 +1113,12 @@
 
     makeGrabbable(img, def, fromWorn) {
       const box = def.box;
-      const area = new Phaser.Geom.Rectangle(box.x, box.y, box.w, box.h);
+      const area = new Phaser.Geom.Rectangle(0, 0, box.w * TEX_SCALE, box.h * TEX_SCALE);
       let callback = Phaser.Geom.Rectangle.Contains;
       if (fromWorn && def.hit) {
-        const rects = def.hit.map((r) => new Phaser.Geom.Rectangle(r.x, r.y, r.w, r.h));
+        const rects = def.hit.map((r) => new Phaser.Geom.Rectangle(
+          (r.x - box.x) * TEX_SCALE, (r.y - box.y) * TEX_SCALE, r.w * TEX_SCALE, r.h * TEX_SCALE
+        ));
         callback = function (hitArea, x, y) {
           return rects.some((r) => Phaser.Geom.Rectangle.Contains(r, x, y));
         };
@@ -1042,10 +1195,8 @@
 
     beginPickup(d, pointer) {
       d.mode = 'pickup';
-      const scale = this.scaleDoll * 1.15;
-      const box = d.def.box;
-      const ghost = this.add.image(0, 0, d.def.key).setOrigin(0, 0).setScale(scale).setDepth(30);
-      ghost.setCrop(Math.max(0, box.x - 8), Math.max(0, box.y - 8), box.w + 16, box.h + 16);
+      const scale = (this.scaleDoll * 1.15) / TEX_SCALE;
+      const ghost = this.add.image(0, 0, d.def.key).setOrigin(0.5).setScale(scale).setDepth(30);
       d.ghost = { image: ghost, scale: scale };
       if (d.wornImage) d.wornImage.setVisible(false);
       else this.setThumbDim(d.def.key, true);
@@ -1056,9 +1207,8 @@
     moveGhost(d, pointer) {
       const g = d.ghost;
       if (!g) return;
-      const box = d.def.box;
-      g.image.x = pointer.x - (box.x + box.w / 2) * g.scale;
-      g.image.y = pointer.y - LAYOUT.lift - (box.y + box.h / 2) * g.scale;
+      g.image.x = pointer.x;
+      g.image.y = pointer.y - LAYOUT.lift;
     }
 
     onPointerUp(pointer) {
@@ -1115,15 +1265,16 @@
       const box = def.box;
       const cx = box.x + box.w / 2;
       const cy = box.y + box.h / 2;
-      const img = this.add.image(cx, cy, def.key).setOrigin(cx / DOLL_W, cy / DOLL_H);
+      const base = 1 / TEX_SCALE;
+      const img = this.add.image(cx, cy, def.key).setOrigin(0.5);
       img.setDepth(SLOT_DEPTH[slot]);
-      img.setScale(0.9).setAlpha(0.7);
+      img.setScale(base * 0.9).setAlpha(0.7);
       this.makeGrabbable(img, def, true);
       const layer = SLOT_BEHIND[slot] ? this.backLayer : this.wornLayer;
       layer.add(img);
       layer.sort('depth');
       this.equipped[slot] = { key: def.key, def: def, image: img };
-      this.tweens.add({ targets: img, scaleX: 1, scaleY: 1, alpha: 1, duration: 280, ease: 'Back.Out' });
+      this.tweens.add({ targets: img, scaleX: base, scaleY: base, alpha: 1, duration: 280, ease: 'Back.Out' });
       this.setThumbDim(def.key, true);
       this.sparkle(cx, cy);
       SoundFX[replaced ? 'swap' : 'wear']();
@@ -1139,8 +1290,8 @@
       this.tweens.add({
         targets: img,
         alpha: 0,
-        scaleX: 0.78,
-        scaleY: 0.78,
+        scaleX: img.scaleX * 0.78,
+        scaleY: img.scaleY * 0.78,
         duration: 190,
         ease: 'Sine.In',
         onComplete: () => img.destroy(),
@@ -1148,7 +1299,8 @@
     }
 
     popImage(img) {
-      this.tweens.add({ targets: img, scaleX: 1.08, scaleY: 1.08, duration: 110, yoyo: true, ease: 'Sine.InOut' });
+      const base = 1 / TEX_SCALE;
+      this.tweens.add({ targets: img, scaleX: base * 1.08, scaleY: base * 1.08, duration: 110, yoyo: true, ease: 'Sine.InOut' });
     }
 
     setThumbDim(key, dim) {
@@ -1181,19 +1333,17 @@
     flyBackToTray(d, ghost) {
       const def = d.def;
       const fit = def.thumbScale;
-      const box = def.box;
       const targetCenterX = def.slotCenterX - this.trayOffset;
-      const targetCenterY = def.thumbY + (box.y + box.h / 2) * fit;
-      const img = this.add.image(0, 0, def.key).setOrigin(0, 0).setDepth(31);
-      img.setCrop(box.x, box.y, box.w, box.h);
+      const targetCenterY = def.slotCenterY;
+      const img = this.add.image(0, 0, def.key).setOrigin(0.5).setDepth(31);
       img.setScale(ghost ? ghost.scale : fit);
       img.setPosition(ghost ? ghost.image.x : targetCenterX, ghost ? ghost.image.y : targetCenterY);
       this.tweens.add({
         targets: img,
         scaleX: fit,
         scaleY: fit,
-        x: targetCenterX - (box.x + box.w / 2) * fit,
-        y: targetCenterY - (box.y + box.h / 2) * fit,
+        x: targetCenterX,
+        y: targetCenterY,
         duration: 260,
         ease: 'Cubic.In',
         onComplete: () => {

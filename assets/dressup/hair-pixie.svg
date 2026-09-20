@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="252" height="268" viewBox="174 70 252 268">
+  <defs><mask id="faceMask" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900"><rect x="0" y="0" width="600" height="900" fill="#ffffff"/><ellipse cx="300" cy="212" rx="70" ry="76" fill="#000000"/><ellipse cx="300" cy="300" rx="52" ry="50" fill="#000000"/><circle cx="233" cy="218" r="15" fill="#000000"/><circle cx="367" cy="218" r="15" fill="#000000"/></mask></defs>
+  <g mask="url(#faceMask)"><ellipse cx="300" cy="208" rx="114" ry="118" fill="#2b2230"/><path d="M240 194 C206 220 186 262 192 300 C198 296 216 310 236 298 C248 286 246 240 252 216 C254 204 248 194 240 194 Z" fill="#2b2230"/><path d="M360 194 C394 220 414 262 408 300 C402 296 384 310 364 298 C352 286 354 240 348 216 C346 204 352 194 360 194 Z" fill="#2b2230"/></g>
+  <path d="M224 210 C218 132 248 88 300 88 C352 88 382 132 376 210 C370 192 346 166 318 162 C330 198 270 198 282 162 C254 166 230 192 224 210 Z" fill="#2b2230"/>
+  <path d="M270 100 L258 82 L282 92 Z" fill="#2b2230"/>
+  <path d="M332 104 L344 86 L320 94 Z" fill="#2b2230"/>
+</svg>

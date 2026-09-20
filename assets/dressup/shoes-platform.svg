@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="96" viewBox="208 683 180 96">
+  <path d="M236 730 C236 712 274 704 294 720 L294 730 Z" fill="#3a3f4a" stroke="#22262e" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M304 730 C304 712 342 704 362 720 L362 730 Z" fill="#3a3f4a" stroke="#22262e" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="234" y="730" width="64" height="26" fill="#f2f4f8" rx="10" stroke="#9aa2ae" stroke-width="5"/>
+  <rect x="302" y="730" width="64" height="26" fill="#f2f4f8" rx="10" stroke="#9aa2ae" stroke-width="5"/>
+  <path d="M242 720 L288 720" fill="none" stroke="#ffd75e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M310 720 L356 720" fill="none" stroke="#ffd75e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M268 704L270.7 710.28L277.51 710.91L272.37 715.42L273.88 722.09L268 718.6L262.12 722.09L263.63 715.42L258.49 710.91L265.3 710.28 Z" fill="#ff9ecb"/>
+  <path d="M336 704L338.7 710.28L345.51 710.91L340.37 715.42L341.88 722.09L336 718.6L330.12 722.09L331.63 715.42L326.49 710.91L333.3 710.28 Z" fill="#ff9ecb"/>
+</svg>

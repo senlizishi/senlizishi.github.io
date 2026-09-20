@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="166" height="67" viewBox="219 692 166 67">
+  <path d="M240 736 C240 714 270 706 292 720 C300 728 292 738 274 738 Z" fill="#cfeaff" opacity="0.9"/>
+  <path d="M308 736 C308 714 338 706 360 720 C368 728 360 738 342 738 Z" fill="#cfeaff" opacity="0.9"/>
+  <path d="M292 732 C292 720 272 706 240 736" fill="none" stroke="#9fc9e8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M360 732 C360 720 340 706 308 736" fill="none" stroke="#9fc9e8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M260 715L262.43 720.65L268.56 721.22L263.94 725.28L265.29 731.28L260 728.14L254.71 731.28L256.06 725.28L251.44 721.22L257.57 720.65 Z" fill="#ffffff"/>
+  <path d="M328 715L330.43 720.65L336.56 721.22L331.94 725.28L333.29 731.28L328 728.14L322.71 731.28L324.06 725.28L319.44 721.22L325.57 720.65 Z" fill="#ffffff"/>
+  <rect x="240" y="734" width="52" height="8" fill="#9fc9e8" rx="4" stroke="#9fc9e8" stroke-width="5"/>
+  <rect x="308" y="734" width="52" height="8" fill="#9fc9e8" rx="4" stroke="#9fc9e8" stroke-width="5"/>
+</svg>

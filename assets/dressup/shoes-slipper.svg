@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="179" height="115" viewBox="210 654 179 115">
+  <path d="M236 742 C230 712 300 704 298 734 C298 744 240 746 236 742 Z" fill="#ffffff" stroke="#e0c9e8" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M304 742 C298 712 368 704 366 734 C366 744 308 746 304 742 Z" fill="#ffffff" stroke="#e0c9e8" stroke-width="5" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="696" rx="9" ry="22" fill="#ffffff" stroke="#e0c9e8" stroke-width="4"/>
+  <ellipse cx="324" cy="696" rx="9" ry="22" fill="#ffffff" stroke="#e0c9e8" stroke-width="4"/>
+  <ellipse cx="272" cy="694" rx="9" ry="22" fill="#ffffff" stroke="#e0c9e8" stroke-width="4"/>
+  <ellipse cx="340" cy="694" rx="9" ry="22" fill="#ffffff" stroke="#e0c9e8" stroke-width="4"/>
+  <circle cx="254" cy="722" r="4" fill="#3c2f3a"/>
+  <circle cx="322" cy="722" r="4" fill="#3c2f3a"/>
+  <circle cx="274" cy="720" r="4" fill="#3c2f3a"/>
+  <circle cx="342" cy="720" r="4" fill="#3c2f3a"/>
+  <path d="M264 737.95 C254.55 730.6 260.15 724.3 264 729.76 C267.85 724.3 273.45 730.6 264 737.95 Z" fill="#ff9ecb"/>
+  <path d="M332 737.95 C322.55 730.6 328.15 724.3 332 729.76 C335.85 724.3 341.45 730.6 332 737.95 Z" fill="#ff9ecb"/>
+</svg>
