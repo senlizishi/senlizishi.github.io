@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
-  <ellipse cx="300" cy="152" rx="152" ry="46" fill="#ffe08a"/>
-  <ellipse cx="300" cy="152" rx="152" ry="46" fill="none" stroke="#dfae3c" stroke-width="6"/>
-  <path d="M228 152 C228 104 372 104 372 152 Z" fill="#fff2c4" stroke="#dfae3c" stroke-width="6" stroke-linejoin="round"/>
-  <ellipse cx="300" cy="152" rx="118" ry="30" fill="none" stroke="#dfae3c" stroke-width="4" opacity="0.55"/>
-  <path d="M230 140 C264 154 336 154 370 140 L372 156 C336 170 264 170 228 156 Z" fill="#ff8fb3"/>
+  <ellipse cx="300" cy="146" rx="132" ry="42" fill="#ffe08a"/>
+  <ellipse cx="300" cy="146" rx="132" ry="42" fill="none" stroke="#dfae3c" stroke-width="6"/>
+  <path d="M228 146 C228 100 372 100 372 146 Z" fill="#fff2c4" stroke="#dfae3c" stroke-width="6" stroke-linejoin="round"/>
+  <ellipse cx="300" cy="146" rx="102" ry="27" fill="none" stroke="#dfae3c" stroke-width="4" opacity="0.55"/>
+  <path d="M236 134 C268 148 332 148 364 134 L366 150 C332 164 268 164 234 150 Z" fill="#ff8fb3"/>
 </svg>

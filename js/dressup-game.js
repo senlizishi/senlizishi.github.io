@@ -42,29 +42,41 @@
 
   const TRAY_TOP = HEIGHT - LAYOUT.trayH;
 
-  const SLOT_DEPTH = { bottom: 2, top: 3, shoes: 4, glasses: 7, hat: 8 };
+  const SLOT_DEPTH = { bottom: 2, skirt: 2.5, top: 3, shoes: 4, hair: 5, face: 7, hat: 8 };
 
   const CATEGORIES = [
     { slot: 'hat', label: '帽子' },
-    { slot: 'glasses', label: '眼镜' },
+    { slot: 'hair', label: '发型' },
+    { slot: 'face', label: '脸部' },
     { slot: 'top', label: '上衣' },
+    { slot: 'skirt', label: '裙子' },
     { slot: 'bottom', label: '裤子' },
     { slot: 'shoes', label: '鞋子' },
   ];
 
   const ITEMS = [
-    { key: 'hat-straw', slot: 'hat', label: '草帽', box: { x: 146, y: 104, w: 308, h: 100 } },
+    { key: 'hat-straw', slot: 'hat', label: '草帽', box: { x: 166, y: 102, w: 268, h: 90 } },
     { key: 'hat-bucket', slot: 'hat', label: '渔夫帽', box: { x: 172, y: 104, w: 256, h: 110 } },
     { key: 'hat-crown', slot: 'hat', label: '皇冠', box: { x: 218, y: 54, w: 164, h: 122 } },
     { key: 'hat-bow', slot: 'hat', label: '蝴蝶结', box: { x: 194, y: 94, w: 186, h: 80 } },
-    { key: 'glasses-round', slot: 'glasses', label: '圆框墨镜', box: { x: 206, y: 180, w: 190, h: 80 } },
-    { key: 'glasses-heart', slot: 'glasses', label: '爱心墨镜', box: { x: 206, y: 174, w: 190, h: 78 } },
-    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 174, y: 256, w: 264, h: 262 } },
-    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 174, y: 256, w: 264, h: 262 } },
-    { key: 'top-hoodie', slot: 'top', label: '连帽卫衣', box: { x: 174, y: 256, w: 264, h: 262 } },
-    { key: 'bottom-shorts', slot: 'bottom', label: '短裤', box: { x: 230, y: 460, w: 140, h: 106 } },
-    { key: 'bottom-skirt', slot: 'bottom', label: '短裙', box: { x: 194, y: 454, w: 212, h: 148 } },
-    { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 228, y: 460, w: 144, h: 238 } },
+    { key: 'hair-long', slot: 'hair', label: '长直发', box: { x: 184, y: 92, w: 232, h: 464 },
+      hit: [{ x: 220, y: 94, w: 160, h: 214 }, { x: 180, y: 236, w: 76, h: 324 }, { x: 344, y: 236, w: 76, h: 324 }] },
+    { key: 'hair-twin', slot: 'hair', label: '双马尾', box: { x: 162, y: 94, w: 276, h: 376 },
+      hit: [{ x: 220, y: 96, w: 160, h: 216 }, { x: 166, y: 228, w: 72, h: 236 }, { x: 362, y: 228, w: 72, h: 236 }] },
+    { key: 'hair-curly', slot: 'hair', label: '公主卷', box: { x: 166, y: 88, w: 268, h: 478 },
+      hit: [{ x: 220, y: 96, w: 160, h: 212 }, { x: 164, y: 228, w: 84, h: 336 }, { x: 352, y: 228, w: 84, h: 336 }] },
+    { key: 'eyes-star', slot: 'face', label: '星星眼', box: { x: 246, y: 178, w: 108, h: 68 } },
+    { key: 'eyes-heart', slot: 'face', label: '爱心眼', box: { x: 240, y: 172, w: 120, h: 74 } },
+    { key: 'glasses-round', slot: 'face', label: '圆框墨镜', box: { x: 206, y: 180, w: 190, h: 80 } },
+    { key: 'glasses-heart', slot: 'face', label: '爱心墨镜', box: { x: 209, y: 177, w: 182, h: 64 } },
+    { key: 'top-tee', slot: 'top', label: 'T恤', box: { x: 192, y: 288, w: 216, h: 230 } },
+    { key: 'top-stripe', slot: 'top', label: '条纹衫', box: { x: 192, y: 288, w: 216, h: 230 } },
+    { key: 'top-hoodie', slot: 'top', label: '连帽卫衣', box: { x: 192, y: 288, w: 216, h: 230 } },
+    { key: 'bottom-skirt', slot: 'skirt', label: '短裙', box: { x: 194, y: 454, w: 212, h: 148 } },
+    { key: 'dress-princess', slot: 'skirt', label: '公主裙', box: { x: 190, y: 432, w: 220, h: 222 } },
+    { key: 'dress-tutu', slot: 'skirt', label: '蓬蓬裙', box: { x: 202, y: 432, w: 196, h: 222 } },
+    { key: 'bottom-shorts', slot: 'bottom', label: '短裤', box: { x: 234, y: 468, w: 132, h: 102 } },
+    { key: 'bottom-pants', slot: 'bottom', label: '长裤', box: { x: 232, y: 466, w: 136, h: 226 } },
     { key: 'shoes-sneaker', slot: 'shoes', label: '运动鞋', box: { x: 222, y: 694, w: 158, h: 62 } },
     { key: 'shoes-sandal', slot: 'shoes', label: '凉鞋', box: { x: 228, y: 718, w: 148, h: 36 } },
   ];
@@ -487,12 +499,36 @@
     top: [[-0.34, -0.5], [0.34, -0.5], [0.8, -0.16], [0.58, 0.1], [0.46, -0.02], [0.46, 0.56], [-0.46, 0.56], [-0.46, -0.02], [-0.58, 0.1], [-0.8, -0.16]],
     bottom: [[-0.42, -0.52], [0.42, -0.52], [0.56, 0.56], [0.16, 0.56], [0, 0.06], [-0.16, 0.56], [-0.56, 0.56]],
     shoes: [[-0.6, 0.34], [-0.52, -0.16], [-0.08, -0.34], [0.26, 0.0], [0.62, 0.14], [0.62, 0.34]],
+    skirt: [[-0.42, -0.52], [0.42, -0.52], [0.9, 0.54], [-0.9, 0.54]],
   };
 
   function drawSlotIcon(g, slot, cx, cy, s, color) {
     if (slot === 'hat') {
       g.fillStyle(color, 1).fillEllipse(cx, cy + s * 0.42, s * 2.1, s * 0.52);
       g.fillEllipse(cx, cy - s * 0.12, s * 1.16, s * 1);
+      return;
+    }
+    if (slot === 'hair') {
+      g.fillStyle(color, 1);
+      g.beginPath();
+      g.arc(cx, cy - s * 0.08, s * 0.84, Math.PI, Math.PI * 2, false);
+      g.closePath();
+      g.fillPath();
+      g.fillRoundedRect(cx - s * 0.86, cy - s * 0.14, s * 0.32, s * 1.02, s * 0.16);
+      g.fillRoundedRect(cx + s * 0.54, cy - s * 0.14, s * 0.32, s * 1.02, s * 0.16);
+      return;
+    }
+    if (slot === 'face') {
+      g.fillStyle(color, 1);
+      g.fillEllipse(cx - s * 0.46, cy + s * 0.14, s * 0.66, s * 0.86);
+      g.fillEllipse(cx + s * 0.46, cy + s * 0.14, s * 0.66, s * 0.86);
+      g.lineStyle(Math.max(2, s * 0.22), color, 1);
+      g.beginPath();
+      g.arc(cx - s * 0.46, cy - s * 0.16, s * 0.44, Math.PI * 1.18, Math.PI * 1.82, false);
+      g.strokePath();
+      g.beginPath();
+      g.arc(cx + s * 0.46, cy - s * 0.16, s * 0.44, Math.PI * 1.18, Math.PI * 1.82, false);
+      g.strokePath();
       return;
     }
     if (slot === 'glasses') {
@@ -727,12 +763,12 @@
       const tabH = LAYOUT.tabH;
       const gap = LAYOUT.tabGap;
       const count = CATEGORIES.length;
-      const tabW = Math.min(IS_PORTRAIT ? 100 : 124, Math.floor((WIDTH - 20 - (count - 1) * gap) / count));
+      const tabW = Math.min(IS_PORTRAIT ? 70 : 112, Math.floor((WIDTH - 20 - (count - 1) * gap) / count));
       const totalW = count * tabW + (count - 1) * gap;
       const startX = Math.round((WIDTH - totalW) / 2);
       const top = TRAY_TOP + (IS_PORTRAIT ? 8 : 6);
       const iconSize = tabH * 0.3;
-      const iconGap = IS_PORTRAIT ? 6 : 5;
+      const iconGap = 4;
       this.tabs = {};
       CATEGORIES.forEach((cat, index) => {
         const cx = startX + index * (tabW + gap) + tabW / 2;
@@ -742,7 +778,7 @@
         btn.add(bg);
         const icon = this.add.graphics();
         btn.add(icon);
-        const label = this.add.text(0, 0, cat.label, textStyle(IS_PORTRAIT ? 15 : 13, '#9a6b84', true)).setOrigin(0, 0.5);
+        const label = this.add.text(0, 0, cat.label, textStyle(13, '#9a6b84', true)).setOrigin(0, 0.5);
         btn.add(label);
         const dot = this.add.graphics();
         btn.add(dot);
@@ -787,8 +823,7 @@
         def.thumbY = slotY + (LAYOUT.slotH - def.box.h * fit) / 2 - def.box.y * fit;
         const img = this.add.image(def.thumbX, def.thumbY, def.key).setOrigin(0, 0).setScale(fit);
         img.setCrop(def.box.x, def.box.y, def.box.w, def.box.h);
-        img.setInteractive(new Phaser.Geom.Rectangle(def.box.x, def.box.y, def.box.w, def.box.h), Phaser.Geom.Rectangle.Contains);
-        img.on('pointerdown', (pointer) => this.onGrab(def, pointer, false));
+        this.makeGrabbable(img, def, false);
         this.itemLayer.add(img);
         this.thumbByKey[def.key] = img;
       });
@@ -892,6 +927,21 @@
       hit.on('pointerout', stop);
       hit.on('pointerupoutside', stop);
       return { container: btn, hit: hit };
+    }
+
+    makeGrabbable(img, def, fromWorn) {
+      const box = def.box;
+      const area = new Phaser.Geom.Rectangle(box.x, box.y, box.w, box.h);
+      let callback = Phaser.Geom.Rectangle.Contains;
+      if (fromWorn && def.hit) {
+        const rects = def.hit.map((r) => new Phaser.Geom.Rectangle(r.x, r.y, r.w, r.h));
+        callback = function (hitArea, x, y) {
+          return rects.some((r) => Phaser.Geom.Rectangle.Contains(r, x, y));
+        };
+      }
+      img.setInteractive(area, callback);
+      img.on('pointerdown', (pointer) => this.onGrab(def, pointer, fromWorn));
+      return img;
     }
 
     buildTopButtons() {
@@ -1037,8 +1087,7 @@
       const img = this.add.image(cx, cy, def.key).setOrigin(cx / DOLL_W, cy / DOLL_H);
       img.setDepth(SLOT_DEPTH[slot]);
       img.setScale(0.9).setAlpha(0.7);
-      img.setInteractive(new Phaser.Geom.Rectangle(box.x, box.y, box.w, box.h), Phaser.Geom.Rectangle.Contains);
-      img.on('pointerdown', (pointer) => this.onGrab(def, pointer, true));
+      this.makeGrabbable(img, def, true);
       this.wornLayer.add(img);
       this.wornLayer.sort('depth');
       this.equipped[slot] = { key: def.key, def: def, image: img };

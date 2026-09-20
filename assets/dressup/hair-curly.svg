@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <path d="M300 98 C224 98 182 158 186 242 C188 308 180 388 174 452 C168 512 186 556 214 550 C236 546 238 512 234 472 C230 420 232 356 238 300 C246 236 264 210 300 210 C336 210 354 236 362 300 C368 356 370 420 366 472 C362 512 364 546 386 550 C414 556 432 512 426 452 C420 388 412 308 414 242 C418 158 376 98 300 98 Z" fill="#6b4c39"/>
+  <circle cx="220" cy="524" r="26" fill="#6b4c39"/>
+  <circle cx="198" cy="472" r="24" fill="#6b4c39"/>
+  <circle cx="188" cy="414" r="22" fill="#6b4c39"/>
+  <circle cx="380" cy="524" r="26" fill="#6b4c39"/>
+  <circle cx="402" cy="472" r="24" fill="#6b4c39"/>
+  <circle cx="412" cy="414" r="22" fill="#6b4c39"/>
+  <path d="M228 250 C212 310 208 400 216 470" fill="none" stroke="#5b4030" stroke-width="8" stroke-linecap="round" opacity="0.45"/>
+  <path d="M372 250 C388 310 392 400 384 470" fill="none" stroke="#5b4030" stroke-width="8" stroke-linecap="round" opacity="0.45"/>
+  <path d="M226 204 C222 136 254 98 300 98 C346 98 378 136 374 204 C366 174 354 156 342 146 C332 168 314 178 292 174 C272 170 254 162 246 144 C236 156 230 180 226 204 Z" fill="#7a5a45"/>
+</svg>

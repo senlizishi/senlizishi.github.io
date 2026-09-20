@@ -1,25 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
   <defs>
     <clipPath id="shirtBody">
-      <path d="M300 296 C266 296 244 300 234 308 C226 316 222 328 220 342 C218 372 236 396 242 422 C246 448 244 476 246 504 C266 514 334 514 354 504 C356 476 354 448 358 422 C364 396 382 372 380 342 C378 328 374 316 366 308 C356 300 334 296 300 296 Z"/>
-      <path d="M230 326 L208 374"/>
-      <path d="M370 326 L405 288"/>
+      <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z"/>
     </clipPath>
   </defs>
   <g clip-path="url(#shirtBody)">
-    <path d="M300 296 C266 296 244 300 234 308 C226 316 222 328 220 342 C218 372 236 396 242 422 C246 448 244 476 246 504 C266 514 334 514 354 504 C356 476 354 448 358 422 C364 396 382 372 380 342 C378 328 374 316 366 308 C356 300 334 296 300 296 Z" fill="#ffffff"/>
-    <path d="M230 326 L208 374" stroke="#ffffff" stroke-width="50" stroke-linecap="round" fill="none"/>
-    <path d="M370 326 L405 288" stroke="#ffffff" stroke-width="50" stroke-linecap="round" fill="none"/>
-    <rect x="180" y="316" width="250" height="20" fill="#4fa8dc"/>
-    <rect x="180" y="358" width="250" height="20" fill="#4fa8dc"/>
-    <rect x="180" y="400" width="250" height="20" fill="#4fa8dc"/>
-    <rect x="180" y="442" width="250" height="20" fill="#4fa8dc"/>
-    <rect x="180" y="484" width="250" height="20" fill="#4fa8dc"/>
+    <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="#ffffff"/>
+    <rect x="170" y="316" width="270" height="22" fill="#4fa8dc"/>
+    <rect x="170" y="360" width="270" height="22" fill="#4fa8dc"/>
+    <rect x="170" y="404" width="270" height="22" fill="#4fa8dc"/>
+    <rect x="170" y="448" width="270" height="22" fill="#4fa8dc"/>
+    <rect x="170" y="492" width="270" height="22" fill="#4fa8dc"/>
   </g>
-  <path d="M230 326 L208 374" stroke="#4fa8dc" stroke-width="58" stroke-linecap="round" fill="none" opacity="1" stroke-dasharray="0"/>
-  <path d="M370 326 L405 288" stroke="#4fa8dc" stroke-width="58" stroke-linecap="round" fill="none"/>
-  <path d="M230 326 L208 374" stroke="#ffffff" stroke-width="50" stroke-linecap="round" fill="none"/>
-  <path d="M370 326 L405 288" stroke="#ffffff" stroke-width="50" stroke-linecap="round" fill="none"/>
-  <path d="M300 296 C266 296 244 300 234 308 C226 316 222 328 220 342 C218 372 236 396 242 422 C246 448 244 476 246 504 C266 514 334 514 354 504 C356 476 354 448 358 422 C364 396 382 372 380 342 C378 328 374 316 366 308 C356 300 334 296 300 296 Z" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M276 300 Q300 320 324 300" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linecap="round"/>
+  <path d="M242 330 C232 360 226 392 224 424" stroke="#4fa8dc" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <path d="M358 330 C368 360 374 392 376 424" stroke="#4fa8dc" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <path d="M242 330 C232 360 226 392 224 424" stroke="#ffffff" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <path d="M358 330 C368 360 374 392 376 424" stroke="#ffffff" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <path d="M202 424 L246 424" stroke="#4fa8dc" stroke-width="8" stroke-linecap="round"/>
+  <path d="M354 424 L398 424" stroke="#4fa8dc" stroke-width="8" stroke-linecap="round"/>
+  <path d="M300 294 C272 294 250 298 242 308 C232 320 228 338 228 354 C228 372 234 384 240 396 C248 412 254 426 255 444 C256 464 252 486 250 500 C270 512 330 512 350 500 C348 486 344 464 345 444 C346 426 352 412 360 396 C366 384 372 372 372 354 C372 338 368 320 358 308 C350 298 328 294 300 294 Z" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M276 298 Q300 318 324 298" fill="none" stroke="#4fa8dc" stroke-width="6" stroke-linecap="round"/>
 </svg>
