@@ -81,6 +81,8 @@ function dataBlock() {
     else parts.push("slot: '" + it.slot + "'");
     if (it.cat) parts.push("cat: '" + it.cat + "'");
     if (it.scene) parts.push("scene: '" + it.scene + "'");
+    if (it.piece) parts.push("piece: '" + it.piece + "'");
+    if (it.depth !== undefined) parts.push('depth: ' + it.depth);
     parts.push("label: '" + it.label + "'");
     parts.push(L.boxLine(m.boxes[it.key]));
     if (it.hit) {

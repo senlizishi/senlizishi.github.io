@@ -97,7 +97,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'bottom-overall', slot: 'bottom', label: '背带裤',
+    key: 'bottom-overall', slot: 'bottom', depth: 3.2, label: '背带裤',
     art: () => legs('long', '#5b8fdc', '#3f6fbd').concat(hip('#5b8fdc', '#3f6fbd'), [
       G.F('M268 462 L332 462 L334 502 L266 502 Z', '#5b8fdc', { stroke: '#3f6fbd', 'stroke-width': 6, 'stroke-linejoin': 'round' }),
       G.S('M274 466 L266 402 M326 466 L334 402', '#3f6fbd', 11),

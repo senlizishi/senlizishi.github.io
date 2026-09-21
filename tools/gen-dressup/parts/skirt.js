@@ -96,7 +96,7 @@ module.exports = [
     ],
   },
   {
-    key: 'dress-sundress', slot: 'skirt', label: '吊带连衣裙',
+    key: 'dress-sundress', slot: 'skirt', piece: 'one', label: '吊带连衣裙',
     art: () => bareArms().concat(bodice('#fff2a8', '#dfae3c', null), [
       skirtShape(466, 592, 52, 118, '#ffe08a', '#dfae3c', 22),
       G.S('M266 300 Q300 326 334 300', '#dfae3c', 6),
@@ -107,7 +107,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'dress-mermaid', slot: 'skirt', label: '美人鱼裙',
+    key: 'dress-mermaid', slot: 'skirt', piece: 'one', label: '美人鱼裙',
     art: () => bodice('#7fd8e0', '#3fa8b8', 'short').concat([
       G.F('M256 490 C256 520 254 546 250 566 C246 600 220 630 204 654 C240 676 360 676 396 654 C380 630 354 600 350 566 C346 546 344 520 344 490 Z', '#9fe8ee', { stroke: '#3fa8b8', 'stroke-width': 6, 'stroke-linejoin': 'round' }),
       G.S('M262 540 C280 552 320 552 338 540', '#3fa8b8', 5, { opacity: 0.6 }),
@@ -118,7 +118,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'dress-pinafore', slot: 'skirt', label: '背带裙',
+    key: 'dress-pinafore', slot: 'skirt', depth: 3.2, label: '背带裙',
     art: () => [
       skirtShape(472, 578, 56, 108, '#ff8fb3', '#d0689f', 20),
       G.F('M266 462 L334 462 L334 500 L266 500 Z', '#ffb8d4', { stroke: '#d0689f', 'stroke-width': 6, 'stroke-linejoin': 'round' }),
@@ -129,7 +129,7 @@ module.exports = [
     ],
   },
   {
-    key: 'dress-party', slot: 'skirt', label: '亮片礼服',
+    key: 'dress-party', slot: 'skirt', piece: 'one', label: '亮片礼服',
     art: () => bodice('#c9a8f0', '#8f6bd8', 'puff').concat([
       skirtShape(468, 646, 52, 128, '#d8bff8', '#8f6bd8', 26),
       (function () {
@@ -144,7 +144,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'dress-lace', slot: 'skirt', label: '蕾丝长裙',
+    key: 'dress-lace', slot: 'skirt', piece: 'one', label: '蕾丝长裙',
     art: () => bodice('#ffffff', '#e0c9e8', 'short').concat([
       skirtShape(468, 660, 52, 120, '#fff2f9', '#e0a8c8', 24),
       (function () {
@@ -159,7 +159,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'dress-rainbow', slot: 'skirt', label: '彩虹裙',
+    key: 'dress-rainbow', slot: 'skirt', piece: 'one', label: '彩虹裙',
     art: () => bodice('#ffffff', '#d8c9e0', 'short').concat([
       skirtShape(468, 600, 52, 118, '#ffd6ef', '#e0a8c8', 18),
       G.F('M248 516 C280 528 320 528 352 516 L356 552 C320 566 280 566 244 552 Z', '#ffe3a0', { stroke: '#e0a8c8', 'stroke-width': 0 }),
@@ -180,7 +180,7 @@ module.exports = [
     ],
   },
   {
-    key: 'dress-flower', slot: 'skirt', label: '碎花裙',
+    key: 'dress-flower', slot: 'skirt', piece: 'one', label: '碎花裙',
     art: () => bodice('#fff6d8', '#e0c98c', 'puff').concat([
       skirtShape(468, 588, 52, 116, '#fff6d8', '#e0c98c', 20),
       flower(258, 520, 15, '#ff9ecb', '#ffd75e'), flower(300, 552, 16, '#ffb84e', '#ffffff'),
@@ -190,7 +190,7 @@ module.exports = [
     ]),
   },
   {
-    key: 'dress-snow', slot: 'skirt', label: '冰雪裙',
+    key: 'dress-snow', slot: 'skirt', piece: 'one', label: '冰雪裙',
     art: () => bodice('#eaf6ff', '#9fc9e8', 'long').concat([
       skirtShape(468, 656, 52, 126, '#dceeff', '#9fc9e8', 24),
       G.F('M240 620 C280 640 320 640 360 620 L366 646 C320 666 280 666 234 646 Z', '#ffffff', { stroke: '#9fc9e8', 'stroke-width': 5 }),

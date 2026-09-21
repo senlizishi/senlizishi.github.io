@@ -43,11 +43,18 @@
 
   const TRAY_TOP = HEIGHT - LAYOUT.trayH;
 
+  // 从里到外的层级：袜子 → 小宠物 → 裤子 → 鞋子 → 裙子/连衣裙 → 上衣 → 腰带
+  // → 头发 → 项链 → 围巾 → 耳饰 → 唇 → 脸 → 帽子 → 手上拿的东西
+  // 裙摆要盖住鞋口、鞋子要盖住袜子、上衣要盖住裤腰；披风/翅膀/书包穿在身后（backLayer）
+  // 某一件想单独调层，在 ITEMS 里给 depth 覆盖它所在部位的默认层即可
   const SLOT_DEPTH = {
-    bottom: 2, skirt: 2.5, top: 3, shoes: 4, hair: 5, neck: 6, ear: 6.5, face: 7, hat: 8, hand: 9,
-    waist: 3.5, pet: 1.5, back: 1, scarf: 6.2, lip: 6.8, leg: 3.8,
+    leg: 1.6, pet: 1.7, bottom: 2, shoes: 2.2, skirt: 2.5, top: 3, waist: 3.5,
+    hair: 5, neck: 6, scarf: 6.2, ear: 6.5, lip: 6.8, face: 7, hat: 8, hand: 9,
+    back: 1,
   };
   const SLOT_BEHIND = { back: true };
+  // 连衣裙是一整套：穿上它要把上衣收起来，反过来穿上衣也要把连衣裙收起来
+  const PIECE_COVERS = { one: ['top'] };
 
   function itemCat(def) {
     return def.cat || def.slot;
@@ -152,15 +159,15 @@
     { key: 'skirt-denim', slot: 'skirt', label: '牛仔裙', box: { x: 175, y: 438, w: 250, h: 173 } },
     { key: 'skirt-layered', slot: 'skirt', label: '蛋糕裙', box: { x: 167, y: 443, w: 266, h: 192 } },
     { key: 'skirt-long', slot: 'skirt', label: '长裙', box: { x: 160, y: 445, w: 280, h: 256 } },
-    { key: 'dress-sundress', slot: 'skirt', label: '吊带连衣裙', box: { x: 118, y: 225, w: 330, h: 418 } },
-    { key: 'dress-mermaid', slot: 'skirt', label: '美人鱼裙', box: { x: 72, y: 178, w: 422, h: 518 } },
-    { key: 'dress-pinafore', slot: 'skirt', label: '背带裙', box: { x: 166, y: 384, w: 268, h: 235 } },
-    { key: 'dress-party', slot: 'skirt', label: '亮片礼服', box: { x: 42, y: 151, w: 473, h: 532 } },
-    { key: 'dress-lace', slot: 'skirt', label: '蕾丝长裙', box: { x: 56, y: 162, w: 454, h: 560 } },
-    { key: 'dress-rainbow', slot: 'skirt', label: '彩虹裙', box: { x: 77, y: 183, w: 412, h: 451 } },
+    { key: 'dress-sundress', slot: 'skirt', piece: 'one', label: '吊带连衣裙', box: { x: 118, y: 225, w: 330, h: 418 } },
+    { key: 'dress-mermaid', slot: 'skirt', piece: 'one', label: '美人鱼裙', box: { x: 72, y: 178, w: 422, h: 518 } },
+    { key: 'dress-pinafore', slot: 'skirt', depth: 3.2, label: '背带裙', box: { x: 166, y: 384, w: 268, h: 235 } },
+    { key: 'dress-party', slot: 'skirt', piece: 'one', label: '亮片礼服', box: { x: 42, y: 151, w: 473, h: 532 } },
+    { key: 'dress-lace', slot: 'skirt', piece: 'one', label: '蕾丝长裙', box: { x: 56, y: 162, w: 454, h: 560 } },
+    { key: 'dress-rainbow', slot: 'skirt', piece: 'one', label: '彩虹裙', box: { x: 77, y: 183, w: 412, h: 451 } },
     { key: 'skirt-tulip', slot: 'skirt', label: '郁金香裙', box: { x: 225, y: 438, w: 150, h: 164 } },
-    { key: 'dress-flower', slot: 'skirt', label: '碎花裙', box: { x: 42, y: 151, w: 473, h: 470 } },
-    { key: 'dress-snow', slot: 'skirt', label: '冰雪裙', box: { x: 68, y: 174, w: 429, h: 525 } },
+    { key: 'dress-flower', slot: 'skirt', piece: 'one', label: '碎花裙', box: { x: 42, y: 151, w: 473, h: 470 } },
+    { key: 'dress-snow', slot: 'skirt', piece: 'one', label: '冰雪裙', box: { x: 68, y: 174, w: 429, h: 525 } },
     { key: 'skirt-star', slot: 'skirt', label: '星星纱裙', box: { x: 158, y: 445, w: 284, h: 189 } },
     { key: 'belt-bow', slot: 'waist', cat: 'skirt', label: '蝴蝶结腰带', box: { x: 219, y: 429, w: 162, h: 82 } },
     { key: 'belt-gold', slot: 'waist', cat: 'skirt', label: '金腰带', box: { x: 219, y: 428, w: 162, h: 85 } },
@@ -170,7 +177,7 @@
     { key: 'bottom-jeans', slot: 'bottom', label: '牛仔裤', box: { x: 101, y: 348, w: 334, h: 514 } },
     { key: 'bottom-leggings', slot: 'bottom', label: '打底裤', box: { x: 136, y: 384, w: 276, h: 450 } },
     { key: 'bottom-cargo', slot: 'bottom', label: '工装裤', box: { x: 100, y: 347, w: 336, h: 516 } },
-    { key: 'bottom-overall', slot: 'bottom', label: '背带裤', box: { x: 105, y: 352, w: 326, h: 506 } },
+    { key: 'bottom-overall', slot: 'bottom', depth: 3.2, label: '背带裤', box: { x: 105, y: 352, w: 326, h: 506 } },
     { key: 'bottom-capri', slot: 'bottom', label: '七分裤', box: { x: 77, y: 321, w: 384, h: 528 } },
     { key: 'bottom-flare', slot: 'bottom', label: '喇叭裤', box: { x: 179, y: 442, w: 239, h: 293 } },
     { key: 'bottom-jogger', slot: 'bottom', label: '运动裤', box: { x: 98, y: 346, w: 340, h: 526 } },
@@ -244,14 +251,29 @@
     {
       key: 'beach', name: '海边', playable: true, cardColor: 0x9fe4ff, accent: 0x2f9dd0,
       ink: '#3f6b86', inkSoft: '#5c7c92', shadow: 0xd0a566,
+      spots: [
+        { key: 'swim', label: '去游泳', icon: 'swim', action: 'swim', fx: 0.30, fy: 0.78 },
+        { key: 'castle', label: '堆沙堡', icon: 'castle', action: 'castle', fx: 0.80, fy: 0.92 },
+        { key: 'shells', label: '捡贝壳', icon: 'shells', action: 'shells', fx: 0.55, fy: 0.98 },
+      ],
     },
     {
       key: 'palace', name: '宫廷', playable: true, cardColor: 0xe3d3f5, accent: 0x7a5bb0,
       ink: '#7a4f9c', inkSoft: '#8f6fb0', shadow: 0xb49ac9,
+      spots: [
+        { key: 'tea', label: '下午茶', icon: 'tea', action: 'tea', fx: 0.26, fy: 0.94 },
+        { key: 'dance', label: '跳舞', icon: 'dance', action: 'dance', fx: 0.50, fy: 0.94 },
+        { key: 'throne', label: '坐王座', icon: 'throne', action: 'throne', fx: 0.74, fy: 0.94 },
+      ],
     },
     {
       key: 'forest', name: '森林', playable: true, cardColor: 0xd2f0d6, accent: 0x3f9d6b,
       ink: '#2f6b4a', inkSoft: '#4d8265', shadow: 0x7fae87,
+      spots: [
+        { key: 'mushroom', label: '采蘑菇', icon: 'mushroom', action: 'mushroom', fx: 0.22, fy: 0.93 },
+        { key: 'deer', label: '喂小鹿', icon: 'deer', action: 'deer', fx: 0.78, fy: 0.93 },
+        { key: 'butterfly', label: '追蝴蝶', icon: 'butterfly', action: 'butterfly', fx: 0.50, fy: 0.99 },
+      ],
     },
   ];
 
@@ -323,6 +345,31 @@
       },
       denied: function () {
         tone(220, 150, 0.20, 'sawtooth', 0.08, 0);
+      },
+      step: function () {
+        tone(420, 380, 0.08, 'triangle', 0.09, 0);
+        tone(500, 460, 0.08, 'triangle', 0.08, 0.12);
+      },
+      splash: function () {
+        tone(900, 180, 0.34, 'sine', 0.13, 0);
+        tone(380, 900, 0.16, 'triangle', 0.07, 0.05);
+      },
+      pop: function () {
+        tone(400, 880, 0.10, 'triangle', 0.12, 0);
+      },
+      chime: function () {
+        tone(880, 880, 0.14, 'sine', 0.11, 0);
+        tone(1174.66, 1174.66, 0.20, 'sine', 0.10, 0.11);
+      },
+      fanfare: function () {
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, index) {
+          tone(freq, freq, 0.16, 'triangle', 0.11, index * 0.10);
+        });
+      },
+      twinkle: function () {
+        [1046.5, 1318.5, 1568, 2093].forEach(function (freq, index) {
+          tone(freq, freq * 1.02, 0.12, 'sine', 0.07, index * 0.09);
+        });
       },
     };
   })();
@@ -654,6 +701,458 @@
     forest: drawForest,
   };
 
+  // ======================================================================
+  // 过家家：点地上的光圈，小人会连着身上所有穿戴一起去做那件事
+  //   - 小人整体 = dollLayer 里的 dollPivot（身体 + 发型 + 帽子 + 衣裤裙 + 鞋 + 配饰）
+  //   - 旋转/缩放作用在 dollPivot 上，转轴在小人腰胯，所以看起来是“整个人在动”
+  //   - 互动点写在 SCENES_DATA[].spots：fx 是横向位置，fy 是落脚高度（都是比例）
+  // ======================================================================
+
+  const PU = IS_PORTRAIT ? 1 : 0.7; // 横屏时道具跟着小人一起缩小
+
+  // 每个场景的背景基准线（和上面背景画法一致），道具贴着它摆
+  const SCENE_ANCHORS = {
+    beach: function () { return { ground: IS_PORTRAIT ? 410 : 302 }; },
+    palace: function () { return { ground: IS_PORTRAIT ? 468 : 292 }; },
+    forest: function () { return { ground: IS_PORTRAIT ? 424 : 258 }; },
+  };
+
+  function tri(x, y, w, h) {
+    return [
+      new Phaser.Geom.Point(x, y),
+      new Phaser.Geom.Point(x + w * 0.5, y - h),
+      new Phaser.Geom.Point(x + w, y),
+    ];
+  }
+
+  function drawSpotIcon(g, key, cx, cy, s, color) {
+    g.fillStyle(color, 1);
+    if (key === 'swim') {
+      g.lineStyle(Math.max(2, s * 0.34), color, 1);
+      g.beginPath();
+      g.arc(cx - s * 0.44, cy + s * 0.26, s * 0.44, Math.PI, Math.PI * 2, false);
+      g.strokePath();
+      g.beginPath();
+      g.arc(cx + s * 0.46, cy + s * 0.26, s * 0.44, Math.PI, Math.PI * 2, false);
+      g.strokePath();
+      g.fillCircle(cx + s * 0.04, cy - s * 0.36, s * 0.3);
+      g.fillRect(cx - s * 0.42, cy + s * 0.22, s * 0.88, s * 0.3);
+      return;
+    }
+    if (key === 'castle') {
+      g.fillRect(cx - s * 0.92, cy - s * 0.3, s * 1.84, s * 1.2);
+      g.fillRect(cx - s * 0.76, cy - s * 0.98, s * 0.6, s * 0.72);
+      g.fillRect(cx + s * 0.16, cy - s * 0.98, s * 0.6, s * 0.72);
+      g.fillStyle(0xffffff, 0.95).fillRect(cx - s * 0.2, cy + s * 0.1, s * 0.4, s * 0.8);
+      return;
+    }
+    if (key === 'shells') {
+      g.beginPath();
+      g.arc(cx, cy + s * 0.44, s * 0.92, Math.PI, Math.PI * 2, false);
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(Math.max(2, s * 0.18), 0xffffff, 0.85);
+      [-1, 0, 1].forEach(function (dx) {
+        g.lineBetween(cx, cy + s * 0.44, cx + dx * s * 0.76, cy - s * 0.34);
+      });
+      return;
+    }
+    if (key === 'dance') {
+      g.fillEllipse(cx - s * 0.4, cy + s * 0.6, s * 0.76, s * 0.58);
+      g.fillEllipse(cx + s * 0.56, cy + s * 0.3, s * 0.76, s * 0.58);
+      g.fillRect(cx - s * 0.1, cy - s * 0.92, s * 0.24, s * 1.62);
+      g.fillRect(cx + s * 0.86, cy - s * 1.22, s * 0.24, s * 1.62);
+      g.fillRect(cx - s * 0.1, cy - s * 0.92, s * 0.72, s * 0.32);
+      g.fillRect(cx + s * 0.86, cy - s * 1.22, s * 0.72, s * 0.32);
+      return;
+    }
+    if (key === 'tea') {
+      g.fillRoundedRect(cx - s * 0.84, cy - s * 0.2, s * 1.68, s * 0.94, s * 0.24);
+      g.lineStyle(Math.max(2, s * 0.22), color, 1);
+      g.beginPath();
+      g.arc(cx + s * 0.92, cy + s * 0.2, s * 0.34, -Math.PI * 0.5, Math.PI * 0.5, false);
+      g.strokePath();
+      g.fillStyle(color, 1).fillRect(cx - s * 1.06, cy + s * 0.62, s * 2.12, s * 0.22);
+      g.fillStyle(0xffffff, 0.9);
+      for (let i = -1; i <= 1; i += 1) g.fillCircle(cx + i * s * 0.36, cy - s * 0.58, s * 0.18);
+      return;
+    }
+    if (key === 'throne') {
+      g.fillRoundedRect(cx - s * 0.72, cy - s * 1.0, s * 1.44, s * 1.6, s * 0.2);
+      g.fillStyle(0xffffff, 0.9).fillRoundedRect(cx - s * 0.44, cy - s * 0.66, s * 0.88, s * 1.2, s * 0.14);
+      g.fillStyle(color, 1);
+      g.fillRect(cx - s * 0.96, cy + s * 0.58, s * 0.3, s * 0.56);
+      g.fillRect(cx + s * 0.66, cy + s * 0.58, s * 0.3, s * 0.56);
+      return;
+    }
+    if (key === 'mushroom') {
+      g.beginPath();
+      g.arc(cx, cy + s * 0.08, s * 0.86, Math.PI, Math.PI * 2, false);
+      g.closePath();
+      g.fillPath();
+      g.fillRoundedRect(cx - s * 0.3, cy + s * 0.04, s * 0.6, s * 0.9, s * 0.2);
+      g.fillStyle(0xffffff, 0.9);
+      g.fillCircle(cx - s * 0.34, cy - s * 0.32, s * 0.17);
+      g.fillCircle(cx + s * 0.32, cy - s * 0.26, s * 0.14);
+      return;
+    }
+    if (key === 'deer') {
+      g.fillCircle(cx, cy + s * 0.36, s * 0.62);
+      g.fillPoints([new Phaser.Geom.Point(cx - s * 0.62, cy + s * 0.12), new Phaser.Geom.Point(cx - s * 0.68, cy - s * 0.66), new Phaser.Geom.Point(cx - s * 0.16, cy - s * 0.14)], true);
+      g.fillPoints([new Phaser.Geom.Point(cx + s * 0.62, cy + s * 0.12), new Phaser.Geom.Point(cx + s * 0.68, cy - s * 0.66), new Phaser.Geom.Point(cx + s * 0.16, cy - s * 0.14)], true);
+      g.lineStyle(Math.max(2, s * 0.15), color, 1);
+      g.lineBetween(cx - s * 0.34, cy - s * 0.54, cx - s * 0.52, cy - s * 1.06);
+      g.lineBetween(cx + s * 0.34, cy - s * 0.54, cx + s * 0.52, cy - s * 1.06);
+      return;
+    }
+    g.fillEllipse(cx - s * 0.46, cy - s * 0.32, s * 0.8, s * 0.92);
+    g.fillEllipse(cx + s * 0.46, cy - s * 0.32, s * 0.8, s * 0.92);
+    g.fillEllipse(cx - s * 0.34, cy + s * 0.46, s * 0.58, s * 0.72);
+    g.fillEllipse(cx + s * 0.34, cy + s * 0.46, s * 0.58, s * 0.72);
+    g.fillRoundedRect(cx - s * 0.08, cy - s * 0.62, s * 0.16, s * 1.36, s * 0.08);
+  }
+
+  // 一汪海水：上缘接着海面，下缘是波浪，小人站进去就是半身入水的样子
+  function drawLagoon(g, cx, topY, botY, w) {
+    const h = botY - topY;
+    const cy = (topY + botY) / 2;
+    g.fillStyle(0x4fb8e8, 1).fillEllipse(cx, cy, w, h);
+    g.fillStyle(0x63c8f0, 1).fillEllipse(cx, cy + h * 0.06, w * 0.93, h * 0.84);
+    g.fillStyle(0x8adcf7, 1).fillEllipse(cx, cy - h * 0.16, w * 0.88, h * 0.54);
+    g.lineStyle(6, 0xffffff, 0.8).strokeEllipse(cx, cy, w, h);
+    g.lineStyle(5, 0xffffff, 0.6);
+    for (let i = 0; i < 3; i += 1) {
+      g.beginPath();
+      g.arc(cx - w * 0.22 + i * w * 0.22, cy - h * 0.12 + i * h * 0.16, w * 0.09, Math.PI, Math.PI * 2, false);
+      g.strokePath();
+    }
+  }
+
+  function drawSandcastle(g, cx, by, s) {
+    g.fillStyle(0xe0b979, 1).fillRoundedRect(cx - s * 1.0, by - s * 0.92, s * 2.0, s * 0.92, s * 0.1);
+    g.fillStyle(0xefc98d, 1).fillRoundedRect(cx - s * 0.96, by - s * 1.06, s * 1.92, s * 0.3, s * 0.08);
+    g.fillStyle(0xe8c184, 1);
+    g.fillRoundedRect(cx - s * 0.74, by - s * 1.62, s * 0.6, s * 0.7, s * 0.1);
+    g.fillRoundedRect(cx + s * 0.14, by - s * 1.5, s * 0.6, s * 0.6, s * 0.1);
+    g.fillStyle(0xd9ab68, 1);
+    g.fillPoints(tri(cx - s * 0.86, by - s * 1.6, s * 0.84, s * 0.44), true);
+    g.fillPoints(tri(cx + s * 0.02, by - s * 1.48, s * 0.84, s * 0.42), true);
+    g.fillStyle(0xc08f52, 1).fillRoundedRect(cx - s * 0.24, by - s * 0.56, s * 0.48, s * 0.56, s * 0.1);
+    g.fillStyle(0xe0b979, 1);
+    for (let i = 0; i < 4; i += 1) {
+      g.fillRect(cx - s * 0.86 + i * s * 0.52, by - s * 1.24, s * 0.26, s * 0.22);
+    }
+    g.lineStyle(Math.max(2, s * 0.06), 0xffffff, 0.5).lineBetween(cx - s * 0.9, by - s * 1.18, cx + s * 0.9, by - s * 1.18);
+    g.lineStyle(Math.max(2, s * 0.07), 0x8a6a3a, 1).lineBetween(cx + s * 0.44, by - s * 1.5, cx + s * 0.44, by - s * 2.3);
+    g.fillStyle(0xff8fb3, 1).fillPoints([
+      new Phaser.Geom.Point(cx + s * 0.44, by - s * 2.3),
+      new Phaser.Geom.Point(cx + s * 0.44 + s * 0.5, by - s * 2.12),
+      new Phaser.Geom.Point(cx + s * 0.44, by - s * 1.94),
+    ], true);
+  }
+
+  function drawBucket(g, cx, by, s, fill) {
+    g.fillStyle(0xff9ecb, 1).fillPoints([
+      new Phaser.Geom.Point(cx - s * 0.6, by - s * 0.9),
+      new Phaser.Geom.Point(cx + s * 0.6, by - s * 0.9),
+      new Phaser.Geom.Point(cx + s * 0.42, by),
+      new Phaser.Geom.Point(cx - s * 0.42, by),
+    ], true);
+    g.fillStyle(fill, 1).fillRect(cx - s * 0.62, by - s * 1.0, s * 1.24, s * 0.22);
+    g.lineStyle(Math.max(2, s * 0.1), 0xff8fb3, 1);
+    g.beginPath();
+    g.arc(cx, by - s * 0.9, s * 0.5, Math.PI, Math.PI * 2, false);
+    g.strokePath();
+  }
+
+  function drawShellShape(g, cx, cy, r, color) {
+    g.fillStyle(color, 1);
+    g.beginPath();
+    g.arc(cx, cy + r * 0.5, r, Math.PI, Math.PI * 2, false);
+    g.closePath();
+    g.fillPath();
+    g.lineStyle(Math.max(2, r * 0.18), 0xffffff, 0.8);
+    for (let i = -2; i <= 2; i += 1) g.lineBetween(cx, cy + r * 0.5, cx + i * r * 0.36, cy - r * 0.4);
+  }
+
+  // 小圆茶桌：桌面大约齐小人腰，她站在桌子后面
+  function drawTeaSet(g, cx, by, s) {
+    const topY = by - s * 1.0;
+    g.fillStyle(0xd8a0b8, 1).fillEllipse(cx, topY + s * 0.1, s * 1.84, s * 0.3);
+    g.fillStyle(0xfff2f9, 1).fillEllipse(cx, topY, s * 1.84, s * 0.3);
+    g.fillStyle(0xf7d98a, 1).fillRect(cx - s * 0.1, topY, s * 0.2, by - topY);
+    g.fillStyle(0xdfae3c, 1).fillEllipse(cx, by, s * 0.58, s * 0.16);
+    // teapot on the right rim, cups on the left rim: her hands stay clear in the middle
+    g.fillStyle(0xffffff, 1).fillRoundedRect(cx + s * 0.36, topY - s * 0.52, s * 0.46, s * 0.44, s * 0.16);
+    g.fillRoundedRect(cx + s * 0.34, topY - s * 0.58, s * 0.5, s * 0.12, s * 0.06);
+    g.lineStyle(Math.max(2, s * 0.07), 0xe0a8c8, 1);
+    g.beginPath();
+    g.arc(cx + s * 0.82, topY - s * 0.3, s * 0.13, -Math.PI * 0.5, Math.PI * 0.5, false);
+    g.strokePath();
+    g.fillStyle(0xffd6ef, 1);
+    g.fillRoundedRect(cx - s * 0.78, topY - s * 0.34, s * 0.34, s * 0.3, s * 0.1);
+    g.lineStyle(Math.max(2, s * 0.06), 0xffd6ef, 1);
+    g.beginPath();
+    g.arc(cx - s * 0.44, topY - s * 0.19, s * 0.11, -Math.PI * 0.5, Math.PI * 0.5, false);
+    g.strokePath();
+    g.fillStyle(0xffffff, 1).fillRoundedRect(cx - s * 0.62, topY - s * 0.6, s * 0.26, s * 0.24, s * 0.08);
+  }
+
+  // 高背王座：s 是整体高度，坐面大约在小人蹲坐后的屁股高度
+  function drawThrone(g, cx, by, s) {
+    const hw = s * 0.33;
+    const seatY = by - s * 0.36;
+    g.fillStyle(0xf0c94e, 1).fillRoundedRect(cx - hw, by - s * 0.96, hw * 2, s * 0.96, s * 0.09);
+    g.fillStyle(0xc23a63, 1).fillRoundedRect(cx - hw * 0.72, by - s * 0.9, hw * 1.44, s * 0.6, s * 0.08);
+    g.fillStyle(0xf7d98a, 1);
+    g.fillRoundedRect(cx - hw * 1.18, seatY - s * 0.08, hw * 2.36, s * 0.13, s * 0.05);
+    g.fillRoundedRect(cx - hw * 1.06, seatY, hw * 0.24, by - seatY, s * 0.03);
+    g.fillRoundedRect(cx + hw * 0.82, seatY, hw * 0.24, by - seatY, s * 0.03);
+    g.fillStyle(0xfff0a0, 1).fillCircle(cx, by - s * 1.02, s * 0.055);
+  }
+
+  function drawMushroom(g, cx, by, r, cap) {
+    g.fillStyle(0xfff4e4, 1).fillRoundedRect(cx - r * 0.22, by - r * 0.9, r * 0.44, r * 0.9, r * 0.18);
+    g.fillStyle(cap, 1);
+    g.beginPath();
+    g.arc(cx, by - r * 0.82, r * 0.72, Math.PI, Math.PI * 2, false);
+    g.closePath();
+    g.fillPath();
+    g.fillStyle(0xfff4e4, 1).fillCircle(cx - r * 0.28, by - r * 1.16, r * 0.13);
+    g.fillCircle(cx + r * 0.26, by - r * 1.04, r * 0.1);
+  }
+
+  function drawDeer(g, cx, by, s) {
+    g.fillStyle(0xc98d5f, 1).fillRoundedRect(cx - s * 0.78, by - s * 1.1, s * 1.56, s * 0.8, s * 0.28);
+    g.fillRoundedRect(cx - s * 0.62, by - s * 0.4, s * 0.22, s * 0.44, s * 0.08);
+    g.fillRoundedRect(cx + s * 0.4, by - s * 0.4, s * 0.22, s * 0.44, s * 0.08);
+    g.fillStyle(0xe0a878, 1).fillCircle(cx + s * 0.86, by - s * 1.34, s * 0.5);
+    g.fillStyle(0xc98d5f, 1);
+    g.fillEllipse(cx + s * 0.52, by - s * 1.74, s * 0.26, s * 0.46);
+    g.fillEllipse(cx + s * 1.2, by - s * 1.74, s * 0.26, s * 0.46);
+    g.lineStyle(Math.max(2, s * 0.09), 0x8a6038, 1);
+    g.lineBetween(cx + s * 0.68, by - s * 1.78, cx + s * 0.54, by - s * 2.34);
+    g.lineBetween(cx + s * 1.04, by - s * 1.78, cx + s * 1.18, by - s * 2.34);
+    g.lineBetween(cx + s * 0.54, by - s * 2.34, cx + s * 0.36, by - s * 2.2);
+    g.lineBetween(cx + s * 1.18, by - s * 2.34, cx + s * 1.36, by - s * 2.2);
+    g.fillStyle(0x3c2f3a, 1);
+    g.fillCircle(cx + s * 1.02, by - s * 1.42, s * 0.09);
+    g.fillCircle(cx + s * 0.7, by - s * 1.42, s * 0.09);
+    g.fillStyle(0xfff4e4, 1).fillCircle(cx + s * 0.86, by - s * 1.14, s * 0.11);
+  }
+
+  function makeButterfly(color) {
+    const c = this.add.container(0, 0);
+    const g = this.add.graphics();
+    g.fillStyle(color, 1);
+    g.fillEllipse(-11, -7, 22, 24);
+    g.fillEllipse(11, -7, 22, 24);
+    g.fillEllipse(-9, 10, 16, 18);
+    g.fillEllipse(9, 10, 16, 18);
+    g.fillStyle(0x5b4152, 1).fillRoundedRect(-2, -13, 4, 28, 2);
+    c.add(g);
+    return c;
+  }
+
+  function makeNote(color) {
+    const c = this.add.container(0, 0);
+    const g = this.add.graphics();
+    g.fillStyle(color, 1);
+    g.fillEllipse(0, 0, 16, 12);
+    g.fillRect(7, -22, 3.6, 22);
+    g.fillRect(7, -22, 14, 8);
+    c.add(g);
+    return c;
+  }
+
+  // ------------------------------------------------------------------ 9 个动作
+  // 每个动作只做三件事：小人整体摆姿态（整体位移/旋转/压扁）、摆道具、音效+星星
+  const SPOT_ACTIONS = {
+    // ---------------------------------------------------------------- 海边
+    swim: function (scene, spot) {
+      const waist = spot.feetY - 292 * scene.scaleDoll;
+      const top = Math.min(scene.anchor.ground + 2, waist - 6);
+      const w = 300 * PU;
+      drawLagoon(scene.propFront, spot.x, top, spot.feetY + 56 * PU, w);
+      SoundFX.splash();
+      scene.burst(spot.x, top + 10, 9, [0xffffff, 0xdff4ff, 0x8adcf7], w * 0.4, 7 * PU, -30 * PU);
+      scene.tw({ targets: scene.dollPivot, rotation: 0.055, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      scene.tw({
+        targets: scene.dollLayer,
+        y: spot.feetY - DOLL_FEET * scene.scaleDoll + 46 * PU,
+        duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.InOut',
+      });
+      for (let i = 0; i < 5; i += 1) {
+        const b = scene.addProp(scene.add.circle(spot.x + (i - 2) * 26 * PU, top + 40 * PU, 5 * PU + (i % 3) * 2, 0xffffff, 0.7), true);
+        scene.tw({
+          targets: b, y: top - 40 * PU - i * 16 * PU, alpha: 0, scaleX: 1.5, scaleY: 1.5,
+          duration: 2400 + i * 260, repeat: -1, delay: i * 320, ease: 'Sine.Out',
+        });
+      }
+    },
+    castle: function (scene, spot) {
+      const s = 62 * PU;
+      const baseY = spot.feetY + 6;
+      // keep her torso clear: the castle sits on the ground next to her, on the roomier side
+      const dir = spot.x > WIDTH * 0.5 ? -1 : 1;
+      const cx = spot.x + dir * 96 * PU;
+      const castle = scene.addProp(scene.add.graphics(), true);
+      drawSandcastle(castle, cx, baseY, s);
+      castle.setScale(0.25, 0.25);
+      scene.tw({ targets: castle, scaleX: 1, scaleY: 1, duration: 900, ease: 'Back.Out' });
+      scene.tw({ targets: scene.dollPivot, scaleY: 0.955, duration: 280, yoyo: true, repeat: 3, ease: 'Sine.InOut' });
+      scene.tw({
+        targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll + 18 * PU,
+        duration: 280, yoyo: true, repeat: 3, ease: 'Sine.InOut',
+      });
+      SoundFX.pop();
+      for (let i = 0; i < 3; i += 1) {
+        scene.after(300 + i * 280, function () {
+          scene.burst(cx + (i - 1) * s * 0.7, baseY - s * 0.9, 6, [0xf3d49c, 0xe8c184, 0xffffff], s * 0.8, 6 * PU, 20 * PU);
+          SoundFX.pop();
+        });
+      }
+      drawBucket(scene.propFront, spot.x - dir * s * 1.6, baseY + 2, s * 0.42, 0x8adcf7);
+    },
+    shells: function (scene, spot) {
+      const r = 17 * PU;
+      SoundFX.chime();
+      scene.tw({ targets: scene.dollPivot, scaleY: 0.96, duration: 320, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll + 20 * PU, duration: 320, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      const colors = [0xffb3d1, 0xffe08a, 0xd8bff8, 0x9fe4ff];
+      for (let i = 0; i < 4; i += 1) {
+        const bx = spot.x + (i - 1.5) * 54 * PU;
+        const by = spot.feetY - 8 * PU + (i % 2) * 12 * PU;
+        const sh = scene.addProp(scene.add.graphics(), true);
+        drawShellShape(sh, 0, 0, r, colors[i]);
+        sh.setPosition(bx, by).setScale(0.2).setAlpha(0);
+        scene.tw({ targets: sh, scaleX: 1, scaleY: 1, alpha: 1, duration: 300, delay: 200 * i, ease: 'Back.Out' });
+        scene.tw({
+          targets: sh, x: spot.x - 66 * PU, y: spot.feetY - 100 * PU, scaleX: 0.3, scaleY: 0.3, alpha: 0,
+          duration: 520, delay: 940 + 200 * i, ease: 'Cubic.In',
+        });
+        scene.after(200 * i, function () { SoundFX.pick(); });
+      }
+      drawBucket(scene.propFront, spot.x - 70 * PU, spot.feetY + 6 * PU, 26 * PU, 0xfff0a0);
+      scene.after(1900, function () { scene.burst(spot.x - 66 * PU, spot.feetY - 110 * PU, 8, [0xffffff, 0xffe08a], 55 * PU, 5 * PU, 0); });
+    },
+    // ---------------------------------------------------------------- 宫廷
+    dance: function (scene, spot) {
+      SoundFX.fanfare();
+      scene.tw({ targets: scene.dollPivot, rotation: Math.PI * 2, duration: 1500, ease: 'Cubic.InOut' });
+      scene.tw({ targets: scene.dollPivot, rotation: Math.PI * 4, duration: 1500, delay: 1700, ease: 'Cubic.InOut' });
+      scene.tw({ targets: scene.dollPivot, scaleY: 1.04, duration: 420, yoyo: true, repeat: 4, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll - 24 * PU, duration: 420, yoyo: true, repeat: 4, ease: 'Sine.Out' });
+      const colors = [0xff8fb3, 0xffd75e, 0xc9a8f0, 0x8fd8ff];
+      for (let i = 0; i < 6; i += 1) {
+        const n = scene.addProp(makeNote.call(scene, colors[i % 4]), true);
+        n.setPosition(spot.x + (i % 2 === 0 ? -1 : 1) * (60 + i * 8) * PU, spot.feetY - 150 * PU - i * 18 * PU);
+        n.setScale(PU);
+        scene.tw({ targets: n, y: n.y - 140 * PU, alpha: 0, duration: 1500, delay: i * 220, repeat: 1, ease: 'Sine.In' });
+      }
+      for (let i = 0; i < 3; i += 1) {
+        scene.after(i * 620, function () { scene.burst(spot.x + (i - 1) * 70 * PU, spot.feetY - 150 * PU, 7, [0xfff0a0, 0xffffff, 0xffb8d4], 70 * PU, 6 * PU, 0); });
+      }
+      scene.burst(spot.x, spot.feetY - 30 * PU, 12, [0xff8fb3, 0xffd75e], 120 * PU, 6 * PU, -12 * PU);
+    },
+    tea: function (scene, spot) {
+      const s = 116 * PU;
+      drawTeaSet(scene.propFront, spot.x, spot.feetY + 16 * PU, s);
+      SoundFX.chime();
+      scene.tw({ targets: scene.dollPivot, rotation: -0.04, duration: 1100, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollPivot, scaleY: 0.98, duration: 1100, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      for (let i = 0; i < 3; i += 1) {
+        const st = scene.addProp(scene.add.circle(spot.x + (i - 1) * s * 0.4, spot.feetY - s * 1.1, 4 * PU, 0xffffff, 0.6), true);
+        scene.tw({
+          targets: st, y: st.y - 80 * PU, x: st.x + (i - 1) * 12 * PU, alpha: 0, scaleX: 1.9, scaleY: 1.9,
+          duration: 1800, repeat: -1, delay: i * 380, ease: 'Sine.Out',
+        });
+      }
+      scene.after(700, function () { SoundFX.pick(); scene.burst(spot.x, spot.feetY - 40 * PU, 6, [0xffd6ef, 0xffffff], 50 * PU, 5 * PU, 0); });
+    },
+    throne: function (scene, spot) {
+      const s = 330 * PU;
+      drawThrone(scene.propBack, spot.x, spot.feetY + 8 * PU, s);
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll + 60 * PU, duration: 760, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollPivot, scaleX: 0.9, scaleY: 0.86, duration: 760, ease: 'Sine.InOut' });
+      SoundFX.fanfare();
+      scene.after(800, function () {
+        scene.burst(spot.x, spot.feetY - 250 * PU, 12, [0xfff0a0, 0xffd75e, 0xffffff], 110 * PU, 7 * PU, 0);
+        SoundFX.wear();
+      });
+      scene.after(1200, function () {
+        const n = scene.addProp(makeNote.call(scene, 0xfff0a0), true);
+        n.setPosition(spot.x + 78 * PU, spot.feetY - 210 * PU).setScale(PU);
+        scene.tw({ targets: n, y: n.y - 90 * PU, alpha: 0, duration: 1400, ease: 'Sine.In' });
+      });
+    },
+    // ---------------------------------------------------------------- 森林
+    mushroom: function (scene, spot) {
+      SoundFX.pop();
+      scene.tw({ targets: scene.dollPivot, scaleY: 0.955, duration: 300, yoyo: true, repeat: 3, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll + 18 * PU, duration: 300, yoyo: true, repeat: 3, ease: 'Sine.InOut' });
+      const caps = [0xe4576f, 0xe4576f, 0xd88f28, 0xc9a8f0];
+      for (let i = 0; i < 4; i += 1) {
+        const r = 38 * PU * (i % 2 === 0 ? 1 : 0.76);
+        const bx = spot.x + (i - 1.5) * 62 * PU;
+        const by = spot.feetY + 4 * PU + (i % 2) * 12 * PU;
+        const m = scene.addProp(scene.add.graphics(), true);
+        drawMushroom(m, 0, 0, r, caps[i % 4]);
+        m.setPosition(bx, by).setScale(0.15).setAlpha(0);
+        scene.tw({ targets: m, scaleX: 1, scaleY: 1, alpha: 1, duration: 420, delay: 200 * i, ease: 'Back.Out' });
+        scene.after(200 * i, function () { SoundFX.pick(); });
+      }
+      scene.after(1200, function () { scene.burst(spot.x, spot.feetY - 90 * PU, 8, [0xa6dfb4, 0xffffff], 80 * PU, 5 * PU, 0); });
+    },
+    deer: function (scene, spot) {
+      const s = 92 * PU;
+      const deer = scene.addProp(scene.add.graphics(), false);
+      drawDeer(deer, 0, 0, s);
+      deer.setPosition(spot.x - 430 * PU, spot.feetY + 4 * PU);
+      scene.tw({ targets: deer, x: spot.x - 176 * PU, duration: 1300, ease: 'Sine.Out' });
+      scene.tw({ targets: scene.dollPivot, rotation: 0.05, duration: 900, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll + 12 * PU, duration: 900, yoyo: true, repeat: 2, ease: 'Sine.InOut' });
+      scene.after(1300, function () { SoundFX.chime(); });
+      for (let i = 0; i < 5; i += 1) {
+        const h = scene.addProp(scene.add.circle(spot.x - 96 * PU + (i % 3) * 16 * PU, spot.feetY - 150 * PU - i * 24 * PU, 6 * PU, 0xff8fb3, 0.9), true);
+        h.setScale(0.4);
+        scene.tw({ targets: h, y: h.y - 90 * PU, alpha: 0, scaleX: 1.2, scaleY: 1.2, duration: 1600, delay: 1250 + i * 200, ease: 'Sine.Out' });
+      }
+      for (let i = 0; i < 4; i += 1) {
+        const l = scene.addProp(scene.add.ellipse(spot.x - 40 * PU - i * 30 * PU, spot.feetY - 250 * PU, 14 * PU, 9 * PU, 0x8fd8a0, 0.9), true);
+        scene.tw({ targets: l, y: l.y + 220 * PU, x: l.x + 46 * PU, rotation: 3, duration: 2200, delay: i * 320, repeat: 1, ease: 'Sine.In' });
+      }
+    },
+    butterfly: function (scene, spot) {
+      SoundFX.twinkle();
+      const colors = [0xff8fb3, 0xffd75e, 0x8fd8ff, 0xc9a8f0];
+      const cy = spot.feetY - 190 * PU;
+      const orbitX = WIDTH / 2;
+      for (let i = 0; i < 4; i += 1) {
+        // wide enough to fly around her instead of sitting on her body
+        const rx = (0.36 + i * 0.05) * WIDTH;
+        const ry = rx * 0.42;
+        const b = scene.addProp(makeButterfly.call(scene, colors[i]), true);
+        // start every butterfly on its own corner of the circle, then orbit her with flapping wings
+        const p = { a: i * (Math.PI / 2) + 0.5 };
+        const place = function () {
+          if (!b.active) return;
+          b.x = orbitX + Math.cos(p.a) * rx;
+          b.y = cy + Math.sin(p.a) * ry;
+          b.scaleX = PU * 1.3 * (0.7 + 0.3 * Math.abs(Math.sin(p.a * 4)));
+          b.scaleY = PU * 1.3;
+        };
+        place();
+        scene.tw({ targets: p, a: p.a + Math.PI * 2, duration: 4200 + i * 520, repeat: -1, ease: 'Linear', onUpdate: place });
+      }
+      scene.tw({ targets: scene.dollPivot, rotation: 0.05, duration: 520, yoyo: true, repeat: 3, ease: 'Sine.InOut' });
+      scene.tw({ targets: scene.dollLayer, y: spot.feetY - DOLL_FEET * scene.scaleDoll - 28 * PU, duration: 520, yoyo: true, repeat: 3, ease: 'Sine.InOut' });
+      for (let i = 0; i < 3; i += 1) {
+        scene.after(420 + i * 720, function () { scene.burst(spot.x, cy - 30 * PU, 7, [0xfff0a0, 0xffffff], 90 * PU, 5 * PU, 0); });
+      }
+    },
+  };
+
   const ICON_SHAPES = {
     top: [[-0.34, -0.5], [0.34, -0.5], [0.8, -0.16], [0.58, 0.1], [0.46, -0.02], [0.46, 0.56], [-0.46, 0.56], [-0.46, -0.02], [-0.58, 0.1], [-0.8, -0.16]],
     bottom: [[-0.42, -0.52], [0.42, -0.52], [0.56, 0.56], [0.16, 0.56], [0, 0.06], [-0.16, 0.56], [-0.56, 0.56]],
@@ -752,30 +1251,6 @@
       super('DressupSceneSelectScene');
     }
 
-    preload() {
-      const tip = this.add.text(WIDTH / 2, HEIGHT / 2, '加载中…', textStyle(IS_PORTRAIT ? 24 : 20, '#a0708c', true)).setOrigin(0.5);
-      const barW = Math.min(WIDTH * 0.62, 460);
-      const bar = this.add.graphics().setDepth(4);
-      const drawBar = (progress) => {
-        bar.clear();
-        bar.fillStyle(0xffffff, 0.95).fillRoundedRect((WIDTH - barW) / 2, HEIGHT / 2 + 14, barW, 22, 11);
-        bar.fillStyle(0xff8fb3, 1).fillRoundedRect((WIDTH - barW) / 2 + 3, HEIGHT / 2 + 17, Math.max(8, (barW - 6) * progress), 16, 8);
-      };
-      drawBar(0);
-      this.load.on('progress', (progress) => drawBar(progress));
-      this.load.once('complete', function () {
-        tip.destroy();
-        bar.destroy();
-      });
-      this.load.svg('doll-body', DIR + 'body.svg', { width: DOLL_W, height: DOLL_H });
-      ITEMS.forEach((item) => {
-        this.load.svg(item.key, DIR + item.key + '.svg', {
-          width: Math.round(item.box.w * TEX_SCALE),
-          height: Math.round(item.box.h * TEX_SCALE),
-        });
-      });
-    }
-
     create() {
       this.shaking = false;
       const short = Math.min(WIDTH, HEIGHT);
@@ -870,6 +1345,33 @@
       this.tabs = null;
       this.arrowLeft = null;
       this.arrowRight = null;
+      this.loadQueue = [];
+      this.loadBusy = false;
+      this.pendingCategory = null;
+      this.loadingTween = null;
+    }
+
+    preload() {
+      const bodyMissing = !this.textures.exists('doll-body');
+      const items = this.itemsFor(CATEGORIES[0].key);
+      const missing = items.filter((item) => !this.textures.exists(item.key));
+      if (!bodyMissing && !missing.length) return;
+      const tip = this.add.text(WIDTH / 2, HEIGHT / 2, '加载中…', textStyle(IS_PORTRAIT ? 24 : 20, '#a0708c', true)).setOrigin(0.5);
+      const barW = Math.min(WIDTH * 0.62, 460);
+      const bar = this.add.graphics().setDepth(4);
+      const drawBar = (progress) => {
+        bar.clear();
+        bar.fillStyle(0xffffff, 0.95).fillRoundedRect((WIDTH - barW) / 2, HEIGHT / 2 + 14, barW, 22, 11);
+        bar.fillStyle(0xff8fb3, 1).fillRoundedRect((WIDTH - barW) / 2 + 3, HEIGHT / 2 + 17, Math.max(8, (barW - 6) * progress), 16, 8);
+      };
+      drawBar(0);
+      this.load.on('progress', drawBar);
+      this.load.once('complete', function () {
+        tip.destroy();
+        bar.destroy();
+      });
+      if (bodyMissing) this.load.svg('doll-body', DIR + 'body.svg', { width: DOLL_W, height: DOLL_H });
+      missing.forEach((item) => this.queueSvg(item));
     }
 
     create() {
@@ -886,9 +1388,11 @@
 
       this.buildBackground();
       this.buildDoll();
+      this.buildSpots();
       this.buildTray();
       this.buildTopButtons();
       this.bindInput();
+      this.idleStart();
       SoundFX.enter();
     }
 
@@ -905,17 +1409,318 @@
       subStyle.strokeThickness = 4;
       this.add.text(22, IS_PORTRAIT ? 68 : 60, info.name + '换装', titleStyle).setDepth(12).setOrigin(0, 0.5);
       this.add.text(22, IS_PORTRAIT ? 96 : 86, '点分类挑配件，拖到小姐姐身上', subStyle).setDepth(12).setOrigin(0, 0.5);
+      this.add.text(22, IS_PORTRAIT ? 118 : 108, '点地上的光圈，她就去做那件事', subStyle).setDepth(12).setOrigin(0, 0.5);
     }
 
     buildDoll() {
-      const centerX = this.dollLeft + (DOLL_W * this.scaleDoll) / 2;
-      this.add.ellipse(centerX, LAYOUT.dollFeetY + 6, 180 * this.scaleDoll, 40 * this.scaleDoll, this.sceneInfo.shadow, 0.38).setDepth(1);
       this.dollLayer = this.add.container(this.dollLeft, this.dollTop).setDepth(5).setScale(this.scaleDoll);
-      this.dollLayer.add(this.add.image(0, 0, 'doll-body').setOrigin(0, 0));
+      // 脚下的小影子跟着小人一起走
+      this.dollLayer.add(this.add.ellipse(300, 772, 190, 44, this.sceneInfo.shadow, 0.38));
+      // dollPivot 的转轴在小人腰胯（600x900 坐标里的 300,470）：旋转、压扁都绕这里，
+      // 所以做动作时头发/帽子/裙子/鞋都是跟着整个人一起动的
+      this.dollPivot = this.add.container(300, 470);
+      this.dollLayer.add(this.dollPivot);
+      const inner = this.add.container(-300, -470);
+      this.dollPivot.add(inner);
       this.backLayer = this.add.container(0, 0);
-      this.dollLayer.add(this.backLayer);
+      inner.add(this.backLayer);
+      // 整只小人可以被抱着走：按在她身上任何没穿配件的地方
+      const grab = this.add.rectangle(300, 430, 320, 800, 0xffffff, 0);
+      grab.setInteractive();
+      grab.on('pointerdown', (pointer) => this.onGrabDoll(pointer));
+      inner.add(grab);
+      inner.add(this.add.image(0, 0, 'doll-body').setOrigin(0, 0));
       this.wornLayer = this.add.container(0, 0);
-      this.dollLayer.add(this.wornLayer);
+      inner.add(this.wornLayer);
+    }
+
+    // ================================================================ 过家家互动
+    buildSpots() {
+      this.anchor = (SCENE_ANCHORS[this.sceneKey] || SCENE_ANCHORS.beach)();
+      this.propBack = this.add.graphics().setDepth(4);
+      this.propFront = this.add.graphics().setDepth(6);
+      this.propObjs = [];
+      this.actionTweens = [];
+      this.actionTimers = [];
+      this.spotAt = null;
+      this.actionAt = null;
+      this.idleTween = null;
+      this.walkMove = null;
+      this.walkBob = null;
+      this.dollHomeX = this.dollLeft;
+      this.dollHomeY = this.dollTop;
+      this.spots = (this.sceneInfo.spots || []).map((def) => {
+        // keep every circle inside the band where the whole doll still fits on screen
+        const halfDoll = (DOLL_W * this.scaleDoll) / 2;
+        const spot = {
+          def: def,
+          x: Phaser.Math.Clamp(def.fx * WIDTH, halfDoll + 6, WIDTH - halfDoll - 6),
+          feetY: this.fitFeetY(def.fy * TRAY_TOP),
+        };
+        spot.markerY = Math.min(spot.feetY, TRAY_TOP - 50 * PU);
+        spot.container = this.buildSpotMarker(spot);
+        return spot;
+      });
+      this.refreshSpotMarkers();
+    }
+
+    // 让小人始终完整留在画面里：脚不能高过头顶，也不能钻进配件栏
+    fitFeetY(y) {
+      const min = 12 + (DOLL_FEET - 62) * this.scaleDoll;
+      return Phaser.Math.Clamp(y, min, TRAY_TOP - 48 * PU);
+    }
+
+    spotRadius() {
+      return IS_PORTRAIT ? 40 : 30;
+    }
+
+    // tight hit test for the ground circles (looser nearestSpot is for dropping the doll)
+    spotUnder(x, y) {
+      const r = this.spotRadius() * 1.12;
+      let best = null;
+      let bestDist = 1e9;
+      this.spots.forEach((spot) => {
+        const d = Phaser.Math.Distance.Between(x, y, spot.x, spot.markerY);
+        if (d <= r && d < bestDist) { best = spot; bestDist = d; }
+      });
+      return best;
+    }
+
+    buildSpotMarker(spot) {
+      const r = this.spotRadius();
+      const c = this.add.container(spot.x, spot.markerY).setDepth(4.6);
+      const halo = this.add.graphics();
+      halo.fillStyle(0xfff0f7, 0.42).fillCircle(0, 0, r * 1.24);
+      halo.fillStyle(0xffffff, 0.72).fillCircle(0, 0, r);
+      halo.lineStyle(5, 0xffb8d6, 0.95).strokeCircle(0, 0, r);
+      c.add(halo);
+      const icon = this.add.graphics();
+      drawSpotIcon(icon, spot.def.icon, 0, -r * 0.2, r * 0.44, 0xff7fb8);
+      c.add(icon);
+      const label = this.add.text(0, r * 0.44, spot.def.label, textStyle(IS_PORTRAIT ? 14 : 11, '#9a4a74', true)).setOrigin(0.5);
+      label.setStroke('#ffffff', 5);
+      c.add(label);
+      const hit = this.add.circle(0, 0, r, 0xffffff, 0);
+      hit.setInteractive(new Phaser.Geom.Circle(r, r, r), Phaser.Geom.Circle.Contains);
+      hit.on('pointerdown', () => this.goSpot(spot));
+      c.add(hit);
+      this.tweens.add({ targets: c, scaleX: 1.08, scaleY: 1.08, duration: 950, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      return c;
+    }
+
+    refreshSpotMarkers() {
+      this.spots.forEach((spot) => spot.container.setAlpha(this.spotAt === spot ? 0.34 : 1));
+    }
+
+    dollPosFor(spot) {
+      return {
+        x: spot.x - 300 * this.scaleDoll,
+        y: spot.feetY - DOLL_FEET * this.scaleDoll,
+      };
+    }
+
+    clampDollX(x) {
+      return Phaser.Math.Clamp(x, -110, WIDTH - DOLL_W * this.scaleDoll + 110);
+    }
+
+    clampDollY(y) {
+      const minY = 12 + (DOLL_FEET - 62) * this.scaleDoll - DOLL_FEET * this.scaleDoll;
+      return Phaser.Math.Clamp(y, minY, TRAY_TOP - 48 * PU - DOLL_FEET * this.scaleDoll);
+    }
+
+    nearestSpot(x, y) {
+      let best = null;
+      let bestDist = 1e9;
+      this.spots.forEach((spot) => {
+        const d = Math.min(
+          Phaser.Math.Distance.Between(x, y, spot.x, spot.markerY),
+          Phaser.Math.Distance.Between(x, y, spot.x, spot.feetY - 120 * PU)
+        );
+        if (d < 150 * PU && d < bestDist) {
+          best = spot;
+          bestDist = d;
+        }
+      });
+      return best;
+    }
+
+    // 点光圈：小人整体走过去，到了就开始做那件事
+    goSpot(spot) {
+      if (this.drag) return;
+      this.idleStop();
+      this.walkStop();
+      this.stopAction();
+      this.spotAt = spot;
+      this.refreshSpotMarkers();
+      const to = this.dollPosFor(spot);
+      const dist = Phaser.Math.Distance.Between(this.dollLayer.x, this.dollLayer.y, to.x, to.y);
+      SoundFX.step();
+      this.walkBob = this.tweens.add({ targets: this.dollPivot, scaleY: 0.985, duration: 130, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.walkMove = this.tweens.add({
+        targets: this.dollLayer,
+        x: to.x,
+        y: to.y,
+        duration: Phaser.Math.Clamp(dist * 1.3, 420, 1100),
+        ease: 'Sine.InOut',
+        onComplete: () => {
+          this.walkStop();
+          if (this.spotAt === spot) this.playAction(spot);
+        },
+      });
+    }
+
+    walkStop() {
+      if (this.walkBob) { this.walkBob.stop(); this.walkBob = null; }
+      if (this.walkMove) { this.walkMove.stop(); this.walkMove = null; }
+    }
+
+    playAction(spot) {
+      this.clearProps();
+      this.actionBaseX = this.dollLayer.x;
+      this.actionBaseY = this.dollLayer.y;
+      this.actionAt = spot;
+      const fn = SPOT_ACTIONS[spot.def.action];
+      if (fn) fn(this, spot);
+    }
+
+    // 点小人：她回到中间（换装的位置）
+    homeDoll() {
+      this.walkStop();
+      this.stopAction();
+      this.spotAt = null;
+      this.refreshSpotMarkers();
+      const dist = Phaser.Math.Distance.Between(this.dollLayer.x, this.dollLayer.y, this.dollHomeX, this.dollHomeY);
+      if (dist < 4) {
+        this.idleStart();
+        return;
+      }
+      SoundFX.step();
+      this.walkBob = this.tweens.add({ targets: this.dollPivot, scaleY: 0.985, duration: 130, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.walkMove = this.tweens.add({
+        targets: this.dollLayer,
+        x: this.dollHomeX,
+        y: this.dollHomeY,
+        duration: Phaser.Math.Clamp(dist * 1.1, 320, 900),
+        ease: 'Sine.InOut',
+        onComplete: () => {
+          this.walkStop();
+          this.idleStart();
+        },
+      });
+    }
+
+    // 抱起来：整只小人跟着手指走
+    onGrabDoll(pointer) {
+      if (this.drag) return;
+      // the doll can stand on a circle and hide it: the circle wins the tap
+      const onSpot = this.spotUnder(pointer.x, pointer.y);
+      if (onSpot) {
+        this.goSpot(onSpot);
+        return;
+      }
+      this.idleStop();
+      this.walkStop();
+      this.stopAction();
+      this.spotAt = null;
+      this.refreshSpotMarkers();
+      this.drag = {
+        def: null,
+        doll: true,
+        moved: false,
+        pointerId: pointer.id,
+        mode: 'doll',
+        startX: pointer.x,
+        startY: pointer.y,
+        baseX: this.dollLayer.x,
+        baseY: this.dollLayer.y,
+      };
+      SoundFX.pick();
+    }
+
+    stopAction() {
+      if (this.actionTimers) {
+        this.actionTimers.forEach((timer) => timer.remove(false));
+        this.actionTimers = [];
+      }
+      this.actionTweens.forEach((t) => t.stop());
+      this.actionTweens = [];
+      this.clearProps();
+      this.dollPivot.setRotation(0);
+      this.dollPivot.setScale(1);
+      this.dollLayer.setScale(this.scaleDoll);
+      this.actionAt = null;
+    }
+
+    clearProps() {
+      if (!this.propObjs) return;
+      this.propBack.clear();
+      this.propBack.setPosition(0, 0);
+      this.propFront.clear();
+      this.propFront.setPosition(0, 0);
+      this.propObjs.forEach((obj) => {
+        this.tweens.killTweensOf(obj);
+        obj.destroy();
+      });
+      this.propObjs = [];
+    }
+
+    addProp(obj, front) {
+      obj.setDepth(front ? 6.4 : 4.4);
+      this.propObjs.push(obj);
+      return obj;
+    }
+
+    tw(cfg) {
+      const tween = this.tweens.add(cfg);
+      this.actionTweens.push(tween);
+      return tween;
+    }
+
+    // 动作里的延时事件：动作一旦结束就不再执行（避免结束后又冒出一堆道具）
+    after(ms, fn) {
+      const spot = this.actionAt;
+      const timer = this.time.delayedCall(ms, () => {
+        if (spot && this.actionAt === spot) fn();
+      });
+      this.actionTimers.push(timer);
+      return timer;
+    }
+
+    burst(x, y, count, colors, spread, size, drift) {
+      for (let i = 0; i < count; i += 1) {
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.6;
+        const dist = spread * (0.45 + Math.random() * 0.6);
+        const dot = this.addProp(this.add.circle(x, y, size * (0.6 + Math.random() * 0.8), colors[i % colors.length], 0.95), true);
+        this.tw({
+          targets: dot,
+          x: x + Math.cos(angle) * dist,
+          y: y + Math.sin(angle) * dist + (drift || 0),
+          alpha: 0,
+          scaleX: 0.3,
+          scaleY: 0.3,
+          duration: 700 + Math.random() * 450,
+          ease: 'Cubic.Out',
+        });
+      }
+    }
+
+    idleStart() {
+      this.idleStop();
+      this.idleTween = this.tweens.add({
+        targets: this.dollLayer,
+        y: this.dollHomeY - 5,
+        duration: 1600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+    }
+
+    idleStop() {
+      if (this.idleTween) {
+        this.idleTween.stop();
+        this.idleTween = null;
+      }
     }
 
     buildTray() {
@@ -976,7 +1781,24 @@
     }
 
     setCategory(key) {
-      if (this.category === key) return;
+      if (this.category === key && !this.pendingCategory) return;
+      const items = this.itemsFor(key);
+      if (!this.texturesReady(items)) {
+        this.pendingCategory = key;
+        this.showTrayLoading(key);
+        this.queueItems(items, () => {
+          if (this.pendingCategory !== key || !this.scene.isActive()) return;
+          this.pendingCategory = null;
+          this.category = null;
+          this.setCategory(key);
+        });
+        return;
+      }
+      this.pendingCategory = null;
+      if (this.loadingTween) {
+        this.loadingTween.stop();
+        this.loadingTween = null;
+      }
       this.category = key;
       this.trayOffset = 0;
       this.trayOffsetMax = 0;
@@ -985,8 +1807,6 @@
       this.itemLayer = this.add.container(0, 0);
       this.trayContent.add(this.itemLayer);
       this.thumbByKey = {};
-
-      const items = ITEMS.filter((item) => itemCat(item) === key && (!item.scene || item.scene === this.sceneKey));
       const step = LAYOUT.slotW + LAYOUT.gap;
       const totalW = items.length * step - LAYOUT.gap;
       const pad = IS_PORTRAIT ? 16 : 24;
@@ -1014,6 +1834,82 @@
       this.refreshTabs();
       this.refreshArrows();
       this.refreshWornMarks();
+      this.prefetchNext(key);
+    }
+
+    itemsFor(catKey) {
+      return ITEMS.filter((item) => itemCat(item) === catKey && (!item.scene || item.scene === this.sceneKey));
+    }
+
+    texturesReady(items) {
+      return items.every((item) => this.textures.exists(item.key));
+    }
+
+    queueSvg(item) {
+      this.load.svg(item.key, DIR + item.key + '.svg', {
+        width: Math.round(item.box.w * TEX_SCALE),
+        height: Math.round(item.box.h * TEX_SCALE),
+      });
+    }
+
+    // one category at a time: a slow decoration never blocks the next tap
+    queueItems(items, onDone) {
+      this.loadQueue.push({ items: items, onDone: onDone });
+      this.runLoadQueue();
+    }
+
+    runLoadQueue() {
+      if (this.loadBusy || !this.loadQueue.length) return;
+      const job = this.loadQueue[0];
+      const missing = job.items.filter((item) => !this.textures.exists(item.key));
+      this.loadBusy = true;
+      const finish = () => {
+        this.loadBusy = false;
+        this.loadQueue.shift();
+        if (job.onDone) job.onDone();
+        this.runLoadQueue();
+      };
+      if (!missing.length) {
+        finish();
+        return;
+      }
+      missing.forEach((item) => this.queueSvg(item));
+      this.load.once('complete', finish);
+      this.load.start();
+    }
+
+    showTrayLoading(key) {
+      if (this.loadingTween) {
+        this.loadingTween.stop();
+        this.loadingTween = null;
+      }
+      this.category = key;
+      this.trayOffset = 0;
+      this.trayOffsetMax = 0;
+      if (this.trayContent) this.trayContent.x = 0;
+      if (this.itemLayer) this.itemLayer.destroy(true);
+      this.itemLayer = this.add.container(0, 0);
+      this.trayContent.add(this.itemLayer);
+      this.thumbByKey = {};
+      this.currentItems = [];
+      const label = this.add.text(WIDTH / 2, this.itemTop + LAYOUT.slotH / 2, '加载中…', textStyle(IS_PORTRAIT ? 17 : 15, '#b07b98', true)).setOrigin(0.5);
+      this.itemLayer.add(label);
+      this.loadingTween = this.tweens.add({ targets: label, alpha: 0.3, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.refreshTabs();
+      this.refreshArrows();
+    }
+
+    // warm up the next category so the next tap feels instant
+    prefetchNext(key) {
+      const index = CATEGORIES.map((cat) => cat.key).indexOf(key);
+      if (index < 0) return;
+      const next = CATEGORIES[(index + 1) % CATEGORIES.length];
+      const items = this.itemsFor(next.key);
+      if (this.texturesReady(items)) return;
+      this.time.delayedCall(1800, () => {
+        if (this.drag || !this.scene.isActive()) return;
+        this.queueItems(items, null);
+      });
     }
 
     refreshWornMarks() {
@@ -1174,6 +2070,14 @@
     onPointerMove(pointer) {
       const d = this.drag;
       if (!d || pointer.id !== d.pointerId) return;
+      if (d.doll) {
+        if (Math.abs(pointer.x - d.startX) > 7 || Math.abs(pointer.y - d.startY) > 7) d.moved = true;
+        this.dollLayer.setPosition(
+          this.clampDollX(d.baseX + pointer.x - d.startX),
+          this.clampDollY(d.baseY + pointer.y - d.startY)
+        );
+        return;
+      }
       const dx = pointer.x - d.startX;
       const dy = pointer.y - d.startY;
       if (d.mode === 'decide') {
@@ -1215,6 +2119,15 @@
       const d = this.drag;
       if (!d || pointer.id !== d.pointerId) return;
       this.drag = null;
+      if (d.doll) {
+        if (!d.moved) {
+          this.homeDoll();
+        } else {
+          const spot = this.nearestSpot(pointer.x, pointer.y);
+          if (spot) this.goSpot(spot);
+        }
+        return;
+      }
       if (d.mode === 'scroll') {
         this.setTrayOffset(Math.round(this.trayOffset));
         return;
@@ -1242,11 +2155,33 @@
     isOverDoll(x, y) {
       const r = this.dollRect;
       const pad = LAYOUT.dropPad;
-      const left = Math.max(0, r.x - pad);
-      const right = Math.min(WIDTH, r.x + r.w + pad);
-      const top = Math.max(0, r.y - pad);
-      const bottom = Math.min(TRAY_TOP - 6, r.y + r.h + pad);
+      // also accept a drop where she is standing right now, not only at her home spot
+      const ox = this.dollLayer ? this.dollLayer.x - this.dollLeft : 0;
+      const oy = this.dollLayer ? this.dollLayer.y - this.dollTop : 0;
+      if (this.inDollRect(x, y, r.x + ox, r.y + oy, r.w, r.h, pad)) return true;
+      return this.inDollRect(x, y, r.x, r.y, r.w, r.h, pad);
+    }
+
+    inDollRect(x, y, rx, ry, rw, rh, pad) {
+      const left = Math.max(0, rx - pad);
+      const right = Math.min(WIDTH, rx + rw + pad);
+      const top = Math.max(0, ry - pad);
+      const bottom = Math.min(TRAY_TOP - 6, ry + rh + pad);
       return x >= left && x <= right && y >= top && y <= bottom;
+    }
+
+    // 连衣裙是一整套：穿上它就把上衣收起来，反过来穿上衣也会把连衣裙收起来
+    coveredSlots(def) {
+      const out = [];
+      (PIECE_COVERS[def.piece] || []).forEach((slot) => {
+        if (slot !== def.slot && this.equipped[slot]) out.push(slot);
+      });
+      Object.keys(this.equipped).forEach((slot) => {
+        if (slot === def.slot) return;
+        const other = this.equipped[slot].def;
+        if (other && (PIECE_COVERS[other.piece] || []).indexOf(def.slot) >= 0) out.push(slot);
+      });
+      return out;
     }
 
     equip(def) {
@@ -1262,12 +2197,16 @@
         this.destroyWorn(slot);
         replaced = true;
       }
+      this.coveredSlots(def).forEach((covered) => {
+        this.destroyWorn(covered);
+        replaced = true;
+      });
       const box = def.box;
       const cx = box.x + box.w / 2;
       const cy = box.y + box.h / 2;
       const base = 1 / TEX_SCALE;
       const img = this.add.image(cx, cy, def.key).setOrigin(0.5);
-      img.setDepth(SLOT_DEPTH[slot]);
+      img.setDepth(def.depth === undefined ? SLOT_DEPTH[slot] : def.depth);
       img.setScale(base * 0.9).setAlpha(0.7);
       this.makeGrabbable(img, def, true);
       const layer = SLOT_BEHIND[slot] ? this.backLayer : this.wornLayer;
@@ -1310,8 +2249,8 @@
     }
 
     sparkle(dollX, dollY) {
-      const cx = this.dollLeft + dollX * this.scaleDoll;
-      const cy = this.dollTop + dollY * this.scaleDoll;
+      const cx = this.dollLayer.x + dollX * this.scaleDoll;
+      const cy = this.dollLayer.y + dollY * this.scaleDoll;
       for (let i = 0; i < 6; i += 1) {
         const angle = (Math.PI * 2 * i) / 6 + Math.random() * 0.4;
         const dist = 42 + Math.random() * 26;
