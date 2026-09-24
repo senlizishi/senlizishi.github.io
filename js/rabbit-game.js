@@ -1,7 +1,7 @@
 /*
  * 小兔跳跳：小兔子匀速自动向前跑，全程只有「跳」一个操作。
  * 点屏幕任意处 / 空格起跳，空中再点一次是二段跳；跳过浅浅的小土坑、
- * 从小调皮头顶踩过去、收集胡萝卜和星星。
+ * 从小调皮头顶踩过去；撞到小调皮就哭一下，然后继续跑；收集胡萝卜和星星。
  * 没有死亡、没有扣分、没有倒计时、没有吓人的东西。
  * 每关固定距离，跑满就结算，然后自动开下一关。
  */
@@ -40,7 +40,7 @@
   const PIT_W_MAX = 100;
   const PIT_FALL_DEPTH = 46;
   const STUMBLE_TIME = 0.8;
-  const TRIP_TIME = 0.5;
+  const CRY_TIME = 0.7;
   const HUD_INSET = 84;                    // 给左上角的返回按钮让位
   const HUD_Y = choose(34, 36);
   const PILL_W = 56;
@@ -55,7 +55,6 @@
   const ITEM_VALUE = { carrot: 10, star: 30, flower: 15 };
   const ITEM_WEIGHT = [['carrot', 55], ['star', 25], ['flower', 20]];
   const STOMP_SCORE = 20;
-  const COMBO_BONUS = 30;
   const RAINBOW_CARROTS = 10;
   const ENEMY_HEIGHT = { ladybug: 34, mushroom: 44, hedgehog: 34 };
   const ENEMY_HALF_W = { ladybug: 22, mushroom: 24, hedgehog: 27 };
@@ -319,12 +318,6 @@
       this.tone(300, 0.07, 'square', 0.045);
       this.tone(560, 0.13, 'triangle', 0.08, this.context ? this.context.currentTime + 0.02 : 0);
     },
-    combo() {
-      this.start();
-      if (!this.context || this.muted) return;
-      const when = this.context.currentTime;
-      [NOTE.G5, NOTE.A5, NOTE.C6, NOTE.E6].forEach((freq, index) => this.tone(freq, 0.2, 'triangle', 0.085, when + index * 0.06));
-    },
     collectCarrot() {
       this.start();
       this.tone(NOTE.A5, 0.08, 'triangle', 0.08);
@@ -341,7 +334,13 @@
       this.tone(NOTE.F5, 0.09, 'sine', 0.07);
       this.tone(NOTE.A5, 0.13, 'sine', 0.05, this.context ? this.context.currentTime + 0.06 : 0);
     },
-    trip() { this.start(); this.sweep(300, 170, 0.2, 'sine', 0.07); },
+    cry() {
+      this.start();
+      if (!this.context || this.muted) return;
+      const when = this.context.currentTime;
+      this.sweep(470, 330, 0.22, 'sine', 0.06);
+      this.tone(NOTE.E5, 0.18, 'triangle', 0.045, when + 0.08);
+    },
     pit() {
       this.start();
       if (!this.context || this.muted) return;
@@ -496,6 +495,7 @@
     const shake = (pose.wiggle || 0) * 7;
     const phase = pose.legPhase || 0;
     const airborne = !!pose.airborne;
+    const crying = pose.cry > 0;
 
     const groundLocal = pose.groundY - pose.y;
     const air = clamp(groundLocal / 220, 0, 1);
@@ -558,6 +558,14 @@
     g.moveTo(headX + X(12.4), headY + 4);
     g.lineTo(headX + X(11.6), headY + 5.8);
     g.strokePath();
+    if (crying) {
+      const tearWave = Math.sin(pose.elapsed * 22) * 2;
+      g.fillStyle(0x79cfff, 0.92);
+      g.fillEllipse(headX + X(5.4), headY + 8 + tearWave, 2.6, 5.5);
+      g.fillEllipse(headX + X(11.8), headY + 8 - tearWave, 2.6, 5.5);
+      g.fillStyle(0x6c91a8, 0.95);
+      g.fillEllipse(headX + X(9), headY + 11, 4.2, 3.2);
+    }
   }
 
   // ------------------------------------------------------------ 场景
@@ -582,8 +590,7 @@
       this.lean = 0;
       this.wiggle = 0;
       this.stumble = null;
-      this.tripTimer = 0;
-      this.combo = 0;
+      this.cryTimer = 0;
       this.rainbowEars = false;
       this.score = 0;
       this.carrotTotal = 0;
@@ -1073,7 +1080,7 @@
       this.lean = 0;
       this.wiggle = 0;
       this.stumble = null;
-      this.tripTimer = 0;
+      this.cryTimer = 0;
       this.levelCarrot = 0;
       this.levelStar = 0;
       this.levelFlower = 0;
@@ -1104,7 +1111,6 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
       this.state = 'clearing';
       this.buffer = 0;
       this.stumble = null;
-      this.combo = 0;
       RabbitAudio.levelClear();
       this.spawnStarBurst(WIDTH * 0.5, GROUND_Y - 170, 12);
       this.celebrateTimer = 0;
@@ -1227,7 +1233,7 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
     }
 
     applyJump() {
-      if (this.state !== 'playing' || this.stumble || this.tripTimer > 0) return;
+      if (this.state !== 'playing' || this.stumble) return;
       if (this.onGround || this.coyote > 0) {
         this.vy = JUMP_V;
         this.onGround = false;
@@ -1294,7 +1300,7 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
     updatePlaying(dt) {
       if (this.pressedJump()) { this.buffer = JUMP_BUFFER; this.applyJump(); }
 
-      if (this.tripTimer > 0) this.tripTimer = Math.max(0, this.tripTimer - dt);
+      if (this.cryTimer > 0) this.cryTimer = Math.max(0, this.cryTimer - dt);
       this.buffer = Math.max(0, this.buffer - dt);
       this.squash = Math.max(0, this.squash - dt * 3.2);
 
@@ -1353,7 +1359,6 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
     startStumble(pit) {
       pit.falls += 1;
       this.stumble = { t: 0, pit: pit, assist: pit.falls > 1 };
-      this.combo = 0;
       this.onGround = false;
       this.vy = 0;
       this.lean = 0;
@@ -1492,7 +1497,6 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
     }
 
     checkEnemies() {
-      if (this.tripTimer > 0) return;
       for (let i = 0; i < this.enemies.length; i += 1) {
         const enemy = this.enemies[i];
         if (enemy.gone) continue;
@@ -1500,23 +1504,15 @@ this.hintText = this.add.text(WIDTH / 2, GROUND_Y - choose(120, 132), '点一下
         if (sx < -90 || sx > WIDTH + 90) continue;
         if (Math.abs(sx - RABBIT_SCREEN_X) > RABBIT_HALF_W + enemy.halfW - 6) continue;
         if (this.vy > 2 && this.rabbitY < GROUND_Y - 6) this.stompEnemy(enemy, sx);
-        else this.tripOnEnemy(enemy);
+        else this.cryOnEnemy(enemy);
       }
     }
 
     stompEnemy(enemy, sx) {
       enemy.gone = true;
-      this.combo += 1;
-      let gained = STOMP_SCORE;
-      if (this.combo % 3 === 0) gained += COMBO_BONUS;
-      this.score += gained;
-      this.levelScore += gained;
-      if (this.combo % 3 === 0) {
-        RabbitAudio.combo();
-this.spawnHearts(sx, GROUND_Y - enemy.height - 24, 3);
-      } else {
-        RabbitAudio.stomp();
-      }
+      this.score += STOMP_SCORE;
+      this.levelScore += STOMP_SCORE;
+      RabbitAudio.stomp();
       this.spawnStarBurst(sx, GROUND_Y - enemy.height * 0.6, 4);
       // 踩上去轻轻弹一下，手感更弹、也更不容易顺势掉坑
       this.vy = Math.min(this.vy, -360);
@@ -1533,11 +1529,10 @@ this.spawnHearts(sx, GROUND_Y - enemy.height - 24, 3);
       this.updateHudTexts();
     }
 
-    tripOnEnemy(enemy) {
+    cryOnEnemy(enemy) {
       enemy.gone = true;
-      this.tripTimer = TRIP_TIME;
-      this.combo = 0;
-      RabbitAudio.trip();
+      this.cryTimer = CRY_TIME;
+      RabbitAudio.cry();
       this.spawnBurst(RABBIT_SCREEN_X - 12, this.rabbitY - 12, 4, WHITE, 0.85, 40);
       const gfx = enemy.gfx;
       if (gfx) {
@@ -1600,6 +1595,7 @@ this.spawnHearts(sx, GROUND_Y - enemy.height - 24, 3);
         legPhase: this.runPhase,
         airborne: !this.onGround || this.rabbitY < GROUND_Y - 2,
         rainbow: this.rainbowEars,
+        cry: this.cryTimer,
         elapsed: this.elapsed,
       });
     }
@@ -1614,11 +1610,6 @@ this.spawnHearts(sx, GROUND_Y - enemy.height - 24, 3);
         g.fillStyle(p.color, alpha);
         if (p.shape === 'star') {
           g.fillPoints(starPoints(p.x, p.y, p.size, p.size * 0.44, 5, p.angle), true);
-        } else if (p.shape === 'heart') {
-          const r = p.size;
-          g.fillCircle(p.x - r * 0.36, p.y - r * 0.2, r * 0.46);
-          g.fillCircle(p.x + r * 0.36, p.y - r * 0.2, r * 0.46);
-          g.fillTriangle(p.x - r * 0.78, p.y + r * 0.06, p.x + r * 0.78, p.y + r * 0.06, p.x, p.y + r * 1.05);
         } else {
           g.fillCircle(p.x, p.y, p.size);
         }
@@ -1667,17 +1658,6 @@ this.spawnHearts(sx, GROUND_Y - enemy.height - 24, 3);
           x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
           life: life, max: life, size: randomRange(4, 7), color: 0xffd84e, alpha: 1,
           shape: 'star', gravity: 320, angle: randomRange(0, 3), spin: randomRange(-6, 6),
-        });
-      }
-    }
-
-    spawnHearts(x, y, count) {
-      for (let i = 0; i < count; i += 1) {
-        const life = randomRange(0.7, 1.05);
-        this.pushParticle({
-x: x + randomRange(-18, 18), y: y, vx: randomRange(-28, 28), vy: randomRange(-152, -96),
-life: life, max: life, size: randomRange(8, 11), color: 0xff7fa8, alpha: 1,
-          shape: 'heart', gravity: 40, angle: 0, spin: 0,
         });
       }
     }
