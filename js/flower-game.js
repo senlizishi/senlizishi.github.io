@@ -49,7 +49,7 @@
   // 五声音阶，第 n 朵花取第 n 个音，插满刚好是一段上行旋律
   const NOTES = [261.63, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
 
-  const DEPTH = { backdrop: 0, cat: 8, stem: 12, vase: 20, head: 30, petalFall: 46, drag: 60, tray: 70, ui: 80 };
+  const DEPTH = { backdrop: 0, cat: 8, vaseBack: 10, stem: 12, vase: 20, head: 30, petalFall: 46, drag: 60, tray: 70, ui: 80 };
 
   function computeLayout() {
     const trayH = 176;
@@ -128,6 +128,17 @@
     for (let i = 0; i <= n; i++) {
       const a = a0 + (a1 - a0) * (i / n);
       out.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    return out;
+  }
+
+  // 椭圆弧（花瓶瓶口用）
+  function arcPtsE(cx, cy, rx, ry, a0, a1, steps) {
+    const n = steps || 14;
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      out.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry });
     }
     return out;
   }
@@ -280,13 +291,31 @@
   }
 
   // ---------------------------------------------------------------- 花瓶
-  function drawVase(g, L) {
+  // 瓶口内壁 + 远端瓶沿（花茎之下，花茎盖在上面就像伸进了瓶口）
+  function drawVaseBack(g, L) {
     const v = L.vase;
     const cx = v.cx, baseY = v.baseY, h = v.h, lip = v.lipW;
     const belly = lip * 1.62;
+    const rimRx = lip * 0.92, rimRy = lip * 0.42;
 
     g.fillStyle(0x000000, 0.09);
     g.fillEllipse(cx, baseY + 8, belly * 2.1, 32);
+
+    g.fillStyle(C.vaseDark, 1);
+    g.fillEllipse(cx, v.lipY, rimRx * 1.86, rimRy * 2);
+    g.fillStyle(darken(C.vaseDark, 0.25), 1);
+    g.fillEllipse(cx, v.lipY + rimRy * 0.16, rimRx * 1.5, rimRy * 1.5);
+
+    g.lineStyle(4.5, lighten(C.vase, 0.10), 1);
+    strokePts(g, arcPtsE(cx, v.lipY, rimRx, rimRy, Math.PI, Math.PI * 2, 16), false);
+  }
+
+  // 瓶身 + 近端瓶沿（花茎之上，把茎的下半段挡住）
+  function drawVaseFront(g, L) {
+    const v = L.vase;
+    const cx = v.cx, baseY = v.baseY, h = v.h, lip = v.lipW;
+    const belly = lip * 1.62;
+    const rimRx = lip * 0.92, rimRy = lip * 0.42;
 
     const profile = [
       [belly * 0.52, 0],
@@ -294,12 +323,14 @@
       [belly * 0.99, -h * 0.28],
       [belly, -h * 0.50],
       [belly * 0.86, -h * 0.70],
-      [lip * 1.04, -h * 0.88],
-      [lip * 0.86, -h],
+      [rimRx * 1.05, -h * 0.88],
+      [rimRx, -h],
     ];
     const half = profile.map(function (p) { return new Phaser.Math.Vector2(cx + p[0], baseY + p[1]); });
     const smooth = new Phaser.Curves.Spline(half).getPoints(44);
-    const body = smooth.concat(smooth.slice().reverse().map(function (p) {
+    // 近端瓶沿：椭圆下半弧，瓶身的上边界
+    const frontArc = arcPtsE(cx, v.lipY, rimRx, rimRy, 0, Math.PI, 16);
+    const body = smooth.concat(frontArc).concat(smooth.slice().reverse().map(function (p) {
       return { x: cx - (p.x - cx), y: p.y };
     }));
 
@@ -307,12 +338,6 @@
     fillPts(g, body);
     g.lineStyle(3, C.vaseDark, 1);
     strokePts(g, body, true);
-
-    // 瓶口内壁
-    g.fillStyle(C.vaseDark, 1);
-    g.fillEllipse(cx, v.lipY + 2, lip * 1.74, lip * 0.5);
-    g.fillStyle(darken(C.vaseDark, 0.22), 1);
-    g.fillEllipse(cx, v.lipY + 3, lip * 1.52, lip * 0.38);
 
     // 瓶底暗部
     g.fillStyle(darken(C.vase, 0.10), 0.45);
@@ -324,7 +349,7 @@
       { x: cx - belly * 0.52, y: baseY - h * 0.2 },
       { x: cx - belly * 0.62, y: baseY - h * 0.45 },
       { x: cx - belly * 0.48, y: baseY - h * 0.68 },
-      { x: cx - lip * 0.5, y: baseY - h * 0.85 },
+      { x: cx - rimRx * 0.55, y: baseY - h * 0.85 },
     ], false);
   }
 
@@ -724,8 +749,8 @@
     }
 
     buildVase() {
-      const g = this.add.graphics().setDepth(DEPTH.vase);
-      drawVase(g, this.L);
+      drawVaseBack(this.add.graphics().setDepth(DEPTH.vaseBack), this.L);
+      drawVaseFront(this.add.graphics().setDepth(DEPTH.vase), this.L);
     }
 
     // -------------------------------------------------- 道具栏
