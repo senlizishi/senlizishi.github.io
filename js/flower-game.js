@@ -94,7 +94,7 @@
       k: k,
       x: L.vase.cx + t * L.slotSpread,
       y: L.vase.lipY - L.flowerH * (1 - 0.38 * t * t + 0.12 * alt),
-      lean: t * 0.8,
+      lean: t * 0.42,
       scale: 1 - 0.12 * Math.abs(t),
     };
   }
@@ -352,206 +352,206 @@
   }
 
   function catBodySleep(g) {
-    catShadow(g, 158);
-    const tail = cubicPts({ x: -52, y: -26 }, { x: -98, y: -22 }, { x: -98, y: 4 }, { x: -56, y: 2 }, 16);
+    catShadow(g, 168);
+    const tail = cubicPts({ x: -62, y: -22 }, { x: -106, y: -16 }, { x: -104, y: 6 }, { x: -62, y: 4 }, 16);
     g.lineStyle(15, CAT.dark, 1);
     strokePts(g, tail, false);
     g.lineStyle(11, CAT.body, 1);
     strokePts(g, tail, false);
 
+    // 蜷成一大团
     g.fillStyle(CAT.body, 1);
-    g.fillEllipse(0, -38, 130, 72);
+    g.fillEllipse(0, -40, 158, 88);
     g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeEllipse(0, -38, 130, 72);
+    g.strokeEllipse(0, -40, 158, 88);
 
-    g.lineStyle(5, CAT.dark, 0.32);
-    [-30, -8, 14].forEach(function (x) {
-      strokePts(g, arcPts(x, -30, 26, Math.PI * 1.1, Math.PI * 1.9, 10), false);
-    });
+    // 身上的卷纹
+    g.lineStyle(5, CAT.dark, 0.26);
+    strokePts(g, arcPts(-56, -30, 36, Math.PI * 0.9, Math.PI * 1.95, 12), false);
+    strokePts(g, arcPts(-8, -24, 44, Math.PI * 0.85, Math.PI * 2.0, 12), false);
 
+    // 压在身前的小爪
     g.fillStyle(CAT.pale, 1);
     g.lineStyle(2.5, CAT.dark, 0.4);
-    g.fillEllipse(-24, -11, 40, 21);
-    g.strokeEllipse(-24, -11, 40, 21);
-    g.fillEllipse(12, -11, 40, 21);
-    g.strokeEllipse(12, -11, 40, 21);
-    g.lineStyle(2, CAT.dark, 0.45);
-    strokePts(g, [{ x: -30, y: -16 }, { x: -31, y: -6 }], false);
-    strokePts(g, [{ x: -18, y: -16 }, { x: -17, y: -6 }], false);
-    strokePts(g, [{ x: 6, y: -16 }, { x: 5, y: -6 }], false);
-    strokePts(g, [{ x: 18, y: -16 }, { x: 19, y: -6 }], false);
+    g.fillEllipse(48, -14, 46, 24);
+    g.strokeEllipse(48, -14, 46, 24);
   }
 
   function catHeadSleep(g) {
-    const cx = 62, cy = -66, r = 37;
-    drawCatEars(g, cx, cy, r);
-    g.fillStyle(CAT.body, 1);
-    g.fillCircle(cx, cy, r);
-    g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeCircle(cx, cy, r);
-    g.lineStyle(4, CAT.dark, 0.28);
-    strokePts(g, arcPts(cx, cy - 16, 12, Math.PI * 1.15, Math.PI * 1.85, 8), false);
-
-    g.fillStyle(CAT.blush, 0.55);
-    g.fillCircle(cx - 19, cy + 13, 9);
-    g.fillCircle(cx + 19, cy + 13, 9);
-
-    g.lineStyle(4, CAT.line, 1);
-    strokePts(g, arcPts(cx - 14, cy - 3, 9, Math.PI * 0.12, Math.PI * 0.88, 10), false);
-    strokePts(g, arcPts(cx + 15, cy - 3, 9, Math.PI * 0.12, Math.PI * 0.88, 10), false);
-
-    drawCatNose(g, cx, cy + 12);
+    // 头搁在身体卷上，闭眼打盹
+    catFace(g, 30, -86, 40, 'closed');
   }
 
+  // 圆润小耳朵：短短的贴在头顶，粉色内耳
   function drawCatEars(g, cx, cy, r) {
-    const l = [{ x: cx - 21, y: cy - 25 }, { x: cx - 14, y: cy - 60 }, { x: cx + 9, y: cy - 32 }];
-    const rr = [{ x: cx + 5, y: cy - 33 }, { x: cx + 27, y: cy - 58 }, { x: cx + 32, y: cy - 26 }];
+    const l = [
+      { x: cx - r * 0.70, y: cy - r * 0.50 },
+      { x: cx - r * 0.50, y: cy - r * 1.24 },
+      { x: cx - r * 0.04, y: cy - r * 0.80 },
+    ];
+    const rr = [
+      { x: cx + r * 0.04, y: cy - r * 0.80 },
+      { x: cx + r * 0.50, y: cy - r * 1.24 },
+      { x: cx + r * 0.70, y: cy - r * 0.50 },
+    ];
     g.fillStyle(CAT.body, 1);
     fillPts(g, l);
     fillPts(g, rr);
     g.lineStyle(3, CAT.dark, 0.5);
     strokePts(g, l, true);
     strokePts(g, rr, true);
-    g.fillStyle(CAT.blush, 0.5);
-    fillPts(g, [{ x: cx - 14, y: cy - 32 }, { x: cx - 12, y: cy - 51 }, { x: cx + 2, y: cy - 36 }]);
-    fillPts(g, [{ x: cx + 9, y: cy - 36 }, { x: cx + 23, y: cy - 50 }, { x: cx + 25, y: cy - 33 }]);
+    g.fillStyle(CAT.blush, 0.55);
+    fillPts(g, [
+      { x: cx - r * 0.46, y: cy - r * 0.66 },
+      { x: cx - r * 0.38, y: cy - r * 1.00 },
+      { x: cx - r * 0.14, y: cy - r * 0.74 },
+    ]);
+    fillPts(g, [
+      { x: cx + r * 0.14, y: cy - r * 0.74 },
+      { x: cx + r * 0.38, y: cy - r * 1.00 },
+      { x: cx + r * 0.46, y: cy - r * 0.66 },
+    ]);
   }
 
-  function drawCatNose(g, cx, cy) {
+  // 小鼻子 + ω 嘴 + 又短又淡的胡须
+  function drawCatNose(g, cx, cy, r) {
+    const s = r / 35;
     g.fillStyle(CAT.blush, 1);
-    fillPts(g, [{ x: cx - 5, y: cy - 2 }, { x: cx + 5, y: cy - 2 }, { x: cx, y: cy + 5 }]);
-    g.lineStyle(3, CAT.line, 0.75);
-    strokePts(g, arcPts(cx - 5, cy + 6, 5, 0, Math.PI * 0.85, 8), false);
-    strokePts(g, arcPts(cx + 5, cy + 6, 5, Math.PI * 0.15, Math.PI, 8), false);
-    g.lineStyle(2.4, CAT.dark, 0.55);
-    strokePts(g, [{ x: cx - 24, y: cy + 2 }, { x: cx - 45, y: cy - 3 }], false);
-    strokePts(g, [{ x: cx - 24, y: cy + 8 }, { x: cx - 47, y: cy + 12 }], false);
-    strokePts(g, [{ x: cx + 24, y: cy + 2 }, { x: cx + 45, y: cy - 3 }], false);
-    strokePts(g, [{ x: cx + 24, y: cy + 8 }, { x: cx + 47, y: cy + 12 }], false);
+    fillPts(g, [
+      { x: cx - 4.5 * s, y: cy - 2 * s },
+      { x: cx + 4.5 * s, y: cy - 2 * s },
+      { x: cx, y: cy + 4 * s },
+    ]);
+    g.lineStyle(2.6, CAT.line, 0.8);
+    strokePts(g, arcPts(cx - 4 * s, cy + 5 * s, 4.4 * s, Math.PI * 0.05, Math.PI * 0.8, 8), false);
+    strokePts(g, arcPts(cx + 4 * s, cy + 5 * s, 4.4 * s, Math.PI * 0.2, Math.PI * 0.95, 8), false);
+    g.lineStyle(2, CAT.dark, 0.38);
+    strokePts(g, [{ x: cx - 20 * s, y: cy + 3 * s }, { x: cx - 33 * s, y: cy - 1 * s }], false);
+    strokePts(g, [{ x: cx - 20 * s, y: cy + 8 * s }, { x: cx - 32 * s, y: cy + 12 * s }], false);
+    strokePts(g, [{ x: cx + 20 * s, y: cy + 3 * s }, { x: cx + 33 * s, y: cy - 1 * s }], false);
+    strokePts(g, [{ x: cx + 20 * s, y: cy + 8 * s }, { x: cx + 32 * s, y: cy + 12 * s }], false);
   }
 
+  // 大圆眼 + 高光
   function drawCatEyesOpen(g, cx, cy, spread, rr, look) {
     const dx = spread / 2;
     g.fillStyle(CAT.line, 1);
     g.fillCircle(cx - dx, cy, rr);
     g.fillCircle(cx + dx, cy, rr);
-    g.fillStyle(0xFFFFFF, 0.9);
-    g.fillCircle(cx - dx + (look ? 2.5 : -2.5), cy - rr * 0.36, rr * 0.34);
-    g.fillCircle(cx + dx + (look ? 2.5 : -2.5), cy - rr * 0.36, rr * 0.34);
+    g.fillStyle(0xFFFFFF, 0.95);
+    g.fillCircle(cx - dx + (look ? rr * 0.3 : -rr * 0.3), cy - rr * 0.35, rr * 0.38);
+    g.fillCircle(cx + dx + (look ? rr * 0.3 : -rr * 0.3), cy - rr * 0.35, rr * 0.38);
+  }
+
+  // 娃娃脸：宽圆脸 + 大眼睛/眯眯眼 + 腮红，四个姿态共用
+  function catFace(g, cx, cy, r, expr) {
+    drawCatEars(g, cx, cy, r);
+    g.fillStyle(CAT.body, 1);
+    g.fillEllipse(cx, cy, r * 2.16, r * 2.02);
+    g.lineStyle(3, CAT.dark, 0.5);
+    g.strokeEllipse(cx, cy, r * 2.16, r * 2.02);
+    g.lineStyle(4, CAT.dark, 0.26);
+    strokePts(g, arcPts(cx, cy - r * 0.52, r * 0.30, Math.PI * 1.15, Math.PI * 1.85, 8), false);
+    g.fillStyle(CAT.blush, 0.5);
+    g.fillEllipse(cx - r * 0.64, cy + r * 0.30, r * 0.52, r * 0.34);
+    g.fillEllipse(cx + r * 0.64, cy + r * 0.30, r * 0.52, r * 0.34);
+    if (expr === 'closed') {
+      g.lineStyle(4, CAT.line, 1);
+      strokePts(g, arcPts(cx - r * 0.36, cy - r * 0.06, r * 0.20, Math.PI * 0.12, Math.PI * 0.88, 10), false);
+      strokePts(g, arcPts(cx + r * 0.36, cy - r * 0.06, r * 0.20, Math.PI * 0.12, Math.PI * 0.88, 10), false);
+    } else {
+      drawCatEyesOpen(g, cx, cy - r * 0.10, r * 0.72, r * 0.16, true);
+    }
+    drawCatNose(g, cx, cy + r * 0.30, r);
   }
 
   function catBodySit(g) {
-    catShadow(g, 122);
-    const tail = cubicPts({ x: -38, y: -46 }, { x: -86, y: -58 }, { x: -92, y: -8 }, { x: -60, y: -4 }, 16);
+    catShadow(g, 118);
+    const tail = cubicPts({ x: -40, y: -36 }, { x: -88, y: -48 }, { x: -94, y: -4 }, { x: -58, y: -2 }, 16);
     g.lineStyle(14, CAT.dark, 1);
     strokePts(g, tail, false);
     g.lineStyle(10, CAT.body, 1);
     strokePts(g, tail, false);
 
+    // 小小的梨形身子
     g.fillStyle(CAT.body, 1);
-    g.fillEllipse(0, -56, 94, 106);
+    g.fillEllipse(0, -42, 88, 92);
     g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeEllipse(0, -56, 94, 106);
+    g.strokeEllipse(0, -42, 88, 92);
+    g.fillStyle(lighten(CAT.body, 0.12), 1);
+    g.fillEllipse(0, -30, 52, 62);
 
-    g.fillStyle(lighten(CAT.body, 0.1), 1);
-    g.fillEllipse(0, -40, 56, 70);
-
+    // 两只前爪
     g.fillStyle(CAT.pale, 1);
     g.lineStyle(2.5, CAT.dark, 0.4);
-    g.fillRoundedRect(-32, -46, 21, 47, 10);
-    g.strokeRoundedRect(-32, -46, 21, 47, 10);
-    g.fillRoundedRect(11, -46, 21, 47, 10);
-    g.strokeRoundedRect(11, -46, 21, 47, 10);
+    g.fillEllipse(-20, -8, 26, 16);
+    g.strokeEllipse(-20, -8, 26, 16);
+    g.fillEllipse(20, -8, 26, 16);
+    g.strokeEllipse(20, -8, 26, 16);
   }
 
   function catHeadSit(g) {
-    const cx = 52, cy = -112, r = 35;
-    drawCatEars(g, cx, cy, r);
-    g.fillStyle(CAT.body, 1);
-    g.fillCircle(cx, cy, r);
-    g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeCircle(cx, cy, r);
-    g.lineStyle(4, CAT.dark, 0.28);
-    strokePts(g, arcPts(cx, cy - 15, 12, Math.PI * 1.15, Math.PI * 1.85, 8), false);
-    g.fillStyle(CAT.blush, 0.55);
-    g.fillCircle(cx - 18, cy + 13, 8);
-    g.fillCircle(cx + 18, cy + 13, 8);
-    drawCatEyesOpen(g, cx, cy - 4, 27, 6, true);
-    drawCatNose(g, cx, cy + 12);
+    // 大头压在身子上，娃娃比例
+    catFace(g, 0, -118, 44, 'open');
   }
 
   function catBodyWalk(g) {
     catShadow(g, 150);
-    const tail = cubicPts({ x: -50, y: -46 }, { x: -90, y: -74 }, { x: -104, y: -40 }, { x: -78, y: -26 }, 16);
+    const tail = cubicPts({ x: -50, y: -50 }, { x: -92, y: -80 }, { x: -106, y: -44 }, { x: -80, y: -28 }, 16);
     g.lineStyle(13, CAT.dark, 1);
     strokePts(g, tail, false);
     g.lineStyle(9, CAT.body, 1);
     strokePts(g, tail, false);
 
+    // 圆背
     g.fillStyle(CAT.body, 1);
-    g.fillEllipse(0, -58, 120, 66);
+    g.fillEllipse(-8, -58, 118, 74);
     g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeEllipse(0, -58, 120, 66);
-    g.lineStyle(5, CAT.dark, 0.28);
-    [-20, 4].forEach(function (x) {
-      strokePts(g, arcPts(x, -56, 24, Math.PI * 1.1, Math.PI * 1.9, 10), false);
-    });
+    g.strokeEllipse(-8, -58, 118, 74);
+    g.lineStyle(5, CAT.dark, 0.26);
+    strokePts(g, arcPts(-30, -56, 30, Math.PI * 1.05, Math.PI * 1.95, 10), false);
 
-    g.fillStyle(lighten(CAT.body, 0.06), 1);
+    // 四条小短腿
+    g.fillStyle(CAT.body, 1);
     g.lineStyle(2.5, CAT.dark, 0.4);
-    [-42, -18, 14, 38].forEach(function (x) {
-      g.fillRoundedRect(x, -30, 16, 31, 7);
-      g.strokeRoundedRect(x, -30, 16, 31, 7);
+    [-52, -26, 18, 42].forEach(function (x) {
+      g.fillRoundedRect(x, -30, 17, 32, 8);
+      g.strokeRoundedRect(x, -30, 17, 32, 8);
+    });
+    g.fillStyle(CAT.pale, 1);
+    [-52, -26, 18, 42].forEach(function (x) {
+      g.fillEllipse(x + 8.5, -1, 15, 8);
     });
   }
 
   function catHeadWalk(g) {
-    const cx = 54, cy = -92, r = 33;
-    drawCatEars(g, cx, cy, r);
-    g.fillStyle(CAT.body, 1);
-    g.fillCircle(cx, cy, r);
-    g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeCircle(cx, cy, r);
-    g.fillStyle(CAT.blush, 0.55);
-    g.fillCircle(cx - 17, cy + 12, 8);
-    g.fillCircle(cx + 17, cy + 12, 8);
-    drawCatEyesOpen(g, cx, cy - 4, 25, 5.5, true);
-    drawCatNose(g, cx, cy + 11);
+    catFace(g, 42, -102, 38, 'open');
   }
 
   function catBodySniff(g) {
     catShadow(g, 132);
-    const tail = cubicPts({ x: -44, y: -58 }, { x: -84, y: -96 }, { x: -98, y: -62 }, { x: -72, y: -44 }, 16);
+    const tail = cubicPts({ x: -44, y: -54 }, { x: -86, y: -90 }, { x: -98, y: -54 }, { x: -72, y: -40 }, 16);
     g.lineStyle(13, CAT.dark, 1);
     strokePts(g, tail, false);
     g.lineStyle(9, CAT.body, 1);
     strokePts(g, tail, false);
 
     g.fillStyle(CAT.body, 1);
-    g.fillEllipse(0, -54, 106, 64);
+    g.fillEllipse(-8, -50, 106, 60);
     g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeEllipse(0, -54, 106, 64);
+    g.strokeEllipse(-8, -50, 106, 60);
 
-    g.fillStyle(lighten(CAT.body, 0.06), 1);
+    g.fillStyle(CAT.body, 1);
     g.lineStyle(2.5, CAT.dark, 0.4);
-    [-38, -16, 12, 34].forEach(function (x) {
-      g.fillRoundedRect(x, -28, 15, 29, 7);
-      g.strokeRoundedRect(x, -28, 15, 29, 7);
+    [-46, -24, 6, 28].forEach(function (x) {
+      g.fillRoundedRect(x, -26, 15, 28, 7);
+      g.strokeRoundedRect(x, -26, 15, 28, 7);
     });
   }
 
   function catHeadSniff(g) {
-    const cx = 70, cy = -104, r = 32;
-    drawCatEars(g, cx, cy, r);
-    g.fillStyle(CAT.body, 1);
-    g.fillCircle(cx, cy, r);
-    g.lineStyle(3, CAT.dark, 0.5);
-    g.strokeCircle(cx, cy, r);
-    g.fillStyle(CAT.blush, 0.6);
-    g.fillCircle(cx - 16, cy + 13, 8);
-    g.fillCircle(cx + 17, cy + 14, 8);
-    drawCatEyesOpen(g, cx, cy - 5, 24, 5.5, true);
-    drawCatNose(g, cx, cy + 11);
+    // 低头凑近瓶口
+    catFace(g, 54, -76, 36, 'open');
   }
 
   const CAT_POSE = {
