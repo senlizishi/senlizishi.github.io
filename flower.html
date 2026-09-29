@@ -32,25 +32,15 @@
 <a id="home-link" href="./index.html" aria-label="返回首页">&#8592;</a>
 <script>
 (function () {
-  function isPortrait() { return window.innerHeight > window.innerWidth; }
-  const portrait = isPortrait();
+  // 只做竖屏：横屏时由 FIT 缩放居中显示，不需要重载
   window.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game-root',
-    width: portrait ? 540 : 960,
-    height: portrait ? 960 : 540,
+    width: 540,
+    height: 960,
     backgroundColor: '#fdf6ec',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
     scene: [window.FlowerScene],
-  });
-
-  let lastPortrait = portrait;
-  window.addEventListener('resize', () => {
-    const nextPortrait = isPortrait();
-    if (nextPortrait !== lastPortrait) {
-      lastPortrait = nextPortrait;
-      window.location.reload();
-    }
   });
 })();
 </script>

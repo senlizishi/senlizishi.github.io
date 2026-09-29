@@ -2,9 +2,9 @@
   'use strict';
 
   // ---------------------------------------------------------------- 基础常量
-  const IS_PORTRAIT = window.innerHeight > window.innerWidth;
-  const WIDTH = IS_PORTRAIT ? 540 : 960;
-  const HEIGHT = IS_PORTRAIT ? 960 : 540;
+  // 只做竖屏：横屏时由 FIT 缩放居中显示同一版竖屏画面
+  const WIDTH = 540;
+  const HEIGHT = 960;
   const STORE_KEY = 'kitty-flower-v1';
 
   const C = {
@@ -52,37 +52,20 @@
   const DEPTH = { backdrop: 0, cat: 8, stem: 12, vase: 20, head: 30, petalFall: 46, drag: 60, tray: 70, ui: 80 };
 
   function computeLayout() {
-    if (IS_PORTRAIT) {
-      const trayH = 176;
-      const deskY = 640;
-      const vaseH = 210;
-      return {
-        trayH: trayH,
-        trayTop: HEIGHT - trayH,
-        deskY: deskY,
-        vase: { cx: 296, baseY: deskY, h: vaseH, lipW: 62, lipY: deskY - vaseH },
-        cat: { x: 96, y: deskY + 6, scale: 0.95, walkMin: 72, walkMax: 300, sniffX: 178 },
-        flowerH: 175,
-        flowerR: 32,
-        slotSpread: 110,
-        lift: 54,
-        traySlotW: Math.min(WIDTH / FLOWERS.length, 104),
-      };
-    }
-    const trayH = 132;
-    const deskY = 330;
-    const vaseH = 140;
+    const trayH = 176;
+    const deskY = 640;
+    const vaseH = 210;
     return {
       trayH: trayH,
       trayTop: HEIGHT - trayH,
       deskY: deskY,
-      vase: { cx: 480, baseY: deskY, h: vaseH, lipW: 46, lipY: deskY - vaseH },
-      cat: { x: 250, y: deskY + 5, scale: 0.78, walkMin: 130, walkMax: 830, sniffX: 370 },
-      flowerH: 118,
-      flowerR: 23,
-      slotSpread: 78,
-      lift: 40,
-      traySlotW: Math.min(WIDTH / FLOWERS.length, 132),
+      vase: { cx: 296, baseY: deskY, h: vaseH, lipW: 62, lipY: deskY - vaseH },
+      cat: { x: 96, y: deskY + 6, scale: 0.95, walkMin: 72, walkMax: 300, sniffX: 178 },
+      flowerH: 175,
+      flowerR: 32,
+      slotSpread: 64,
+      lift: 54,
+      traySlotW: Math.min(WIDTH / FLOWERS.length, 104),
     };
   }
 
@@ -711,10 +694,7 @@
       g.fillEllipse(WIDTH * 0.5, -HEIGHT * 0.12, WIDTH * 1.6, HEIGHT * 0.5);
 
       // 窗
-      const wx = IS_PORTRAIT ? 58 : 78;
-      const wy = IS_PORTRAIT ? 96 : 62;
-      const ww = IS_PORTRAIT ? 142 : 152;
-      const wh = IS_PORTRAIT ? 128 : 116;
+      const wx = 58, wy = 96, ww = 142, wh = 128;
       g.fillStyle(C.windowFrame, 1);
       g.fillRoundedRect(wx - 8, wy - 8, ww + 16, wh + 16, 14);
       g.fillStyle(C.window, 1);
@@ -738,9 +718,9 @@
 
       // 暖光
       g.fillStyle(C.sun, 0.22);
-      g.fillCircle(WIDTH * 0.88, HEIGHT * 0.08, IS_PORTRAIT ? 130 : 100);
+      g.fillCircle(WIDTH * 0.88, HEIGHT * 0.08, 130);
       g.fillStyle(C.sun, 0.18);
-      g.fillCircle(WIDTH * 0.88, HEIGHT * 0.08, IS_PORTRAIT ? 88 : 66);
+      g.fillCircle(WIDTH * 0.88, HEIGHT * 0.08, 88);
     }
 
     buildVase() {
@@ -804,7 +784,7 @@
     // -------------------------------------------------- 清空按钮
     buildClearButton() {
       const L = this.L;
-      const r = IS_PORTRAIT ? 30 : 26;
+      const r = 30;
       const cx = WIDTH - r - 22;
       const cy = L.trayTop - r - 16;
 
@@ -933,7 +913,7 @@
 
       const slot = slotAt(idx, L);
       const R = L.flowerR * slot.scale * Phaser.Math.FloatBetween(0.94, 1.06);
-      const bx = L.vase.cx + slot.k * (L.vase.lipW * 0.09);
+      const bx = L.vase.cx + slot.k * (L.vase.lipW * 0.06);
       const by = L.vase.baseY - L.vase.h * 0.30;
 
       const stem = this.add.graphics();
@@ -1208,7 +1188,7 @@
         const R = (stored > L.flowerR * 0.5 && stored < L.flowerR * 1.5)
           ? stored
           : L.flowerR * slot.scale;
-        const bx = L.vase.cx + slot.k * (L.vase.lipW * 0.09);
+        const bx = L.vase.cx + slot.k * (L.vase.lipW * 0.06);
         const by = L.vase.baseY - L.vase.h * 0.30;
 
         const stem = this.add.graphics().setDepth(DEPTH.stem + idx * 0.1);
