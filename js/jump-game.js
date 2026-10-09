@@ -45,7 +45,7 @@
   };
 
   const DEPTH = {
-    sky: 0, ground: 1, shadow: 2, ropeBack: 6,
+    sky: 0, shadow: 2, ropeBack: 6,
     girl: 10, ropeFront: 20, fx: 24, ui: 30, overlay: 40,
   };
 
@@ -54,13 +54,6 @@
 
   // ---------------------------------------------------------------- 小工具
   function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function lighten(color, f) {
-    const r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
-    return (Math.round(r + (255 - r) * f) << 16) |
-           (Math.round(g + (255 - g) * f) << 8) |
-           Math.round(b + (255 - b) * f);
-  }
 
   function darken(color, f) {
     const r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
@@ -156,7 +149,8 @@
         hipY: -150, shoulderY: -252, headCY: -306, headR: 52,
         shoulderHalf: 36, legHalf: 20, handY: handY - groundY,
       },
-      hud: { pad: 28, row1Y: 48, pillW: 122, pillH: 40, countY: 126, dotsY: 190 },
+      // 顶部留出左上角返回按钮的位置（小窗口里 FIT 缩放后按钮会压到这一排）
+      hud: { pad: 34, row1Y: 92, pillW: 122, pillH: 40, countY: 158, dotsY: 218 },
       tipY: 884,
       card: { w: 448, h: 436 },
     };
@@ -457,11 +451,11 @@
         g.fillRect(0, y0, WIDTH, y1 - y0 + 1);
       }
 
-      // 太阳
+      // 太阳（挪到右上空处，避开顶部文字）
       g.fillStyle(C.sun, 0.45);
-      g.fillCircle(438, 132, 76);
+      g.fillCircle(452, 236, 68);
       g.fillStyle(C.sun, 0.75);
-      g.fillCircle(438, 132, 52);
+      g.fillCircle(452, 236, 46);
 
       // 云（慢慢飘）
       const cloud = (x, y, s) => {
@@ -568,6 +562,7 @@
       }
       if (this.state === 'over') {
         if (this.cardShown) this.restart();
+        else this.showCard();   // 还没弹结算就点：等不及了，直接出结果，别让点击白按
         return;
       }
       // 刚重启的这几百毫秒内不再接受起跳，免得结算那次点按漏进来白送一跳
@@ -605,6 +600,7 @@
       this.face = 'happy';
       this.ringT = 0;
       this.blinkUntil = 0;
+      this.blinkOn = false;
       this.cardShown = false;
       this.tapLockUntil = 0;
       this.girlKey = '';
@@ -966,7 +962,8 @@
 
     drawGirl() {
       const key = [
-        Math.round(this.height), this.face, this.blinkOn ? 1 : 0, this.state,
+        Math.round(this.height), Math.round(this.swing * 100),
+        this.face, this.blinkOn ? 1 : 0, this.state,
       ].join('|');
       if (key === this.girlKey) return;
       this.girlKey = key;
@@ -1010,7 +1007,7 @@
       }
 
       const psi = this.psi;
-      const inFront = Math.sin(psi) >= 0;
+      const inFront = Math.sin(psi) >= -1e-9;
       const g = inFront ? this.ropeFrontG : this.ropeBackG;
 
       // 拖影（比本体慢一点点，看出在转）
