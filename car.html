@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>小车躲一躲</title>
+  <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: #eef4f8; touch-action: none; }
+    body { position: fixed; inset: 0; }
+    /* 居中交给 Phaser 的 autoCenter 负责，这里不能再加 flex 居中，否则会双重偏移 */
+    #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+    canvas { display: block; flex: none; max-width: 100%; max-height: 100%; touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+    #home-link {
+      position: fixed; z-index: 30;
+      left: max(10px, env(safe-area-inset-left));
+      top: max(10px, env(safe-area-inset-top));
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: 2px solid rgba(110, 190, 255, 0.6);
+      color: #2b7bb9; font-size: 20px; line-height: 1; text-decoration: none;
+      font-family: "Microsoft YaHei", sans-serif; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
+      -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background 0.12s ease;
+    }
+    #home-link:hover { background: #ffffff; }
+    #home-link:active { transform: scale(0.92); }
+  </style>
+  <script src="./phaser.min.js"></script>
+  <script src="js/car-game.js?v=1"></script>
+</head>
+<body>
+<main id="game-root" aria-label="小车躲一躲"></main>
+<a id="home-link" href="./index.html" aria-label="返回首页">&#8592;</a>
+<script>
+(function () {
+  // 只做竖屏：横屏时用 FIT 缩放居中显示，不需要重载
+  window.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game-root',
+    width: 540,
+    height: 960,
+    backgroundColor: '#eef4f8',
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
+    scene: [window.CarScene],
+  });
+})();
+</script>
+</body>
+</html>
