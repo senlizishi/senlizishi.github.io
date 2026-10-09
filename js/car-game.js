@@ -68,7 +68,8 @@
     face: 0xFF7FA0,
   };
 
-  const DEPTH = { road: 0, side: 2, dash: 3, coin: 5, obstacle: 7, car: 9, fx: 12, hud: 20 };
+  // tint(1) 只压暗沥青/草地/人行道；障碍(7)与金币(5)、小车(9) 都在它之上，夜里依然全亮
+  const DEPTH = { road: 0, tint: 1, side: 2, dash: 3, beam: 4, coin: 5, obstacle: 7, car: 9, fx: 12, hud: 20 };
 
   // 障碍：5 种造型，迎面来车 3 个配色。每种 = 一条配置 + 一个绘制函数。
   const OBSTACLES = [
@@ -88,6 +89,58 @@
     { key: 'lamp', draw: drawLamp },
     { key: 'hydrant', draw: drawHydrant },
   ];
+
+  // ---------------------------------------------------------------- 路段主题
+  // 固定顺序 day -> dusk -> night -> day 循环，每段 45~58 秒，切换用 1.2 秒颜色渐变。
+  // 只改「环境」：障碍 / 金币 / 小车的配色一律不随主题变，保证辨识度。
+  // 白天调色板直接引用旧 C 的取值，保证 day 与之前逐项一致。
+  const DAY_PAL = {
+    grass: C.grass,
+    grassDark: C.grassDark,
+    sidewalk: C.sidewalk,
+    sidewalkLine: C.sidewalkLine,
+    curb: C.curb,
+    asphalt: C.asphalt,
+    dash: C.dash,
+    building: C.building,
+  };
+
+  // 每条主题：pal(环境配色) / tint+tintAlpha(路面压暗) / beam(车头灯) / lampGlow(路灯亮度倍数)
+  // / dim(街边装饰压暗量) / night(是否点亮窗户) / side(可用街边装饰，造型不新增)
+  const THEMES = [
+    {
+      key: 'day', label: '白天',
+      pal: DAY_PAL,
+      tint: 0x000000, tintAlpha: 0, beam: 0, lampGlow: 1, dim: 0, night: false,
+      side: SIDE_TYPES,
+    },
+    {
+      key: 'dusk', label: '黄昏',
+      pal: {
+        grass: 0x8FB177, grassDark: 0x77975F,
+        sidewalk: 0xD9C7B4, sidewalkLine: 0xC0AC97, curb: 0xB39C86,
+        asphalt: 0x6B6570, dash: 0xFFE9C4,
+        building: [0xE8A97A, 0xD99AA8, 0xBFB6CE, 0xE8C77E, 0xC7A9C9],
+      },
+      tint: 0xFF8A3D, tintAlpha: 0.10, beam: 0.05, lampGlow: 1.5, dim: 0.22, night: false,
+      side: SIDE_TYPES,
+    },
+    {
+      key: 'night', label: '夜晚',
+      pal: {
+        grass: 0x2F4A3C, grassDark: 0x27402F,
+        sidewalk: 0x5A6672, sidewalkLine: 0x4A5661, curb: 0x46525C,
+        asphalt: 0x2E3742, dash: 0xC9D6E0,
+        building: [0x3E4A5C, 0x4A3E56, 0x36485A, 0x50464A, 0x3A4256],
+      },
+      tint: 0x14284A, tintAlpha: 0.30, beam: 0.16, lampGlow: 2, dim: 0.55, night: true,
+      side: SIDE_TYPES,
+    },
+  ];
+  const THEME_FADE_SEC = 1.2;      // 主题渐变时长
+  const THEME_HOLD_MIN = 45;       // 每段最少停留
+  const THEME_HOLD_RAND = 13;      // 再随机加 0~13 秒（即 45~58 秒一段）
+  const THEME_SIGN_Y = 860;        // 报幕路牌停在车下方的空路面，绝不遮挡障碍
 
   // ---------------------------------------------------------------- 布局
   function computeLayout() {
@@ -110,6 +163,29 @@
     const r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
     const k = 1 - f;
     return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k);
+  }
+
+  // 两个颜色按 t(0~1) 插值，用于路段主题之间的渐变
+  function lerpColor(a, b, t) {
+    const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+    const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+    return (Math.round(ar + (br - ar) * t) << 16) |
+           (Math.round(ag + (bg - ag) * t) << 8) |
+           Math.round(ab + (bb - ab) * t);
+  }
+
+  // 整套调色板插值（形状与 pal 完全一致，含 building 数组）
+  function lerpPal(a, b, t) {
+    return {
+      grass: lerpColor(a.grass, b.grass, t),
+      grassDark: lerpColor(a.grassDark, b.grassDark, t),
+      sidewalk: lerpColor(a.sidewalk, b.sidewalk, t),
+      sidewalkLine: lerpColor(a.sidewalkLine, b.sidewalkLine, t),
+      curb: lerpColor(a.curb, b.curb, t),
+      asphalt: lerpColor(a.asphalt, b.asphalt, t),
+      dash: lerpColor(a.dash, b.dash, t),
+      building: a.building.map((c, i) => lerpColor(c, b.building[i % b.building.length], t)),
+    };
   }
 
   function ellipsePoints(cx, cy, rx, ry, angle, segments) {
@@ -169,79 +245,93 @@
     g.fillStyle(color, alpha === undefined ? 1 : alpha);
     fillPts(g, ellipsePoints(cx, cy, rx, ry, angle));
   }  // ---------------------------------------------------------------- 静态路面
-  function drawRoadStatic(g) {
+  function drawRoadStatic(g, pal) {
     // 草地
-    g.fillStyle(C.grass, 1);
+    g.fillStyle(pal.grass, 1);
     g.fillRect(0, 0, WIDTH, HEIGHT);
-    g.fillStyle(C.grassDark, 0.5);
+    g.fillStyle(pal.grassDark, 0.5);
     for (let i = 0; i < 40; i++) {
       const x = ((i * 137) % 528);
       const y = ((i * 251) % 940);
       g.fillCircle(x < 270 ? (x % 34) + 2 : WIDTH - 2 - (x % 34), y, 3.2);
     }
     // 人行道
-    g.fillStyle(C.sidewalk, 1);
+    g.fillStyle(pal.sidewalk, 1);
     g.fillRect(38, 0, 22, HEIGHT);
     g.fillRect(WIDTH - 60, 0, 22, HEIGHT);
-    g.fillStyle(C.sidewalkLine, 1);
+    g.fillStyle(pal.sidewalkLine, 1);
     g.fillRect(38, 0, 3, HEIGHT);
     g.fillRect(WIDTH - 41, 0, 3, HEIGHT);
-    g.fillStyle(C.curb, 1);
+    g.fillStyle(pal.curb, 1);
     g.fillRect(ROAD_L - 4, 0, 4, HEIGHT);
     g.fillRect(ROAD_R, 0, 4, HEIGHT);
     // 沥青
-    g.fillStyle(C.asphalt, 1);
+    g.fillStyle(pal.asphalt, 1);
     g.fillRect(ROAD_L, 0, ROAD_R - ROAD_L, HEIGHT);
   }
 
   // ---------------------------------------------------------------- 街边装饰
   // 本地坐标：x=0 是马路外侧，x=60 是马路边缘；右侧整体 scaleX=-1 镜像。
-  function drawBuilding(g, seed) {
-    const pal = C.building;
-    const c = pal[seed % pal.length];
+  function drawBuilding(g, seed, ctx) {
+    const colors = ctx.pal.building;
+    const c = colors[seed % colors.length];
+    const night = !!ctx.night;
     const w = 34 + (seed % 3) * 4;
     const h = 84 + (seed % 4) * 14;
     g.fillStyle(darken(c, 0.2), 1);
     g.fillRoundedRect(0, -h / 2 - 6, w + 8, h + 12, 9);
     g.fillStyle(c, 1);
     g.fillRoundedRect(3, -h / 2 - 3, w, h + 6, 8);
-    g.fillStyle(lighten(c, 0.34), 1);
+    // 窗带：白天是浅色反光，夜里点亮成暖黄
+    g.fillStyle(night ? 0xFFD98A : lighten(c, 0.34), night ? 0.95 : 1);
     g.fillRoundedRect(8, -h / 2 + 4, w - 14, 20, 5);
     g.fillStyle(darken(c, 0.26), 1);
     g.fillCircle(w - 9, h / 2 - 16, 6.5);
+    g.fillStyle(night ? 0xFFE9A8 : darken(c, 0.26), night ? 0.9 : 1);
     g.fillRect(9, h / 2 - 22, 9, 9);
+    if (night) {
+      g.fillStyle(0xFFD98A, 0.85);
+      g.fillRect(9, -h / 2 + 32, 8, 8);
+      g.fillRect(w - 17, -h / 2 + 32, 8, 8);
+    }
   }
 
-  function drawTree(g, seed) {
+  function drawTree(g, seed, ctx) {
     const r = 19 + (seed % 3) * 3;
-    g.fillStyle(0x6FA85C, 0.35);
-    fillRoundEllipse(g, 20, r * 0.72, r * 1.02, r * 0.68, 0, 0x3E6B33, 0.22);
-    fillRoundEllipse(g, 20, 0, r, r, 0, 0x5FA84E);
-    fillRoundEllipse(g, 20, -2, r * 0.82, r * 0.82, 0, 0x75C162);
-    fillRoundEllipse(g, 14, -7, r * 0.32, r * 0.28, 0, 0x9BD98A, 0.9);
+    const dim = (ctx || {}).dim || 0;
+    g.fillStyle(darken(0x6FA85C, dim), 0.35);
+    fillRoundEllipse(g, 20, r * 0.72, r * 1.02, r * 0.68, 0, darken(0x3E6B33, dim), 0.22);
+    fillRoundEllipse(g, 20, 0, r, r, 0, darken(0x5FA84E, dim));
+    fillRoundEllipse(g, 20, -2, r * 0.82, r * 0.82, 0, darken(0x75C162, dim));
+    fillRoundEllipse(g, 14, -7, r * 0.32, r * 0.28, 0, darken(0x9BD98A, dim), 0.9);
   }
 
-  function drawLamp(g, seed) {
-    g.fillStyle(0x8C97A1, 1);
+  function drawLamp(g, seed, ctx) {
+    const c = ctx || {};
+    const dim = c.dim || 0;
+    const glow = c.lampGlow || 1;
+    g.fillStyle(darken(0x8C97A1, dim), 1);
     g.fillRoundedRect(48, -34, 7, 60, 3);
-    g.fillStyle(0x6E7A84, 1);
+    g.fillStyle(darken(0x6E7A84, dim), 1);
     g.fillRoundedRect(42, 20, 19, 7, 3);
-    g.fillStyle(0xFFE9A8, 1);
+    // 越晚灯越亮：白天保持原来的 0.5 光晕，黄昏 / 夜晚再放大一圈
+    g.fillStyle(darken(0xFFE9A8, dim * 0.45), 1);
     g.fillCircle(51.5, -38, 9);
-    g.fillStyle(0xFFF7D8, 0.5);
-    g.fillCircle(51.5, -38, 15);
+    g.fillStyle(0xFFF7D8, Math.min(0.85, 0.5 * glow));
+    g.fillCircle(51.5, -38, 15 + (glow - 1) * 6);
   }
 
-  function drawHydrant(g, seed) {
-    g.fillStyle(0xC9453C, 1);
+  function drawHydrant(g, seed, ctx) {
+    const dim = (ctx || {}).dim || 0;
+    g.fillStyle(darken(0xC9453C, dim), 1);
     g.fillRoundedRect(38, -12, 18, 26, 7);
-    g.fillStyle(0xE4655C, 1);
+    g.fillStyle(darken(0xE4655C, dim), 1);
     g.fillRoundedRect(40, -10, 14, 22, 6);
-    g.fillStyle(0xC9453C, 1);
+    g.fillStyle(darken(0xC9453C, dim), 1);
     g.fillRoundedRect(36, -18, 22, 8, 4);
-    g.fillStyle(0xE4655C, 1);
+    g.fillStyle(darken(0xE4655C, dim), 1);
     g.fillCircle(47, -19, 5);
-    g.fillStyle(0xA8352E, 1);
+    g.fillStyle(darken(0xA8352E, dim), 1);
     g.fillRoundedRect(33, 6, 6, 8, 3);
     g.fillRoundedRect(55, 6, 6, 8, 3);
   }
@@ -458,6 +548,12 @@
         tone(520, 0.09, 0.03, 0, 'sine');
         tone(680, 0.09, 0.026, 0.05, 'sine');
       },
+      // 换路段报幕：温柔上行三音
+      theme: function () {
+        chime(523.25, 0.30, 0.05, 0);
+        chime(659.25, 0.30, 0.045, 0.10);
+        chime(783.99, 0.42, 0.04, 0.20);
+      },
     };
   })();  // ---------------------------------------------------------------- 场景
   class CarScene extends Phaser.Scene {
@@ -467,6 +563,7 @@
       this.L = computeLayout();
       this.LANES = LANE_X;
       this.OBSTACLE_TYPES = OBSTACLES;
+      this.THEMES = THEMES;
 
       this.lane = 1;
       this.carX = LANE_X[1];
@@ -484,19 +581,33 @@
       this.pickups = [];
       this.liveProps = [];
 
+      // 路段主题：固定顺序 day -> dusk -> night -> day，每段 45~58 秒
+      this.themeIndex = 0;
+      this.themeFrom = 0;
+      this.themeTo = 0;
+      this.themeT = 0;
+      this.themeSwapped = false;
+      this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+      this.sideAlpha = 1;
+      this.pal = THEMES[0].pal;
+      this.themeCtx = { pal: THEMES[0].pal, night: THEMES[0].night, dim: THEMES[0].dim, lampGlow: THEMES[0].lampGlow };
+
       Sound.resume();
 
       this.buildRoad();
       this.buildSide();
       this.buildCar();
       this.buildHud();
+      this.buildBeam();
       this.bindInput();
+      this.applyTheme();
     }
 
     // -------------------------------------------------- 每帧
     update(time, delta) {
       const dt = Math.min(delta, 60) / 1000;
       this.elapsed += dt;
+      this.updateTheme(dt);
       this.speed = Math.min(SPEED_MAX, SPEED_MIN + (SPEED_MAX - SPEED_MIN) * Math.min(1, this.elapsed / RAMP_SEC));
       if (this.invincible > 0) this.invincible = Math.max(0, this.invincible - dt);
 
@@ -522,11 +633,12 @@
       this.drawScrolling();
       this.moveSideProps(move);
       this.moveObjects(move);
+      this.paintBeam();
     }
 
     // -------------------------------------------------- 路面
     buildRoad() {
-      drawRoadStatic(this.add.graphics().setDepth(DEPTH.road));
+      this.roadG = this.add.graphics().setDepth(DEPTH.road);
       this.patches = [];
       for (let i = 0; i < 3; i++) {
         this.patches.push({
@@ -536,7 +648,25 @@
           phase: (i * 113) % PATCH_PERIOD,
         });
       }
+      this.tintG = this.add.graphics().setDepth(DEPTH.tint);
       this.scrollG = this.add.graphics().setDepth(DEPTH.dash);
+    }
+
+    paintRoad() {
+      const g = this.roadG;
+      g.clear();
+      drawRoadStatic(g, this.pal);
+    }
+
+    // 夜色：只压暗沥青 / 草地 / 人行道这一层。障碍(7)、金币(5)、小车(9) 都在它之上，
+    // 所以夜里可交互的东西依旧是全亮的，宁可夜景淡一点也要看得清。
+    paintTint() {
+      const g = this.tintG;
+      g.clear();
+      if (this.tintAlpha > 0.004) {
+        g.fillStyle(this.tintColor, this.tintAlpha);
+        g.fillRect(0, 0, WIDTH, HEIGHT);
+      }
     }
 
     // 虚线 + 沥青斑块：按行驶距离取模滚动，永远填满整屏
@@ -551,7 +681,7 @@
         for (let k = 0; k < 4; k++) g.fillRoundedRect(p.x, base + k * PATCH_PERIOD, p.w, p.h, 10);
       }
       const dOff = this.travel % DASH_PERIOD;
-      g.fillStyle(C.dash, 0.92);
+      g.fillStyle(this.pal.dash, 0.92);
       for (let c = 0; c < this.L.dashX.length; c++) {
         const x = this.L.dashX[c];
         for (let k = 0; k < 10; k++) {
@@ -566,12 +696,13 @@
       for (let s = 0; s < 2; s++) {
         const side = s === 0 ? -1 : 1;
         for (let i = 0; i < SIDE_PER_SIDE; i++) {
-          const type = SIDE_TYPES[Math.floor(Math.random() * SIDE_TYPES.length)];
+          const type = this.pickSideType();
           const seed = Math.floor(Math.random() * 97);
           const g = this.add.graphics();
-          type.draw(g, seed);
+          type.draw(g, seed, this.themeCtx);
           const cont = this.add.container(side < 0 ? 0 : WIDTH, 0, [g]).setDepth(DEPTH.side);
           if (side > 0) cont.setScale(-1, 1);
+          cont.setAlpha(this.sideAlpha);
           const y = DESPAWN_Y - SIDE_SPAN + i * (SIDE_SPAN / SIDE_PER_SIDE);
           cont.setY(y);
           this.sideProps.push({ side: side, y: y, type: type, seed: seed, cont: cont, g: g });
@@ -585,12 +716,13 @@
         p.y += move;
         if (p.y > DESPAWN_Y) {
           p.y -= SIDE_SPAN;
-          p.type = SIDE_TYPES[Math.floor(Math.random() * SIDE_TYPES.length)];
+          p.type = this.pickSideType();
           p.seed = Math.floor(Math.random() * 97);
           p.g.clear();
-          p.type.draw(p.g, p.seed);
+          p.type.draw(p.g, p.seed, this.themeCtx);
         }
         p.cont.setY(p.y);
+        p.cont.setAlpha(this.sideAlpha);
       }
     }
 
@@ -600,6 +732,32 @@
       this.carG = this.add.graphics();
       drawCar(this.carG);
       this.carRoot.add(this.carG);
+    }
+
+    // 夜晚车头灯：画在车道虚线之上、金币之下，障碍在光里依然是亮的
+    buildBeam() {
+      this.beamG = this.add.graphics().setDepth(DEPTH.beam);
+    }
+
+    paintBeam() {
+      const g = this.beamG;
+      g.clear();
+      if (this.beam <= 0.004) return;
+      g.setPosition(this.carRenderX, CAR_Y);
+      // 三层由外到内递减，做出光晕的衰减，不然在深色沥青上会像一块硬边灰三角
+      const layers = [
+        { w0: 17, w1: 58, y1: -262, a: 0.70 },
+        { w0: 14, w1: 46, y1: -212, a: 0.55 },
+        { w0: 11, w1: 33, y1: -164, a: 0.45 },
+      ];
+      for (let i = 0; i < layers.length; i++) {
+        const L = layers[i];
+        g.fillStyle(0xFFD166, this.beam * L.a);
+        fillPts(g, [
+          { x: -L.w0, y: -54 }, { x: L.w0, y: -54 },
+          { x: L.w1, y: L.y1 }, { x: -L.w1, y: L.y1 },
+        ]);
+      }
     }
 
     // -------------------------------------------------- 顶部金币计数
@@ -662,6 +820,109 @@
     bumpEdge(dir) {
       Sound.bump();
       this.jolt = { t: 0.2, amp: 6, dir: dir };
+    }
+
+    // -------------------------------------------------- 路段主题
+    // 只改环境：速度曲线、障碍生成、判定、撞车、金币、HUD 全都不受主题影响。
+    updateTheme(dt) {
+      if (this.themeFrom !== this.themeTo) {
+        this.themeT = Math.min(1, this.themeT + dt / THEME_FADE_SEC);
+        if (!this.themeSwapped && this.themeT >= 0.5) {
+          this.themeSwapped = true;
+          this.swapSideProps();
+        }
+        if (this.themeT >= 1) {
+          this.themeIndex = this.themeTo;
+          this.themeFrom = this.themeTo;
+          this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+        }
+        this.applyTheme();
+        return;
+      }
+      this.themeHold -= dt;
+      if (this.themeHold > 0) return;
+      this.themeFrom = this.themeIndex;
+      this.themeTo = (this.themeIndex + 1) % THEMES.length;
+      this.themeT = 0;
+      this.themeSwapped = false;
+      this.spawnThemeSign(THEMES[this.themeTo].label);
+      Sound.theme();
+      this.applyTheme();
+    }
+
+    // 把当前渐变进度算成一套具体数值：调色板 / 压暗 / 车头灯 / 路灯亮度 / 街边淡化
+    applyTheme() {
+      const A = THEMES[this.themeFrom];
+      const B = THEMES[this.themeTo];
+      const t = this.themeFrom === this.themeTo ? 0 : this.themeT;
+      this.themeT = t;
+      this.pal = t === 0 ? A.pal : lerpPal(A.pal, B.pal, t);
+      this.tintColor = lerpColor(A.tint, B.tint, t);
+      this.tintAlpha = A.tintAlpha + (B.tintAlpha - A.tintAlpha) * t;
+      this.beam = A.beam + (B.beam - A.beam) * t;
+      this.lampGlow = A.lampGlow + (B.lampGlow - A.lampGlow) * t;
+      this.dim = A.dim + (B.dim - A.dim) * t;
+      this.night = this.dim > 0.35;
+      this.sideAlpha = this.themeFrom === this.themeTo ? 1
+        : (this.themeT < 0.5 ? 1 - this.themeT * 2 : (this.themeT - 0.5) * 2);
+      this.themeCtx = { pal: this.pal, night: this.night, dim: this.dim, lampGlow: this.lampGlow };
+      this.paintRoad();
+      this.paintTint();
+    }
+
+    pickSideType(theme) {
+      const set = (theme || THEMES[this.themeTo]).side;
+      return set[Math.floor(Math.random() * set.length)];
+    }
+
+    // 街边装饰不逐帧重绘：渐变过半时整批换成新主题的造型（此刻 alpha 正好是 0）
+    swapSideProps() {
+      const th = THEMES[this.themeTo];
+      const ctx = { pal: th.pal, night: th.night, dim: th.dim, lampGlow: th.lampGlow };
+      for (let i = 0; i < this.sideProps.length; i++) {
+        const p = this.sideProps[i];
+        p.type = this.pickSideType(th);
+        p.seed = Math.floor(Math.random() * 97);
+        p.g.clear();
+        p.type.draw(p.g, p.seed, ctx);
+      }
+    }
+
+    // 测试用：跳过渐变，立刻切到第 i 个主题
+    forceTheme(i) {
+      const idx = Phaser.Math.Clamp(i, 0, THEMES.length - 1);
+      this.themeIndex = idx;
+      this.themeFrom = idx;
+      this.themeTo = idx;
+      this.themeT = 0;
+      this.themeSwapped = false;
+      this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+      this.applyTheme();
+      this.swapSideProps();
+      return idx;
+    }
+
+    // 换场报幕：一块只有主题名、没有任何数字的路牌，从右侧滑进来停一下再滑走。
+    // 停在车下方的空路面上（THEME_SIGN_Y），不会挡住任何还在往车这边开的障碍。
+    spawnThemeSign(label) {
+      const g = this.add.graphics();
+      g.fillStyle(0x8A6A46, 1);
+      g.fillRoundedRect(-7, -14, 14, 92, 6);
+      g.fillStyle(0xF6EEDC, 1);
+      g.fillRoundedRect(-76, -56, 152, 76, 18);
+      g.lineStyle(5, 0xC99A5E, 1);
+      g.strokeRoundedRect(-76, -56, 152, 76, 18);
+      const txt = this.add.text(0, -18, label, {
+        fontFamily: FONT, fontSize: '36px', fontStyle: 'bold', color: '#8A6238',
+      }).setOrigin(0.5);
+      const cont = this.add.container(WIDTH + 130, THEME_SIGN_Y, [g, txt]).setDepth(DEPTH.fx);
+      cont.setAlpha(0);
+      this.trackObj(cont);
+      this.tweens.add({ targets: cont, x: WIDTH - 150, alpha: 1, duration: 520, ease: 'Quad.Out' });
+      this.tweens.add({
+        targets: cont, x: WIDTH + 150, alpha: 0, duration: 560, delay: 2160, ease: 'Quad.In',
+        onComplete: () => { this.untrackObj(cont); cont.destroy(); },
+      });
     }
 
     // -------------------------------------------------- 障碍 / 金币
