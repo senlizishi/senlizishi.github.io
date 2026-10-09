@@ -1,7 +1,7 @@
 /*
- * 小车躲一躲：竖屏俯视三车道城市公路，点屏幕左/右半边换道躲开障碍。
- * 撞到只是晃一下 + 短暂无敌，速度、金币、进度都不变，游戏永远不结束。
- * 路上捡金币计数，速度从慢缓缓升到上限后保持；无关卡、无结算、无终点。
+ * 小车躲一躲：竖屏俯视三车道城市公路，点屏幕左/右半边（或底部两个透明圆钮）换道躲开障碍。
+ * 一轮 = 早上 35 秒 + 黄昏 35 秒 + 夜晚 35 秒，跑完减速开到家门口停稳，再弹结算卡给出最终金币数。
+ * 路上捡金币 +1，撞到障碍不结束只晃一下，但会扣 1 枚金币（扣到 0 为止）。
  * 美术全部 Phaser.Graphics 程序化绘制，音效 WebAudio 合成，不加载任何素材文件。
  */
 (function () {
@@ -28,13 +28,26 @@
   const OBS_HH = 34;
   const COIN_R = 46;                 // 金币拾取半径（很宽松）
 
-  const SPEED_MIN = 190;             // px/s
-  const SPEED_MAX = 360;
-  const RAMP_SEC = 90;               // 多少秒升到最快，之后恒定
-  const GAP_MAX = 520;               // 最慢时的障碍间距（行驶距离）
-  const GAP_MIN = 320;               // 最快时的障碍间距（必须 > SAFE_WINDOW）
+  const SPEED_MIN = 220;             // px/s
+  const SPEED_MAX = 420;
+  const RAMP_SEC = 90;               // 多少秒升到最快，之后恒定（一轮 105 秒，最后 15 秒顶速）
+  const GAP_MAX = 600;               // 最慢时的障碍间距（行驶距离）
+  const GAP_MIN = 380;               // 最快时的障碍间距（必须 > SAFE_WINDOW）
   const SAFE_WINDOW = 220;           // 同屏判定窗口：任意 220px 内最多只堵 1 条车道
   const INVINCIBLE_SEC = 1.2;        // 撞车后的无敌时间
+
+  // 一轮：早上 / 黄昏 / 夜晚各 35 秒，夜晚跑完就是「到家」
+  const PHASE_SEC = 35;
+  const PHASE_COUNT = 3;
+  const ROUND_SEC = PHASE_SEC * PHASE_COUNT;   // 105 秒
+  const ARRIVE_SEC = 1.5;            // 到家时的减速时长（匀减速到 0）
+  const HOUSE_REST_Y = 640;          // 小屋「地平线」停稳后的 y（车身前面一点点）
+  const CARD_LOCK_MS = 400;          // 结算卡刚弹出时的防误触时间
+
+  // 底部两个换道圆钮：白色半透明，压在障碍之上但不挡识别
+  const BTN_R = 68;
+  const BTN_Y = 864;
+  const BTN_X = [118, 422];
 
   const DASH_PERIOD = 120;           // 车道虚线周期
   const DASH_LEN = 58;
@@ -69,7 +82,7 @@
   };
 
   // tint(1) 只压暗沥青/草地/人行道；障碍(7)与金币(5)、小车(9) 都在它之上，夜里依然全亮
-  const DEPTH = { road: 0, tint: 1, side: 2, dash: 3, beam: 4, coin: 5, obstacle: 7, car: 9, fx: 12, hud: 20 };
+  const DEPTH = { road: 0, homeRoad: 0.5, tint: 1, side: 2, dash: 3, beam: 4, coin: 5, house: 6, obstacle: 7, car: 9, fx: 12, btn: 19, hud: 20, banner: 22, overlay: 40 };
 
   // 障碍：5 种造型，迎面来车 3 个配色。每种 = 一条配置 + 一个绘制函数。
   const OBSTACLES = [
@@ -91,7 +104,7 @@
   ];
 
   // ---------------------------------------------------------------- 路段主题
-  // 固定顺序 day -> dusk -> night -> day 循环，每段 45~58 秒，切换用 1.2 秒颜色渐变。
+  // 固定顺序 day -> dusk -> night，由一轮时钟驱动（每段 35 秒），切换用 1.2 秒颜色渐变。
   // 只改「环境」：障碍 / 金币 / 小车的配色一律不随主题变，保证辨识度。
   // 白天调色板直接引用旧 C 的取值，保证 day 与之前逐项一致。
   const DAY_PAL = {
@@ -109,7 +122,7 @@
   // / dim(街边装饰压暗量) / night(是否点亮窗户) / side(可用街边装饰，造型不新增)
   const THEMES = [
     {
-      key: 'day', label: '白天',
+      key: 'day', label: '早上',
       pal: DAY_PAL,
       tint: 0x000000, tintAlpha: 0, beam: 0, lampGlow: 1, dim: 0, night: false,
       side: SIDE_TYPES,
@@ -137,10 +150,7 @@
       side: SIDE_TYPES,
     },
   ];
-  const THEME_FADE_SEC = 1.2;      // 主题渐变时长
-  const THEME_HOLD_MIN = 45;       // 每段最少停留
-  const THEME_HOLD_RAND = 13;      // 再随机加 0~13 秒（即 45~58 秒一段）
-  const THEME_SIGN_Y = 860;        // 报幕路牌停在车下方的空路面，绝不遮挡障碍
+  const THEME_FADE_SEC = 1.2;      // 主题渐变时长（换场时的颜色过渡）
 
   // ---------------------------------------------------------------- 布局
   function computeLayout() {
@@ -148,6 +158,9 @@
       car: { y: CAR_Y, hw: CAR_HW, hh: CAR_HH },
       hud: { x: WIDTH - 18, y: 18, w: 126, h: 50 },
       dashX: [(LANE_X[0] + LANE_X[1]) / 2, (LANE_X[1] + LANE_X[2]) / 2],
+      btn: [{ x: BTN_X[0], y: BTN_Y, r: BTN_R }, { x: BTN_X[1], y: BTN_Y, r: BTN_R }],
+      banner: { x: WIDTH / 2, y: 150, w: 210, h: 58 },
+      card: { x: (WIDTH - 430) / 2, y: (HEIGHT - 420) / 2 - 20, w: 430, h: 420 },
     };
   }
 
@@ -476,7 +489,113 @@
     g.fillCircle(11.6, -23.4, 1.7);
     g.lineStyle(2.8, CAR.face, 0.95);
     strokePts(g, arcPts(0, -50, 8, Math.PI * 0.16, Math.PI * 0.84, 10), false);
-  }  // ---------------------------------------------------------------- 音效
+  }  // ---------------------------------------------------------------- 到家（终点）
+  // 到达后整张路面换成「自家院子」：草地 + 一条石板车道，虚线不再滚动。
+  function drawHomeGround(g, pal) {
+    g.fillStyle(pal.grass, 1);
+    g.fillRect(0, 0, WIDTH, HEIGHT);
+    g.fillStyle(pal.grassDark, 0.45);
+    for (let i = 0; i < 46; i++) {
+      const x = ((i * 149) % 520) + 10;
+      const y = 470 + ((i * 233) % 470);
+      g.fillCircle(x, y, 3.4);
+    }
+    // 石板车道：从屋前一直铺到画面底部
+    g.fillStyle(0xC9C2B4, 1);
+    g.fillRoundedRect(126, 596, 288, HEIGHT - 596 + 40, 22);
+    g.fillStyle(0xD8D2C6, 1);
+    g.fillRoundedRect(136, 604, 268, HEIGHT - 604 + 40, 18);
+    g.fillStyle(0xC2BBAE, 0.75);
+    for (let i = 0; i < 5; i++) g.fillRect(136, 668 + i * 62, 268, 5);
+    // 车道两边的花丛与小灌木
+    const flowers = [[104, 726, 0xFF8FA8], [104, 812, 0xFFD75E], [104, 898, 0xFFFFFF],
+                     [436, 700, 0xFFFFFF], [436, 790, 0xFF8FA8], [436, 876, 0xFFD75E]];
+    for (let i = 0; i < flowers.length; i++) {
+      const f = flowers[i];
+      g.fillStyle(0x4E8F3F, 0.9);
+      g.fillCircle(f[0], f[1] + 5, 7);
+      g.fillStyle(f[2], 1);
+      g.fillCircle(f[0], f[1], 6);
+      g.fillStyle(0xFFE9A8, 0.95);
+      g.fillCircle(f[0], f[1], 2.2);
+    }
+    g.fillStyle(0x5FA84E, 1);
+    g.fillRoundedRect(86, 640, 40, 26, 12);
+    g.fillRoundedRect(414, 646, 40, 26, 12);
+  }
+
+  // 小屋：奶油色墙体 + 红屋顶 + 暖黄亮窗 + 木门，门口一块停车小院坝
+  // 一轮一定在夜晚结束，所以小屋的窗和门灯一直是亮的。
+  function drawHouse(g, pal) {
+    // 门前小院坝（画在最下面，车会停在这块上）
+    g.fillStyle(0xBEB7A9, 1);
+    g.fillRoundedRect(-146, -8, 292, 78, 20);
+    g.fillStyle(0xD3CCBE, 1);
+    g.fillRoundedRect(-136, -4, 272, 70, 16);
+    g.fillStyle(0xC4BDAF, 0.8);
+    for (let i = 0; i < 4; i++) g.fillRect(-136, 12 + i * 16, 272, 3);
+    // 院坝两边的花
+    g.fillStyle(0x4E8F3F, 0.9);
+    g.fillCircle(-158, 46, 9);
+    g.fillCircle(158, 52, 9);
+    g.fillStyle(0xFF8FA8, 1);
+    g.fillCircle(-158, 40, 6);
+    g.fillStyle(0xFFD75E, 1);
+    g.fillCircle(158, 46, 6);
+    // 烟囱（先画，屋顶压在上面）
+    g.fillStyle(0xA8483F, 1);
+    g.fillRoundedRect(46, -224, 30, 62, 6);
+    g.fillStyle(0xC25A50, 1);
+    g.fillRoundedRect(50, -220, 22, 58, 5);
+    // 墙体
+    g.fillStyle(0xE0C7A6, 1);
+    g.fillRoundedRect(-110, -156, 220, 158, 10);
+    g.fillStyle(0xF6E3C8, 1);
+    g.fillRoundedRect(-104, -150, 208, 146, 8);
+    // 屋顶：深色描边 + 红色屋面
+    g.fillStyle(0xB8433F, 1);
+    fillPts(g, [{ x: -132, y: -146 }, { x: 132, y: -146 }, { x: 0, y: -240 }]);
+    g.fillStyle(0xD9534F, 1);
+    fillPts(g, [{ x: -126, y: -150 }, { x: 126, y: -150 }, { x: 0, y: -232 }]);
+    g.fillStyle(0xE4706B, 1);
+    fillPts(g, [{ x: -126, y: -150 }, { x: -40, y: -150 }, { x: 0, y: -232 }]);
+    g.fillStyle(0xB8433F, 1);
+    g.fillRoundedRect(-132, -156, 264, 14, 7);
+    // 两扇暖黄亮窗
+    for (let i = 0; i < 2; i++) {
+      const wx = i === 0 ? -74 : 34;
+      g.fillStyle(0xE0C7A6, 1);
+      g.fillRoundedRect(wx - 6, -122, 52, 56, 8);
+      g.fillStyle(0xFFD98A, 1);
+      g.fillRoundedRect(wx, -116, 40, 44, 6);
+      g.fillStyle(0xF6E3C8, 1);
+      g.fillRect(wx + 17, -116, 6, 44);
+      g.fillRect(wx, -97, 40, 6);
+      g.fillStyle(0xFFF3C0, 0.55);
+      g.fillCircle(wx + 8, -106, 6);
+    }
+    // 木门 + 小爱心门牌
+    g.fillStyle(0x8A5A3C, 1);
+    g.fillRoundedRect(-32, -96, 64, 94, 12);
+    g.fillStyle(0xA9714B, 1);
+    g.fillRoundedRect(-26, -90, 52, 88, 10);
+    g.fillStyle(0x8A5A3C, 1);
+    g.fillRoundedRect(-14, -74, 28, 30, 7);
+    g.fillStyle(0xFFD75E, 1);
+    g.fillCircle(14, -46, 4);
+    g.fillStyle(0xFF8FA8, 1);
+    fillPts(g, [{ x: 0, y: -30 }, { x: 9, y: -40 }, { x: 0, y: -50 }, { x: -9, y: -40 }]);
+    // 门灯：夜里最亮
+    g.fillStyle(0xFFF3C0, 0.5);
+    g.fillCircle(0, -108, 22);
+    g.fillStyle(0xFFF7D8, 1);
+    g.fillCircle(0, -108, 7);
+    // 门前小台阶
+    g.fillStyle(0xCBB9A2, 1);
+    g.fillRoundedRect(-44, -6, 88, 16, 6);
+  }
+
+  // ---------------------------------------------------------------- 音效
   // 全部用 WebAudio 实时合成，不加载任何音频文件，也没有背景音乐。
   const Sound = (function () {
     let ctx = null;
@@ -554,6 +673,23 @@
         chime(659.25, 0.30, 0.045, 0.10);
         chime(783.99, 0.42, 0.04, 0.20);
       },
+      // 扣掉一枚金币：低沉的两个下行音，不刺耳
+      lose: function () {
+        tone(330, 0.12, 0.045, 0, 'sine');
+        tone(220, 0.22, 0.05, 0.08, 'sine');
+      },
+      // 到家减速：三个渐弱的下行音，听起来像收油滑行
+      slow: function () {
+        tone(720, 0.30, 0.028, 0, 'sine');
+        tone(560, 0.32, 0.026, 0.16, 'sine');
+        tone(420, 0.36, 0.024, 0.32, 'sine');
+      },
+      // 停稳到家：温暖的上行三音
+      arrive: function () {
+        chime(523.25, 0.34, 0.05, 0);
+        chime(783.99, 0.34, 0.045, 0.12);
+        chime(1046.5, 0.60, 0.04, 0.24);
+      },
     };
   })();  // ---------------------------------------------------------------- 场景
   class CarScene extends Phaser.Scene {
@@ -564,6 +700,14 @@
       this.LANES = LANE_X;
       this.OBSTACLE_TYPES = OBSTACLES;
       this.THEMES = THEMES;
+      this.ROUND_SEC = ROUND_SEC;
+      this.PHASE_SEC = PHASE_SEC;
+      this.CONST = {
+        ROUND_SEC: ROUND_SEC, PHASE_SEC: PHASE_SEC, PHASE_COUNT: PHASE_COUNT,
+        SPEED_MIN: SPEED_MIN, SPEED_MAX: SPEED_MAX, RAMP_SEC: RAMP_SEC,
+        GAP_MIN: GAP_MIN, GAP_MAX: GAP_MAX, SAFE_WINDOW: SAFE_WINDOW,
+        ARRIVE_SEC: ARRIVE_SEC, HOUSE_REST_Y: HOUSE_REST_Y, CAR_Y: CAR_Y,
+      };
 
       this.lane = 1;
       this.carX = LANE_X[1];
@@ -571,6 +715,8 @@
       this.carXTarget = LANE_X[1];
       this.coins = 0;
       this.crashes = 0;
+      this.collected = 0;           // 一共捡到的金币
+      this.lost = 0;                // 一共撞掉的金币（不变量：collected - lost === coins）
       this.speed = SPEED_MIN;
       this.elapsed = 0;
       this.travel = 0;
@@ -581,13 +727,27 @@
       this.pickups = [];
       this.liveProps = [];
 
-      // 路段主题：固定顺序 day -> dusk -> night -> day，每段 45~58 秒
+      // 一轮状态机：playing -> arriving（减速到家）-> over（结算卡）
+      this.phase = 'playing';
+      this.roundT = 0;
+      this.arriveT = 0;
+      this.arriveS = 0;
+      this.arriveDist = 0;
+      this.house = null;
+      this.cardShown = false;
+      this.cardG = null;
+      this.cardItems = [];
+      this.cardShownAt = 0;
+      this.homeRoadG = null;
+
+      // 路段主题：固定顺序 day -> dusk -> night，由一轮时钟推进，到夜晚不再回到早上
       this.themeIndex = 0;
+      this.phaseIndex = 0;
       this.themeFrom = 0;
       this.themeTo = 0;
       this.themeT = 0;
       this.themeSwapped = false;
-      this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+      this.themeHold = PHASE_SEC;
       this.sideAlpha = 1;
       this.pal = THEMES[0].pal;
       this.themeCtx = { pal: THEMES[0].pal, night: THEMES[0].night, dim: THEMES[0].dim, lampGlow: THEMES[0].lampGlow };
@@ -599,6 +759,7 @@
       this.buildCar();
       this.buildHud();
       this.buildBeam();
+      this.buildButtons();
       this.bindInput();
       this.applyTheme();
     }
@@ -607,16 +768,29 @@
     update(time, delta) {
       const dt = Math.min(delta, 60) / 1000;
       this.elapsed += dt;
-      this.updateTheme(dt);
-      this.speed = Math.min(SPEED_MAX, SPEED_MIN + (SPEED_MAX - SPEED_MIN) * Math.min(1, this.elapsed / RAMP_SEC));
       if (this.invincible > 0) this.invincible = Math.max(0, this.invincible - dt);
 
-      const move = this.speed * dt;
-      this.travel += move;
+      if (this.phase === 'playing') {
+        this.roundT += dt;
+        // 速度只跟一轮时钟走：90 秒到 420，之后保持到夜晚跑完
+        this.speed = Math.min(SPEED_MAX, SPEED_MIN + (SPEED_MAX - SPEED_MIN) * Math.min(1, this.roundT / RAMP_SEC));
+        this.updateTheme(dt);
 
-      while (this.travel >= this.nextSpawnAt) {
-        this.spawnEvent();
-        this.nextSpawnAt += this.gapPx();
+        const move = this.speed * dt;
+        this.travel += move;
+
+        while (this.travel >= this.nextSpawnAt) {
+          this.spawnEvent();
+          this.nextSpawnAt += this.gapPx();
+        }
+
+        this.drawScrolling();
+        this.moveSideProps(move);
+        this.moveObjects(move, true);
+
+        if (this.roundT >= ROUND_SEC) this.startArrival();
+      } else if (this.phase === 'arriving') {
+        this.updateArrival(dt);
       }
 
       // 小车：手写缓动，避免和抖动 tween 抢同一个属性
@@ -630,10 +804,96 @@
       this.carRoot.setRotation(Phaser.Math.Clamp((this.carXTarget - this.carRenderX) * 0.0016, -0.13, 0.13));
       this.carRoot.setAlpha(this.invincible > 0 ? (Math.sin(this.elapsed * 24) > 0 ? 1 : 0.38) : 1);
 
+      this.paintBeam();
+    }
+
+    // -------------------------------------------------- 到家（一轮结束）
+    // 路面匀减速停稳：速度 v0 -> 0，共走 S = v0 * ARRIVE_SEC / 2 的距离。
+    // 小屋就放在 HOUSE_REST_Y - S 处随路面一起滑下来，正好停在车身前面。
+    startArrival() {
+      this.phase = 'arriving';
+      this.arriveT = 0;
+      this.arriveS = 0;
+      this.arriveDist = Math.max(1, this.speed * ARRIVE_SEC / 2);
+      this.buildHouse(HOUSE_REST_Y - this.arriveDist);
+      // 顺手把车挪回中间车道，看起来就是「拐进自家院子前停稳」
+      this.lane = 1;
+      this.carXTarget = LANE_X[1];
+      this.carX = this.carXTarget;
+      this.setButtonsAlpha(0.25);
+      Sound.slow();
+    }
+
+    updateArrival(dt) {
+      const prevS = this.arriveS;
+      this.arriveT = Math.min(1, this.arriveT + dt / ARRIVE_SEC);
+      const u = this.arriveT;
+      this.arriveS = this.arriveDist * (2 * u - u * u);   // 匀减速走过的距离
+      const move = this.arriveS - prevS;
+      this.travel += move;
       this.drawScrolling();
       this.moveSideProps(move);
-      this.moveObjects(move);
-      this.paintBeam();
+      this.moveObjects(move, false);
+      if (this.house) this.house.cont.setY(HOUSE_REST_Y - this.arriveDist + this.arriveS);
+      if (this.arriveT >= 1) this.finishArrival();
+    }
+
+    finishArrival() {
+      if (this.phase !== 'arriving') return;
+      this.phase = 'over';
+      this.beam = Math.min(this.beam, 0.02);
+      this.buildHomeRoad();
+      if (this.scrollG) this.tweens.add({ targets: this.scrollG, alpha: 0, duration: 420, ease: 'Sine.Out' });
+      // 车停稳的小弹一下
+      this.tweens.add({
+        targets: this.carRoot, y: CAR_Y - 5, duration: 160, yoyo: true, ease: 'Sine.InOut',
+        onComplete: () => { if (this.carRoot && this.carRoot.active) this.carRoot.setY(CAR_Y); },
+      });
+      Sound.arrive();
+      // 先让孩子看清「车停在自家门口」，2.2 秒后再弹结算卡
+      this.time.delayedCall(2200, () => {
+        if (this.phase === 'over') this.showCard();
+      });
+    }
+
+    // 到达后把路面换成「自家院子」：草地 + 当中一条石板车道，虚线不再滚动
+    buildHomeRoad() {
+      if (this.homeRoadG) return;
+      const g = this.add.graphics().setDepth(DEPTH.homeRoad);
+      drawHomeGround(g, this.pal);
+      g.setAlpha(0);
+      this.homeRoadG = g;
+      this.tweens.add({ targets: g, alpha: 1, duration: 420, ease: 'Sine.Out' });
+    }
+
+    // 小屋：地平线在本地 y=0，向上画，随路面滑到 HOUSE_REST_Y 停稳
+    buildHouse(y0) {
+      if (this.house) return this.house;
+      const g = this.add.graphics();
+      drawHouse(g, this.pal);
+      const cont = this.add.container(WIDTH / 2, y0, [g]).setDepth(DEPTH.house);
+      const puffs = [];
+      for (let i = 0; i < 2; i++) {
+        const puff = this.add.graphics();
+        puff.fillStyle(0xE9EEF3, 0.8);
+        puff.fillCircle(0, 0, 7 - i * 1.5);
+        puff.setPosition(96, -206 - i * 12).setAlpha(0);
+        cont.add(puff);
+        puffs.push(puff);
+        this.tweens.add({
+          targets: puff, y: puff.y - 42, alpha: { from: 0.8, to: 0 },
+          scale: 1.5, duration: 1500, delay: i * 650, repeat: -1, ease: 'Sine.Out',
+        });
+      }
+      this.house = { cont: cont, g: g, puffs: puffs };
+      return this.house;
+    }
+
+    // 测试用：跳过等待，直接进入「到家」演出
+    forceArrive() {
+      this.roundT = ROUND_SEC;
+      if (this.phase === 'playing') this.startArrival();
+      return this.phase;
     }
 
     // -------------------------------------------------- 路面
@@ -764,6 +1024,7 @@
     buildHud() {
       const h = this.L.hud;
       const g = this.add.graphics().setDepth(DEPTH.hud);
+      this.hudG = g;
       const cx = h.x - h.w + 30;
       const cy = h.y + h.h / 2;
       g.fillStyle(0xFFFFFF, 0.85);
@@ -785,6 +1046,80 @@
       if (this.coinText) this.coinText.setText(String(this.coins));
     }
 
+    // 撞掉一枚金币：胶囊抖一下 + 浮出一个「-1」
+    flashLose() {
+      const h = this.L.hud;
+      const list = [this.hudG, this.coinText].filter(function (o) { return !!o; });
+      if (list.length) {
+        this.tweens.add({
+          targets: list, x: '+=7', duration: 70, yoyo: true, repeat: 2, ease: 'Sine.InOut',
+          onComplete: () => {
+            // tween 结束把位置还原，避免多次扣钱之后整体偏移
+            this.hudG.setX(0);
+            this.coinText.setX(h.x - h.w + 30 + 26);
+          },
+        });
+      }
+      const t = this.add.text(h.x - h.w + 12, h.y + h.h + 6, '-1', {
+        fontFamily: FONT, fontSize: '26px', fontStyle: 'bold', color: '#E8523F',
+        stroke: '#FFFFFF', strokeThickness: 5,
+      }).setOrigin(0.5, 0).setDepth(DEPTH.hud + 2);
+      this.trackObj(t);
+      this.tweens.add({
+        targets: t, y: t.y + 42, alpha: 0, duration: 620, ease: 'Quad.Out',
+        onComplete: () => { this.untrackObj(t); t.destroy(); },
+      });
+    }
+
+    // -------------------------------------------------- 底部两个换道圆钮
+    // 只做视觉与提示：不单独绑事件（点它们天然落在左/右半屏，由全局 pointerdown 处理），
+    // 所以永远不会和换道逻辑重复触发。
+    buildButtons() {
+      this.btns = [];
+      for (let i = 0; i < this.L.btn.length; i++) {
+        const b = this.L.btn[i];
+        const g = this.add.graphics();
+        g.fillStyle(0xFFFFFF, 0.14);
+        g.fillCircle(0, 0, b.r);
+        g.lineStyle(4, 0xFFFFFF, 0.34);
+        g.strokeCircle(0, 0, b.r - 2);
+        g.fillStyle(0xFFFFFF, 0.6);
+        fillPts(g, i === 0
+          ? [{ x: 14, y: -25 }, { x: 14, y: 25 }, { x: -14, y: 0 }]
+          : [{ x: -14, y: -25 }, { x: -14, y: 25 }, { x: 14, y: 0 }]);
+        const cont = this.add.container(b.x, b.y, [g]).setDepth(DEPTH.btn);
+        this.btns.push({ cont: cont, g: g });
+      }
+      this.btnsAlpha = 1;
+    }
+
+    setButtonsAlpha(a) {
+      this.btnsAlpha = a;
+      for (let i = 0; i < this.btns.length; i++) this.btns[i].cont.setAlpha(a);
+    }
+
+    // 换道成功：对应那个圆钮缩一下再弹回来，教孩子「点这里就换道」
+    pulseButton(dir) {
+      const b = this.btns[dir < 0 ? 0 : 1];
+      if (!b) return;
+      b.cont.setAlpha(Math.max(this.btnsAlpha, 0.75));
+      this.tweens.killTweensOf(b.cont);
+      b.cont.setScale(1);
+      this.tweens.add({
+        targets: b.cont, scale: 0.9, duration: 80, yoyo: true, ease: 'Sine.InOut',
+        onComplete: () => { b.cont.setScale(1); b.cont.setAlpha(this.btnsAlpha); },
+      });
+    }
+
+    // 已经贴边还往外点：圆钮左右摇一下，不换道
+    shakeButton(dir) {
+      const b = this.btns[dir < 0 ? 0 : 1];
+      if (!b) return;
+      this.tweens.killTweensOf(b.cont);
+      b.cont.setX(b.cont.x + dir * 9);
+      this.tweens.add({ targets: b.cont, x: this.L.btn[dir < 0 ? 0 : 1].x, duration: 260, ease: 'Back.Out' });
+    }
+
     // -------------------------------------------------- 输入
     bindInput() {
       this.input.on('pointerdown', (pointer) => this.onTap(pointer));
@@ -800,6 +1135,13 @@
 
     onTap(pointer) {
       Sound.resume();
+      if (this.phase === 'over') {
+        // 卡片刚弹出来时挡 0.4 秒，避免孩子最后一秒的连点直接把卡片点掉
+        if (this.time.now - this.cardShownAt < CARD_LOCK_MS) return;
+        this.restart();
+        return;
+      }
+      if (this.phase !== 'playing') return;
       this.moveLane(pointer.x < WIDTH / 2 ? -1 : 1);
     }
 
@@ -813,6 +1155,7 @@
       this.carXTarget = LANE_X[next];
       this.carX = this.carXTarget;
       Sound.whoosh();
+      this.pulseButton(dir);
       return true;
     }
 
@@ -820,6 +1163,7 @@
     bumpEdge(dir) {
       Sound.bump();
       this.jolt = { t: 0.2, amp: 6, dir: dir };
+      this.shakeButton(dir);
     }
 
     // -------------------------------------------------- 路段主题
@@ -834,18 +1178,22 @@
         if (this.themeT >= 1) {
           this.themeIndex = this.themeTo;
           this.themeFrom = this.themeTo;
-          this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+          this.phaseIndex = this.themeIndex;
         }
         this.applyTheme();
         return;
       }
-      this.themeHold -= dt;
-      if (this.themeHold > 0) return;
+      // 主题只跟一轮时钟走：0~35 早上，35~70 黄昏，70~105 夜晚，到夜晚就不再变
+      const want = Math.min(THEMES.length - 1, Math.floor(this.roundT / PHASE_SEC));
+      this.themeHold = Math.max(0, PHASE_SEC * (want + 1) - this.roundT);
+      // 只往前走：一轮就是 早上 -> 黄昏 -> 夜晚，永远不回头
+      if (want <= this.themeIndex) return;
+      this.phaseIndex = want;
       this.themeFrom = this.themeIndex;
-      this.themeTo = (this.themeIndex + 1) % THEMES.length;
+      this.themeTo = want;
       this.themeT = 0;
       this.themeSwapped = false;
-      this.spawnThemeSign(THEMES[this.themeTo].label);
+      this.spawnBanner(THEMES[want].label);
       Sound.theme();
       this.applyTheme();
     }
@@ -896,33 +1244,111 @@
       this.themeTo = idx;
       this.themeT = 0;
       this.themeSwapped = false;
-      this.themeHold = THEME_HOLD_MIN + Math.random() * THEME_HOLD_RAND;
+      this.phaseIndex = idx;
+      // 测试用：把一轮时钟也挪到这一段，保证后续主题推进仍然单调
+      this.roundT = Math.max(this.roundT, idx * PHASE_SEC + 0.5);
+      this.themeHold = Math.max(0, PHASE_SEC * (idx + 1) - this.roundT);
       this.applyTheme();
       this.swapSideProps();
       return idx;
     }
 
-    // 换场报幕：一块只有主题名、没有任何数字的路牌，从右侧滑进来停一下再滑走。
-    // 停在车下方的空路面上（THEME_SIGN_Y），不会挡住任何还在往车这边开的障碍。
-    spawnThemeSign(label) {
+    // 换场报幕：屏幕顶部淡入淡出的圆角横幅，只有主题名、没有任何数字。
+    // 放在最上面是为了不挡住底部两个换道圆钮，停 1.4 秒就走。
+    spawnBanner(label) {
+      const b = this.L.banner;
       const g = this.add.graphics();
-      g.fillStyle(0x8A6A46, 1);
-      g.fillRoundedRect(-7, -14, 14, 92, 6);
-      g.fillStyle(0xF6EEDC, 1);
-      g.fillRoundedRect(-76, -56, 152, 76, 18);
-      g.lineStyle(5, 0xC99A5E, 1);
-      g.strokeRoundedRect(-76, -56, 152, 76, 18);
-      const txt = this.add.text(0, -18, label, {
-        fontFamily: FONT, fontSize: '36px', fontStyle: 'bold', color: '#8A6238',
+      g.fillStyle(0x1F2C38, 0.62);
+      g.fillRoundedRect(-b.w / 2, -b.h / 2, b.w, b.h, 22);
+      g.lineStyle(3, 0xFFFFFF, 0.30);
+      g.strokeRoundedRect(-b.w / 2, -b.h / 2, b.w, b.h, 22);
+      const txt = this.add.text(0, 0, label, {
+        fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#FFFFFF',
       }).setOrigin(0.5);
-      const cont = this.add.container(WIDTH + 130, THEME_SIGN_Y, [g, txt]).setDepth(DEPTH.fx);
-      cont.setAlpha(0);
+      const cont = this.add.container(b.x, b.y - 12, [g, txt]).setDepth(DEPTH.banner).setAlpha(0);
       this.trackObj(cont);
-      this.tweens.add({ targets: cont, x: WIDTH - 150, alpha: 1, duration: 520, ease: 'Quad.Out' });
+      this.tweens.add({ targets: cont, y: b.y, alpha: 1, duration: 350, ease: 'Quad.Out' });
       this.tweens.add({
-        targets: cont, x: WIDTH + 150, alpha: 0, duration: 560, delay: 2160, ease: 'Quad.In',
+        targets: cont, y: b.y - 10, alpha: 0, duration: 500, delay: 1750, ease: 'Quad.In',
         onComplete: () => { this.untrackObj(cont); cont.destroy(); },
       });
+    }
+
+    // -------------------------------------------------- 结算卡
+    showCard() {
+      if (this.cardShown) return;
+      this.cardShown = true;
+      this.cardShownAt = this.time.now;
+
+      const L = this.L.card;
+      const g = this.add.graphics().setDepth(DEPTH.overlay);
+      g.fillStyle(0x14284A, 0.5);
+      g.fillRect(0, 0, WIDTH, HEIGHT);
+      g.fillStyle(0xFFFFFF, 0.98);
+      g.fillRoundedRect(L.x, L.y, L.w, L.h, 30);
+      g.lineStyle(3, C.hudLine, 1);
+      g.strokeRoundedRect(L.x, L.y, L.w, L.h, 30);
+
+      const items = [g];
+      const mk = (ty, text, size, color, bold) => {
+        const t = this.add.text(WIDTH / 2, ty, text, {
+          fontFamily: FONT, fontSize: size + 'px', fontStyle: bold ? 'bold' : 'normal',
+          color: color, align: 'center',
+        }).setOrigin(0.5).setDepth(DEPTH.overlay + 1);
+        items.push(t);
+        return t;
+      };
+
+      mk(L.y + 54, '到家啦！', 26, '#4A6070', true);
+      mk(L.y + 108, '最终金币', 18, '#7C93A4');
+
+      // 金币图标 + 大数字：按数字宽度整体居中
+      const num = mk(L.y + 166, String(this.coins), 46, '#C98F1E', true);
+      const iconX = WIDTH / 2 - (num.width + 34) / 2 + 17;
+      num.setX(iconX + 17 + 12 + num.width / 2);
+      const ig = this.add.graphics().setDepth(DEPTH.overlay + 1);
+      ig.fillStyle(0xC98F1E, 1);
+      ig.fillCircle(iconX, L.y + 166, 18);
+      ig.fillStyle(0xFFD75E, 1);
+      ig.fillCircle(iconX, L.y + 164.5, 16.2);
+      ig.fillStyle(0xFFE9A8, 1);
+      ig.fillCircle(iconX - 5.5, L.y + 159.5, 4.6);
+      items.push(ig);
+
+      mk(L.y + 236, '路上捡了 ' + this.collected + ' 枚', 19, '#6E8091');
+      mk(L.y + 272, this.lost > 0 ? '撞掉 ' + this.lost + ' 枚' : '一枚都没撞到，太厉害啦！',
+        19, this.lost > 0 ? '#E8523F' : '#3FA46B', this.lost === 0);
+
+      const btnY = L.y + L.h - 84;
+      const btn = this.add.rectangle(WIDTH / 2, btnY, 232, 62, 0x4FB8EE, 1)
+        .setStrokeStyle(3, 0xBFE6FA, 0.95).setDepth(DEPTH.overlay + 1);
+      const btnText = this.add.text(WIDTH / 2, btnY, '再玩一次', {
+        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#FFFFFF',
+      }).setOrigin(0.5).setDepth(DEPTH.overlay + 2);
+      items.push(btn, btnText);
+      mk(L.y + L.h - 30, '点屏幕也可以', 15, '#A8BCC9');
+
+      this.cardG = g;
+      this.cardItems = items;
+    }
+
+    clearCard() {
+      if (this.cardG) {
+        this.cardG.destroy();
+        this.cardG = null;
+      }
+      if (this.cardItems) {
+        this.cardItems.forEach((it) => { if (it && it.active) it.destroy(); });
+        this.cardItems = [];
+      }
+      this.cardShown = false;
+    }
+
+    // 再玩一次：整场重来。create() 会把所有状态重新初始化，不用手写一堆 reset
+    restart() {
+      if (this.phase !== 'over') return;
+      this.clearCard();
+      this.scene.restart();
     }
 
     // -------------------------------------------------- 障碍 / 金币
@@ -989,7 +1415,10 @@
              box.y1 > o.y - OBS_HH && box.y0 < o.y + OBS_HH;
     }
 
-    moveObjects(move) {
+    // live=false 是「到家路上」：一轮已经结束，不再判定撞车 / 拾币；
+    // 越过车身的障碍直接淡出，避免停稳后有一堆锥桶贴在画面上。
+    moveObjects(move, live) {
+      const scoring = live !== false;
       const box = {
         x0: this.carRenderX - CAR_HW, x1: this.carRenderX + CAR_HW,
         y0: CAR_Y - CAR_HH, y1: CAR_Y + CAR_HH,
@@ -998,25 +1427,43 @@
         const o = this.obstacles[i];
         o.y += move;
         o.g.setY(o.y);
+        if (!scoring && o.y > CAR_Y + 80) {
+          this.obstacles.splice(i, 1);
+          this.fadeOutObj(o.g);
+          continue;
+        }
         if (o.y > DESPAWN_Y) {
           o.g.destroy();
           this.obstacles.splice(i, 1);
           continue;
         }
-        if (this.invincible <= 0 && this.overlap(box, o)) this.crash(o);
+        if (scoring && this.invincible <= 0 && this.overlap(box, o)) this.crash(o);
       }
       for (let i = this.pickups.length - 1; i >= 0; i--) {
         const c = this.pickups[i];
         c.y += move;
         c.cont.setY(c.y + Math.sin(this.elapsed * 4 + c.phase) * 5);
         c.cont.setScale(0.55 + 0.45 * Math.abs(Math.cos(this.elapsed * 3.2 + c.phase)), 1);
+        if (!scoring && c.y > CAR_Y + 80) {
+          this.pickups.splice(i, 1);
+          this.fadeOutObj(c.cont);
+          continue;
+        }
         if (c.y > DESPAWN_Y) {
           c.cont.destroy();
           this.pickups.splice(i, 1);
           continue;
         }
-        if (Math.abs(c.cont.x - this.carRenderX) < COIN_R && Math.abs(c.y - CAR_Y) < COIN_R) this.collect(c, i);
+        if (scoring && Math.abs(c.cont.x - this.carRenderX) < COIN_R && Math.abs(c.y - CAR_Y) < COIN_R) this.collect(c, i);
       }
+    }
+
+    // 淡出并销毁一个已经越过车身的物件
+    fadeOutObj(obj) {
+      this.tweens.add({
+        targets: obj, alpha: 0, scaleX: 0.5, scaleY: 0.5, duration: 260, ease: 'Sine.In',
+        onComplete: () => obj.destroy(),
+      });
     }
 
     // -------------------------------------------------- 撞到 / 捡到
@@ -1026,6 +1473,14 @@
       Sound.crash();
       this.jolt = { t: 0.42, amp: 9, dir: 1 };
       this.spawnSparks(o.x, CAR_Y - 34, o.def.color);
+      // 撞一下扣 1 枚金币，扣到 0 为止，永远不出现负数
+      if (this.coins > 0) {
+        this.coins -= 1;
+        this.lost += 1;
+        this.paintHud();
+        this.flashLose();
+        Sound.lose();
+      }
       const idx = this.obstacles.indexOf(o);
       if (idx >= 0) this.obstacles.splice(idx, 1);
       const y0 = o.y;
@@ -1039,6 +1494,7 @@
     collect(c, i) {
       this.pickups.splice(i, 1);
       this.coins += 1;
+      this.collected += 1;
       Sound.pick();
       this.spawnCoinBurst(c.cont.x, c.cont.y);
       this.paintHud();
