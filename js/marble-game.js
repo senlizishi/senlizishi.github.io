@@ -38,8 +38,10 @@
   const STALL_SPEED = 25;            // 慢到这个速度以下
   const STALL_TIME = 0.5;            // 持续这么久就推一把
   const STALL_PUSH = 60;
-  const FLIGHT_TIMEOUT = 12;         // 飞太久兜底判给正下方的洞
-  const POCKET_CAPTURE_Y = 690;      // 中心越过这条线就算进洞
+  const FLIGHT_TIMEOUT = 10;         // 兜底：飞太久直接判给正下方的洞
+  const STUCK_DROP = 30;             // 「有进展」= 又往下走了这么多
+  const STUCK_SEC = 3;               // 这么久没再往下走就判定卡住，直接算进洞
+  const POCKET_CAPTURE_Y = 700;      // 中心越过这条线就算进洞
   const SETTLE_SEC = 0.25;           // 落洞后缩小淡出的时长
   const DIV_TOP_R = 8;               // 隔板顶端的小圆头
   const RAIL_WALL_X = 452;           // 右侧竖轨的左边壁：飞行段的实体墙，弹珠进不去
@@ -93,19 +95,24 @@
     const dividers = [];
     for (let i = 0; i < POCKET_COUNT; i++) {
       const x0 = 48 + pw * i;
-      pockets.push({ i: i, x0: x0, x1: x0 + pw, cx: x0 + pw / 2, mouthY: 672, bottomY: 762 });
-      dividers.push({ x: x0, y: 672 });
+      pockets.push({ i: i, x0: x0, x1: x0 + pw, cx: x0 + pw / 2, mouthY: 686, bottomY: 770 });
+      dividers.push({ x: x0, y: 686 });
     }
-    dividers.push({ x: 48 + pw * POCKET_COUNT, y: 672 });
+    dividers.push({ x: 48 + pw * POCKET_COUNT, y: 686 });
 
+    // 钉子阵：左右两条边都必须留出「弹珠能整个过去」的缝，否则弹珠会被夹在
+    // 钉子和机箱壁之间来回弹，看起来就是卡死。
+    //   右：墙在 452，弹珠中心最多到 439，所以最右的钉子 x + 19 必须 <= 439 -> x <= 415
+    //   左：墙在 48，弹珠中心最少到 61，所以最左的钉子 x - 19 必须 >= 61 -> x >= 85
+    // 最后一行钉子和隔板圆头之间也留出 56px（> 弹珠直径 26 + 两侧半径），不会被夹在中间。
     const pegs = [];
     for (let row = 0; row < 7; row++) {
-      const y = 210 + row * 72;
+      const y = 210 + row * 70;
       const even = row % 2 === 0;
-      const base = even ? 77 : 106;
+      const base = even ? 85 : 112.5;
       const n = even ? 7 : 6;
       for (let k = 0; k < n; k++) {
-        pegs.push({ x: base + 58 * k, y: y, row: row, color: RAINBOW[(row + k) % RAINBOW.length] });
+        pegs.push({ x: base + 55 * k, y: y, row: row, color: RAINBOW[(row + k) % RAINBOW.length] });
       }
     }
 
@@ -307,9 +314,9 @@
     }
     // 接珠盘
     g.fillStyle(0x120C2E, 1);
-    g.fillRect(48, 762, 404, 40);
+    g.fillRect(48, 770, 404, 32);
     g.fillStyle(0x2EE6FF, 0.18);
-    g.fillRect(48, 762, 404, 4);
+    g.fillRect(48, 770, 404, 4);
     // 隔板
     for (let i = 0; i < L.dividers.length; i++) {
       const d = L.dividers[i];
@@ -525,6 +532,8 @@
       this.launchCharge = 0;
       this.flightT = 0;
       this.stallT = 0;
+      this.bestY = 0;                 // 已经下落到过的最深位置（防卡死用）
+      this.bestYAt = 0;               // 上一次「有进展」是在第几秒
       this.settle = null;
       this.elapsed = 0;
       this.lastDt = 1 / 60;
@@ -888,6 +897,8 @@
         m.vy = LAUNCH_VY;
         this.flightT = 0;
         this.stallT = 0;
+        this.bestY = r.exitY;
+        this.bestYAt = 0;
         this.spawnPuff(m.x, m.y);
         return;
       }
@@ -997,7 +1008,7 @@
         if (m.vx > 0) { m.vx = -m.vx * WALL_REST; Sound.wall(); }
       }
 
-      // 进洞：中心越过 690 就算落洞，按这一小步里穿线的位置取洞（避免斜着穿过隔板顶）
+      // 进洞：中心越过判定线就算落洞，按这一小步里穿线的位置取洞（避免斜着穿过隔板顶）
       if (m.y > POCKET_CAPTURE_Y) {
         let cx = m.x;
         if (py0 <= POCKET_CAPTURE_Y && m.y > py0) {
@@ -1008,14 +1019,25 @@
         return;
       }
 
-      // 卡死检测：慢吞吞超过 0.5 秒就横向推一把
+      // 防卡死（关键）：只要「又往下走了 STUCK_DROP」，就记一次进展；
+      // 要是 STUCK_SEC 秒都没有新进展，说明它被夹住了（钉子和机箱壁之间、
+      // 或者卡在隔板圆头顶上），直接判给正下方的洞，绝不让孩子干等。
+      if (m.y > this.bestY + STUCK_DROP) {
+        this.bestY = m.y;
+        this.bestYAt = this.flightT;
+      } else if (this.flightT - this.bestYAt > STUCK_SEC) {
+        this.enterPocket(this.pocketForX(m.x));
+        return;
+      }
+
+      // 慢吞吞超过 0.5 秒也推一把：横向随机 + 一点点向下，帮它脱出死角
       const sp2 = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
       if (sp2 < STALL_SPEED) {
         this.stallT += h;
         if (this.stallT > STALL_TIME) {
           this.stallT = 0;
           m.vx += (Math.random() < 0.5 ? -1 : 1) * STALL_PUSH;
-          m.vy += 20;
+          m.vy += 120;
         }
       } else {
         this.stallT = 0;
