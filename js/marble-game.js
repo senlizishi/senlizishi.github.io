@@ -1,8 +1,9 @@
 /*
  * 弹珠进洞：竖屏弹珠机。按住右下角的大圆钮蓄力，松手把弹珠从右侧竖轨弹上去，
  * 弹珠冲进钉子阵里弹来弹去，最后落到底部 6 个洞里。
- * 每发之前点亮 3 个洞，落进亮洞 +2 颗弹珠（暗洞不给也不罚）。
- * 一轮固定 12 发，顶部 12 颗小灯泡表示剩余次数，全打完弹结算卡。
+ * 每发之前点亮 3 个洞，三个亮洞分别挂 +1 / +2 / +3 颗弹珠（暗洞不给也不罚）。
+ * 弹珠数就是能继续玩下去的本钱：发射扣 1 颗，进亮洞按洞口的数字加回来，
+ * 弹珠用光才弹结算卡；右上角只保留「弹珠数」这一块记分牌。
  * 美术走游乐厅霓虹风，全部 Phaser.Graphics 程序化绘制；音效 WebAudio 合成，不加载任何素材文件。
  */
 (function () {
@@ -15,9 +16,8 @@
 
   const POCKET_COUNT = 6;            // 底部 6 个洞
   const LIT_COUNT = 3;               // 每发点亮其中 3 个
-  const POCKET_BONUS = 2;            // 进亮洞加 2 颗弹珠
-  const ROUND_SHOTS = 12;            // 一轮固定 12 发
-  const START_MARBLES = 12;          // 起始弹珠数（同时也是计分基准）
+  const LIT_REWARDS = [1, 2, 3];     // 三个亮洞分别挂 +1 / +2 / +3（每次随机分配给这三个洞）
+  const START_MARBLES = 12;          // 起始弹珠数：发射扣 1 颗，用光这局才结束
 
   const CHARGE_TIME = 1.2;           // 蓄满所需时间（秒）
   const MIN_CHARGE = 0.06;           // 只点一下按最小力度发射
@@ -48,7 +48,7 @@
   const RAIL_WALL_TOP = 205;         // 这条实体墙从出口下方开始生效
 
   const CARD_LOCK_MS = 400;          // 结算卡弹出后的防误触时间
-  const CARD_DELAY_SEC = 0.8;        // 第 12 颗落定后隔多久弹结算卡
+  const CARD_DELAY_SEC = 0.8;        // 最后一颗落定后隔多久弹结算卡
 
   // ---------------------------------------------------------------- 配色（游乐厅霓虹）
   const RAINBOW = [0xFF6EC7, 0xFF9A3D, 0xFFD93D, 0x4BE08A, 0x2EE6FF, 0xA06BFF];
@@ -75,8 +75,6 @@
     hudBg: 0x1A1338,
     hudLine: 0xFFD93D,
     hudText: '#FFE066',
-    bulbOn: 0xFFD93D,
-    bulbOff: 0x241C48,
     signPink: 0xFF4FD8,
   };
 
@@ -116,9 +114,6 @@
       }
     }
 
-    const bulbs = [];
-    for (let i = 0; i < ROUND_SHOTS; i++) bulbs.push({ x: 118 + i * 24, y: 44 });
-
     return {
       field: field,
       pegs: pegs,
@@ -128,7 +123,6 @@
       rail: { x: 472, y0: 740, y1: 196, exitX: 444, exitY: 172 },
       button: { x: 452, y: 890, r: 56, hit: 76 },
       hud: { x: WIDTH - 18, y: 22, w: 104, h: 46 },
-      bulbs: bulbs,
       card: { x: (WIDTH - 430) / 2, y: (HEIGHT - 420) / 2 - 10, w: 430, h: 420 },
     };
   }
@@ -506,8 +500,8 @@
       this.POCKETS = this.L.pockets;
       this.PEGS = this.L.pegs;
       this.CONST = {
-        POCKET_COUNT: POCKET_COUNT, LIT_COUNT: LIT_COUNT, POCKET_BONUS: POCKET_BONUS,
-        ROUND_SHOTS: ROUND_SHOTS, START_MARBLES: START_MARBLES,
+        POCKET_COUNT: POCKET_COUNT, LIT_COUNT: LIT_COUNT,
+        LIT_REWARDS: LIT_REWARDS.slice(), START_MARBLES: START_MARBLES,
         CHARGE_TIME: CHARGE_TIME, MIN_CHARGE: MIN_CHARGE,
         GRAVITY: GRAVITY, MARBLE_R: MARBLE_R, PEG_R: PEG_R, SPEED_CAP: SPEED_CAP,
         RAIL_DUR_MAX: RAIL_DUR_MAX, RAIL_DUR_MIN: RAIL_DUR_MIN,
@@ -522,10 +516,11 @@
       this.chargeT = 0;
       this.chargeTickT = 0;
       this.marbles = START_MARBLES;
-      this.launchesLeft = ROUND_SHOTS;
+      this.bestMarbles = START_MARBLES;  // 这局最多攒到过多少颗（结算卡上展示）
       this.shots = 0;
       this.wins = 0;
-      this.lit = [];                 // 当前亮着的洞下标
+      this.lit = [];                 // 当前亮着的洞下标（升序）
+      this.litRewards = [];          // 与 lit 平行：每个亮洞挂几颗（1/2/3 随机分配）
       this.marble = null;            // { x, y, vx, vy, inRail, settling }
       this.railT = 0;
       this.railDur = RAIL_DUR_MAX;
@@ -640,7 +635,7 @@
       for (let i = 0; i < POCKET_COUNT; i++) {
         const p = this.L.pockets[i];
         const st = this.add.graphics().setDepth(DEPTH.pocketLit + 0.4);
-        // 洞口一颗会跳的小星星 + 两颗小珠子，一眼看出「这里加 2 颗」
+        // 洞口一颗会跳的小星星 + 洞口下方的数字，一眼看出「这里加几颗」
         st.fillStyle(0xFFE066, 0.35);
         st.fillCircle(0, 0, 19);
         st.fillStyle(0xFFFFFF, 0.97);
@@ -651,7 +646,7 @@
         st.fillCircle(-3.4, -3.8, 2.6);
         st.setPosition(p.cx, p.mouthY + 28);
         this.pocketStars.push(st);
-        const tx = this.add.text(p.cx, p.mouthY + 62, '+' + POCKET_BONUS, {
+        const tx = this.add.text(p.cx, p.mouthY + 62, '+' + LIT_REWARDS[0], {
           fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#FFFFFF',
           stroke: '#2A2445', strokeThickness: 4,
         }).setOrigin(0.5).setDepth(DEPTH.pocketLit + 0.5);
@@ -701,12 +696,6 @@
         stroke: '#2A1B3D', strokeThickness: 4,
       }).setOrigin(0, 0.5).setDepth(DEPTH.hud + 1);
 
-      // 顶部 12 颗剩余次数小灯泡
-      this.bulbs = [];
-      for (let i = 0; i < this.L.bulbs.length; i++) {
-        const b = this.L.bulbs[i];
-        this.bulbs.push({ g: this.add.graphics().setDepth(DEPTH.hud), x: b.x, y: b.y });
-      }
       this.paintHud();
     }
 
@@ -786,6 +775,8 @@
     // -------------------------------------------------- 上膛 / 发射
     // 只在没有弹珠飞行时重摇亮洞：孩子先看清哪几个亮着，再决定蓄多大力。
     loadMarble() {
+      // 弹珠是继续玩下去的本钱：用光了就收摊，不再上膛
+      if (this.marbles <= 0) { this.endRound(); return; }
       const r = this.L.rail;
       this.phase = 'ready';
       this.charge = 0;
@@ -810,8 +801,23 @@
         out.push(pool.splice(j, 1)[0]);
       }
       out.sort(function (a, b) { return a - b; });
+      // 三个亮洞分别是 +1 / +2 / +3：洗牌后随机挂到这三个洞上。
+      // 这样长期看每发平均正好收回 1 颗（发射扣 1 颗、亮洞按 1/2/3 各三分之一给），
+      // 既不会越玩越多，也不会越玩越少，弹珠数就在 12 附近自然浮动。
+      const rw = LIT_REWARDS.slice(0, out.length);
+      for (let i = rw.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = rw[i]; rw[i] = rw[j]; rw[j] = tmp;
+      }
       this.lit = out;
+      this.litRewards = rw;
       this.paintLit();
+    }
+
+    // 这个洞现在挂着几颗（不在亮洞里就是 0）
+    rewardOf(idx) {
+      const i = this.lit.indexOf(idx);
+      return i >= 0 ? (this.litRewards[i] || 0) : 0;
     }
 
     launchWith(charge) {
@@ -828,9 +834,8 @@
       this.marble.inRail = true;
       this.marble.settling = false;
       this.phase = 'flight';
-      this.launchesLeft -= 1;
       this.shots += 1;
-      // 每发消耗一颗弹珠；不变量：弹珠数 = 12 - 已发射数 + 2 x 进亮洞次数（永不为负）
+      // 每发消耗一颗弹珠；不变量：弹珠数 = 起始 12 - 已发射数 + 亮洞奖励总和（永不为负）
       this.marbles = Math.max(0, this.marbles - 1);
       this.paintHud();
       this.paintCharge();
@@ -1076,13 +1081,13 @@
 
     resolvePocket(idx) {
       const p = this.L.pockets[idx];
-      const win = this.lit.indexOf(idx) >= 0;
-      if (win) {
+      const reward = this.rewardOf(idx);
+      if (reward > 0) {
         this.wins += 1;
-        this.marbles += POCKET_BONUS;
+        this.marbles += reward;
         Sound.win();
         this.spawnStars(p.cx, p.mouthY - 6, POCKET_COLORS[idx]);
-        this.popText(p.cx, p.mouthY - 34, '+' + POCKET_BONUS, POCKET_COLORS[idx]);
+        this.popText(p.cx, p.mouthY - 34, '+' + reward, POCKET_COLORS[idx]);
         this.pocketFlash(idx);
       } else {
         Sound.miss();
@@ -1093,7 +1098,7 @@
     }
 
     nextShot() {
-      if (this.launchesLeft <= 0) { this.endRound(); return; }
+      if (this.marbles <= 0) { this.endRound(); return; }
       this.loadMarble();
     }
 
@@ -1106,26 +1111,9 @@
 
     // -------------------------------------------------- HUD / 亮洞刷新
     paintHud() {
+      // 唯一保留的记分牌：右上角的弹珠数（攒到过最多多少颗留给结算卡）
+      if (!this.bestMarbles || this.marbles > this.bestMarbles) this.bestMarbles = this.marbles;
       if (this.marbleText) this.marbleText.setText(String(this.marbles));
-      if (!this.bulbs) return;
-      for (let i = 0; i < this.bulbs.length; i++) {
-        const b = this.bulbs[i];
-        const used = i >= this.launchesLeft;   // 从左往右还剩几颗亮着
-        b.g.clear();
-        if (used) {
-          b.g.fillStyle(C.bulbOff, 1);
-          b.g.fillCircle(b.x, b.y, 8);
-          b.g.lineStyle(2, 0x453A78, 0.9);
-          b.g.strokeCircle(b.x, b.y, 8);
-        } else {
-          b.g.fillStyle(C.bulbOn, 0.22);
-          b.g.fillCircle(b.x, b.y, 12);
-          b.g.fillStyle(C.bulbOn, 1);
-          b.g.fillCircle(b.x, b.y, 8);
-          b.g.fillStyle(0xFFF6CC, 1);
-          b.g.fillCircle(b.x - 2.4, b.y - 2.6, 3);
-        }
-      }
     }
 
     paintLit() {
@@ -1133,10 +1121,14 @@
       const g = this.pocketLitG;
       g.clear();
       for (let i = 0; i < POCKET_COUNT; i++) {
-        const on = this.lit.indexOf(i) >= 0;
+        const li = this.lit.indexOf(i);
+        const on = li >= 0;
         const p = this.L.pockets[i];
         if (this.pocketStars[i]) this.pocketStars[i].setVisible(on);
-        if (this.pocketPlus[i]) this.pocketPlus[i].setVisible(on);
+        if (this.pocketPlus[i]) {
+          this.pocketPlus[i].setVisible(on);
+          if (on) this.pocketPlus[i].setText('+' + this.rewardOf(i));
+        }
         if (on) drawPocketLit(g, p, POCKET_COLORS[i]);
       }
     }
@@ -1317,11 +1309,11 @@
         return t;
       };
 
-      mk(L.y + 54, '本轮结束', 26, '#4A3A6B', true);
+      mk(L.y + 54, '没弹珠啦', 26, '#4A3A6B', true);
       mk(L.y + 118, '进亮洞 ' + this.wins + ' 次', 34, '#E2489B', true);
 
-      // 弹珠图标 + 大数字
-      const num = mk(L.y + 196, String(this.marbles), 46, '#E0A32A', true);
+      // 弹珠图标 + 大数字（这局攒到最多时的数量）
+      const num = mk(L.y + 196, String(this.bestMarbles), 46, '#E0A32A', true);
       const iconX = WIDTH / 2 - (num.width + 40) / 2 + 15;
       num.setX(iconX + 15 + 14 + num.width / 2);
       const ig = this.add.graphics().setDepth(DEPTH.overlay + 1);
@@ -1335,8 +1327,8 @@
       ig.fillCircle(iconX - 5, L.y + 190, 4.4);
       items.push(ig);
 
-      mk(L.y + 254, '攒了这么多弹珠', 18, '#6E5F8C');
-      mk(L.y + 284, '一轮 ' + ROUND_SHOTS + ' 发，进亮洞加 ' + POCKET_BONUS + ' 颗', 15, '#A79BC4');
+      mk(L.y + 254, '这局最多攒到这么多弹珠', 18, '#6E5F8C');
+      mk(L.y + 284, '亮洞分别加 1 / 2 / 3 颗，攒够了就能接着玩', 15, '#A79BC4');
 
       const btnY = L.y + L.h - 84;
       const btn = this.add.rectangle(WIDTH / 2, btnY, 232, 62, 0xE2489B, 1)
@@ -1389,7 +1381,7 @@
       return v;
     }
 
-    forceLit(list) {
+    forceLit(list, rewards) {
       const arr = Array.isArray(list) ? list : [list];
       const out = [];
       for (let i = 0; i < arr.length; i++) {
@@ -1399,11 +1391,16 @@
       if (!out.length) out.push(0);
       out.sort(function (a, b) { return a - b; });
       this.lit = out;
+      const rw = Array.isArray(rewards) ? rewards : LIT_REWARDS;
+      this.litRewards = [];
+      for (let i = 0; i < out.length; i++) {
+        this.litRewards.push(rw[i] === undefined ? LIT_REWARDS[i % LIT_REWARDS.length] : rw[i]);
+      }
       this.paintLit();
       return this.lit.slice();
     }
 
-    // 强制投一颗弹珠进第 index 个洞（测试用，不消耗发数）
+    // 强制投一颗弹珠进第 index 个洞（测试用，不扣弹珠）
     dropInto(index) {
       const idx = Math.max(0, Math.min(POCKET_COUNT - 1, index | 0));
       if (this.settle) this.settle = null;
