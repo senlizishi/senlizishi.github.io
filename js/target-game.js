@@ -1,48 +1,50 @@
 /*
- * 弹珠打靶：横屏打靶机（960x540）。靶场里一排纸片小动物坐在传送带从左往右匀速走，
+ * 弹珠打靶：竖屏打靶机（540x960）。靶场里一排纸片小动物坐在传送带从左往右匀速走，
  * 底部六个洞里挂着分数；点一下屏幕，固定在正中间的炮台就竖直向上射一颗弹珠，
- * 打中小动物得分，弹珠常常会被撞回来、掉进底下的洞里再得一次分。
+ * 打中小动物得分，弹珠会被纸片顶回来、掉进底下的洞里再得一次分。
  * 一轮固定 15 发，打完给结算卡；没有失败、没有惩罚，只有分数。
- * 本游戏是横屏专用：竖屏时由 target.html 盖一层「把手机横过来玩」的提示，不重载。
+ * 只做竖屏，横屏时由 Phaser 的 FIT 缩放居中。
  * 美术全部 Phaser.Graphics 程序化绘制，音效 WebAudio 合成，不加载任何素材文件。
  */
 (function () {
   'use strict';
 
   // ---------------------------------------------------------------- 基础常量
-  const WIDTH = 960;                 // 横屏专用；竖屏时页面会给提示
-  const HEIGHT = 540;
+  const WIDTH = 540;                 // 只做竖屏，横屏时用 FIT 缩放居中
+  const HEIGHT = 960;
   const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
 
   const ROUND_BALLS = 15;            // 一轮 15 发
   const BALL_R = 12;
 
   const GRAVITY = 850;               // px/s^2
-  const LAUNCH_SPEED = 900;          // 固定的出膛速度，永远竖直向上
+  const LAUNCH_SPEED = 1250;         // 固定的出膛速度，永远竖直向上（够冲到靶场上沿再弹回来）
   const SUBSTEP = 1 / 240;           // 固定子步推进，高速也不会穿墙穿纸片
   const STALL_PUSH = 70;             // 慢吞吞卡住时推一把
   const STALL_TIME = 0.35;
   const WALL_REST = 0.62;
   const CEIL_REST = 0.55;
-  const FIG_REST = 0.42;             // 撞到纸片后保留多少速度（改成往下走）
-  const FIG_KICK = 950;              // 撞纸片后附加的横向乱飘上限（实际取 0~这个值的随机数）
+  const FIG_REST = 0.45;             // 撞到纸片后，沿法线方向保留多少速度（纸片轻，弹回来的速度只有一半不到）
+  const FIG_TILT = 0.22;             // 撞击点越偏，接触法线歪得越多（0.22 约等于最多歪 12 度）
+  const FIG_JITTER = 90;             // 回弹上撒一点随机，免得每一发都一模一样
+  const FIG_SIDE_MAX = 300;          // 横向回弹速度上限，别一弹就贴着墙根走
   const SPEED_CAP = 1600;
   const MAX_FLIGHT = 8;              // 兜底：飞太久直接判给正下方的洞
   const STALL_SPEED = 26;            // 慢到这个速度以下
   const STALL_SEC = 0.6;             // 持续这么久就推一把
-  const CAPTURE_Y = 412;             // 中心越过这条线就算进洞
+  const CAPTURE_Y = 790;             // 中心越过这条线就算进洞
   const SETTLE_SEC = 0.3;            // 落洞后缩小淡出的时长
 
   const FIG_COUNT = 12;              // 传送带上一共 12 只纸片小动物
-  const FIG_SPEED = 64;              // 匀速从左往右 px/s
+  const FIG_SPEED = 72;              // 匀速从左往右 px/s
   const FIG_W = 54;                  // 命中框
   const FIG_H = 62;
   const FIG_RESPAWN = 1.1;           // 被打掉之后隔多久从传送带那头再出来
   // 传送带是一条闭合的环：纸片从左往右匀速走，出了靶场窗口就从左边再转回来。
-  // 环长 1200、12 只之间正好隔 100，横屏窗口里任何时候都同时看得到 8 只以上。
+  // 环长 1200、12 只之间正好隔 100，窗口里任何时候都同时看得到 4 只以上。
   const BELT_LOOP = 1200;
   const FIG_SPACING = BELT_LOOP / FIG_COUNT;
-  const BELT_X0 = -20;               // 环上最左边的位置（窗口外，看不见）
+  const BELT_X0 = -14;               // 环上最左边的位置（窗口外，看不见）
 
   // 六个洞的分数：正中间最便宜，越靠边越贵 —— 直着打上去保底只有 5 分，
   // 想拿 20 分得靠撞纸片之后的乱弹，这样才有得玩。
@@ -110,17 +112,17 @@
     turret: 6, aim: 7, ball: 8, fx: 12, hud: 20, overlay: 40,
   };
 
-  // ---------------------------------------------------------------- 布局（横屏）
+  // ---------------------------------------------------------------- 布局（竖屏）
   function computeLayout() {
-    const field = { x0: 40, x1: 920, yTop: 96, yBottom: CAPTURE_Y };
-    const span = field.x1 - field.x0;         // 880
-    const midX = (field.x0 + field.x1) / 2;   // 480
-    // 正中间留一条 64 宽的发射道，炮台就塞在里面；六个洞分成左边三个、右边三个，
+    const field = { x0: 52, x1: 488, yTop: 200, yBottom: CAPTURE_Y };
+    const span = field.x1 - field.x0;         // 436
+    const midX = (field.x0 + field.x1) / 2;   // 270
+    // 正中间留一条 56 宽的发射道，炮台就塞在里面；六个洞分成左边三个、右边三个，
     // 从中间往两边依次是 5 / 10 / 20 分 —— 想拿高分就得让弹珠弹到边上去。
-    const laneW = 64;
+    const laneW = 56;
     const lane = { x0: midX - laneW / 2, x1: midX + laneW / 2 };
-    const per = (span - laneW) / 6;           // 每个洞 136 宽
-    const mouthY = 422, bottomY = 490;
+    const per = (span - laneW) / 6;           // 每个洞 63.3 宽
+    const mouthY = 800, bottomY = 866;
     const pockets = [];
     for (let i = 0; i < 3; i++) {
       const x0 = field.x0 + per * i;
@@ -141,17 +143,17 @@
       lane: lane,
       pockets: pockets,
       pw: per,
-      rail: { y: 210, x0: field.x0, x1: field.x1 },
-      window: { x: field.x0, y: 98, w: span, h: 112 },
-      awning: { h: 16, n: 28 },
-      beam: { y: 84, h: 12 },
-      turret: { x: midX, y: 508, len: 38, base: 24 },
-      deck: { y: bottomY, h: HEIGHT - bottomY },
+      sky: { y0: 96, y1: 800 },
+      awning: { y0: 96, h: 50, n: 12 },
+      rail: { y: 310, x0: field.x0, x1: field.x1 },
+      window: { x: field.x0, y: 208, w: span, h: 116 },
+      turret: { x: midX, y: 880, len: 38, base: 24 },
+      deck: { y: 888, h: HEIGHT - 888 },
       hud: {
-        left: { x: 20, y: 36, w: 190, h: 44 },
-        right: { x: WIDTH - 20, y: 36, w: 190, h: 44 },
+        left: { x: 62, y: 24, w: 156, h: 44 },
+        right: { x: WIDTH - 20, y: 24, w: 156, h: 44 },
       },
-      card: { x: (WIDTH - 480) / 2, y: (HEIGHT - 400) / 2, w: 480, h: 400 },
+      card: { x: (WIDTH - 430) / 2, y: 250, w: 430, h: 440 },
     };
   }
 
@@ -184,8 +186,8 @@
   // ---------------------------------------------------------------- 背景（嘉年华）
   // 天空 + 太阳 + 云，颜色分段近似渐变（WebGL 没有线性渐变）
   function drawSky(g, L) {
-    const bands = 26;
-    const topY = L.awning.h, bottomY = L.deck.y;
+    const bands = 40;
+    const topY = L.sky.y0, bottomY = L.sky.y1;
     const bh = (bottomY - topY) / bands;
     for (let i = 0; i < bands; i++) {
       const t = i / (bands - 1);
@@ -195,35 +197,35 @@
       g.fillStyle((r << 16) | (gg << 8) | b, 1);
       g.fillRect(0, topY + i * bh, WIDTH, bh + 1);
     }
-    // 太阳（放在右上角，避开左边那枚「还剩几发」的胶囊）
+    // 太阳
     g.fillStyle(C.sun, 0.55);
-    g.fillCircle(700, 58, 30);
+    g.fillCircle(430, 176, 40);
     g.fillStyle(0xFFF3C4, 0.95);
-    g.fillCircle(700, 58, 20);
+    g.fillCircle(430, 176, 26);
     // 云
-    const clouds = [[210, 58, 0.9], [470, 46, 0.8], [846, 50, 0.7]];
+    const clouds = [[96, 174, 1], [268, 150, 0.8], [474, 172, 0.7]];
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
       const k = c[2];
       g.fillStyle(C.cloud, 0.9);
-      g.fillCircle(c[0], c[1], 20 * k);
-      g.fillCircle(c[0] + 24 * k, c[1] + 5 * k, 15 * k);
-      g.fillCircle(c[0] - 22 * k, c[1] + 6 * k, 13 * k);
-      g.fillRect(c[0] - 22 * k, c[1], 46 * k, 15 * k);
+      g.fillCircle(c[0], c[1], 22 * k);
+      g.fillCircle(c[0] + 26 * k, c[1] + 6 * k, 17 * k);
+      g.fillCircle(c[0] - 24 * k, c[1] + 7 * k, 15 * k);
+      g.fillRect(c[0] - 24 * k, c[1], 52 * k, 16 * k);
     }
   }
 
   // 顶部红白条纹的帐篷檐（扇形边）
   function drawAwning(g, L) {
-    const y0 = 0, h = L.awning.h, n = L.awning.n;
+    const y0 = L.awning.y0, h = L.awning.h, n = L.awning.n;
     const w = WIDTH / n;
     for (let i = 0; i < n; i++) {
       g.fillStyle(i % 2 === 0 ? C.awningA : C.awningB, 1);
-      g.fillRect(i * w, y0, w + 1, h);
-      g.fillCircle(i * w + w / 2, y0 + h, w / 2 + 0.5);
+      g.fillRect(i * w, y0, w + 1, h - 16);
+      g.fillCircle(i * w + w / 2, y0 + h - 16, w / 2 + 0.5);
     }
     g.fillStyle(C.woodDark, 0.35);
-    g.fillRect(0, y0 + h - 4, WIDTH, 4);
+    g.fillRect(0, y0 + h - 20, WIDTH, 4);
   }
 
   // 靶场窗口只铺一层淡淡的玻璃色，纸片站在上面更跳
@@ -267,32 +269,32 @@
   // 靶场里空着的地方别太素：传送带梁下面一条彩旗 + 背板上一圈画上去的靶环 + 几颗小星星
   function drawFieldDecor(g, L) {
     const f = L.field;
-    const x0 = f.x0 + 46, x1 = f.x1 - 46, y0 = 226, sag = 34;
+    const cx = (f.x0 + f.x1) / 2;
+    const x0 = f.x0 - 18, x1 = f.x1 + 18, y0 = 152, sag = 26;
     g.lineStyle(2.5, C.woodDark, 0.45);
     g.beginPath();
     g.moveTo(x0, y0);
-    for (let i = 1; i <= 22; i++) {
-      const u = i / 22;
+    for (let i = 1; i <= 16; i++) {
+      const u = i / 16;
       g.lineTo(x0 + (x1 - x0) * u, y0 + Math.sin(u * Math.PI) * sag);
     }
     g.strokePath();
     const cols = [C.awningA, C.hudLine, 0x4BB8FF, 0x74D26C, 0xE8B6FF];
-    for (let i = 0; i < 22; i++) {
-      const u = (i + 0.5) / 22;
+    for (let i = 0; i < 16; i++) {
+      const u = (i + 0.5) / 16;
       const px = x0 + (x1 - x0) * u;
       const py = y0 + Math.sin(u * Math.PI) * sag;
       g.fillStyle(cols[i % cols.length], 0.92);
-      g.fillTriangle(px - 8, py, px + 8, py, px, py + 16);
+      g.fillTriangle(px - 9, py, px + 9, py, px, py + 18);
     }
-    const cx = (f.x0 + f.x1) / 2;
-    g.lineStyle(12, 0xFFFFFF, 0.13);
-    g.strokeCircle(cx, 310, 100);
-    g.lineStyle(12, C.awningA, 0.09);
-    g.strokeCircle(cx, 310, 72);
-    g.lineStyle(12, 0x4BB8FF, 0.07);
-    g.strokeCircle(cx, 310, 44);
-    const stars = [[120, 300, 10], [300, 356, 9], [640, 292, 11], [820, 372, 9],
-      [222, 392, 8], [470, 330, 7], [706, 356, 8], [368, 286, 7], [562, 396, 9], [862, 288, 8]];
+    g.lineStyle(13, 0xFFFFFF, 0.13);
+    g.strokeCircle(cx, 540, 154);
+    g.lineStyle(13, C.awningA, 0.09);
+    g.strokeCircle(cx, 540, 110);
+    g.lineStyle(13, 0x4BB8FF, 0.07);
+    g.strokeCircle(cx, 540, 66);
+    const stars = [[104, 412, 11], [430, 372, 9], [150, 648, 8], [392, 630, 12], [268, 466, 7],
+      [212, 726, 9], [330, 700, 8], [118, 536, 7], [424, 520, 8]];
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
       g.fillStyle(i % 2 === 0 ? 0xFFFFFF : C.hudLine, 0.20);
@@ -338,7 +340,7 @@
       g.strokeRoundedRect(p.x0 + 7, p.mouthY, w - 14, p.bottomY - p.mouthY, rc);
       // 洞口那圈亮色
       g.fillStyle(p.color, 0.18);
-      g.fillCircle(p.cx, p.mouthY + 28, Math.max(12, w * 0.24));
+      g.fillCircle(p.cx, p.mouthY + 26, Math.max(11, w * 0.3));
     }
     // 接珠盘：洞里掉下来的珠子最后都堆在这里
     g.fillStyle(0x2A2233, 1);
@@ -635,7 +637,8 @@
         ROUND_BALLS: ROUND_BALLS, BALL_R: BALL_R, GRAVITY: GRAVITY,
         LAUNCH_SPEED: LAUNCH_SPEED,
         WALL_REST: WALL_REST, CEIL_REST: CEIL_REST,
-        FIG_REST: FIG_REST, FIG_KICK: FIG_KICK, SPEED_CAP: SPEED_CAP,
+        FIG_REST: FIG_REST, FIG_TILT: FIG_TILT, FIG_JITTER: FIG_JITTER,
+        FIG_SIDE_MAX: FIG_SIDE_MAX, SPEED_CAP: SPEED_CAP,
         MAX_FLIGHT: MAX_FLIGHT, SUBSTEP: SUBSTEP, CAPTURE_Y: CAPTURE_Y,
         SETTLE_SEC: SETTLE_SEC, STALL_SPEED: STALL_SPEED, STALL_PUSH: STALL_PUSH,
         FIG_COUNT: FIG_COUNT, FIG_SPEED: FIG_SPEED, FIG_W: FIG_W, FIG_H: FIG_H,
@@ -662,7 +665,7 @@
       this.flightT = 0;
       this.stallT = 0;
       this.deepY = 0;                // 这一发到过的最深位置（防卡死）
-      this.deepAt = 0;
+      this.deepAt = -1;              // -1 = 还没开始下落
       this.elapsed = 0;
       this.lastDt = 1 / 60;
       this.endT = 0;
@@ -805,7 +808,7 @@
     buildCounter() {
       const g = this.add.graphics().setDepth(DEPTH.decor + 0.5);
       drawCounter(g, this.L);
-      this.hintText = this.add.text(WIDTH / 2 - 220, 516, '点一下屏幕，就发射一颗弹珠', {
+      this.hintText = this.add.text(WIDTH / 2, 928, '点一下屏幕，就发射一颗弹珠', {
         fontFamily: FONT, fontSize: '19px', fontStyle: 'bold', color: '#FFF3D6',
         stroke: '#5A3A1E', strokeThickness: 5,
       }).setOrigin(0.5).setDepth(DEPTH.decor + 0.6);
@@ -871,7 +874,7 @@
       // 「最深位置」从天花板算起：弹珠刚出膛的那段上升不算「卡住」，
       // 只有真的悬在半空不再往下走才会被兜底判进洞。
       this.deepY = this.L.field.yTop + BALL_R;
-      this.deepAt = 0;
+      this.deepAt = -1;              // -1 = 还没开始下落，卡死计时先不计
       this.recoil = 1;
       this.paintHud();
       Sound.launch();
@@ -986,9 +989,7 @@
         const dx = m.x - nx, dy = m.y - ny;
         if (dx * dx + dy * dy <= BALL_R * BALL_R) {
           this.hitFigure(fig);
-          // 横向乱飘的幅度是随机的：飘得小就落回中间便宜洞，飘得大才够到边上贵洞
-          m.vx = m.vx * 0.35 + (Math.random() < 0.5 ? -1 : 1) * FIG_KICK * Math.random();
-          m.vy = Math.max(120, Math.abs(m.vy) * FIG_REST);
+          this.bounceOffFigure(m, fig);
           break;
         }
       }
@@ -1013,8 +1014,10 @@
         return;
       }
 
-      // 防卡死：一直往下走才算有进展；这么久没进展就判给正下方的洞
+      // 防卡死：只在「连续往下走」的这段时间里计时。
+      // 往上飞（含刚弹离天花板那一下）不计时，否则弹珠还在半空就会被判进洞。
       if (m.vy > 0) {
+        if (this.deepAt < 0) this.deepAt = this.flightT;   // 刚转为下落，计时从这一刻开始
         if (m.y > this.deepY + 6) {
           this.deepY = m.y;
           this.deepAt = this.flightT;
@@ -1022,6 +1025,10 @@
           this.enterPocket(this.pocketForX(m.x));
           return;
         }
+      } else {
+        // 往上飞：把「最深位置」抬到当前高度，等下开始下落时重新计时
+        this.deepAt = -1;
+        if (m.y < this.deepY) this.deepY = m.y;
       }
 
       // 慢吞吞卡在角落里也推一把
@@ -1050,6 +1057,29 @@
       this.popText(fig.x, this.L.rail.y - FIG_H - 14, '+' + fig.value, 0xFFC93D);
       this.knockOut(fig, spec);
       this.paintHud();
+    }
+
+    // 弹珠撞到纸片之后的反弹：沿着「接触法线」把弹珠顶回去。
+    // 法线从纸片指向弹珠（从下面撞上来就朝下、从上面砸下来就朝上），
+    // 再按撞击位置往左右歪一点 —— 撞在正中间就直直弹回来，撞在左半边就往左下走，
+    // 越靠边歪得越多，幅度跟着撞上来的速度走，所以看着像真被纸片顶了一下。
+    bounceOffFigure(m, fig) {
+      const half = FIG_W * 0.5;
+      let off = (m.x - fig.x) / half;                 // -1 左边缘 .. +1 右边缘
+      if (off > 1) off = 1; else if (off < -1) off = -1;
+      const nY = m.y < this.L.rail.y - FIG_H * 0.5 ? -1 : 1;
+      const nX = off * FIG_TILT;
+      const nl = Math.sqrt(nX * nX + 1);
+      const ux = nX / nl, uy = nY / nl;
+      const vn = m.vx * ux + m.vy * uy;               // 负 = 还在往纸片里钻
+      if (vn < 0) {
+        const k = (1 + FIG_REST) * vn;
+        m.vx -= k * ux;
+        m.vy -= k * uy;
+      }
+      m.vx += (Math.random() * 2 - 1) * FIG_JITTER;
+      if (m.vx > FIG_SIDE_MAX) m.vx = FIG_SIDE_MAX;
+      else if (m.vx < -FIG_SIDE_MAX) m.vx = -FIG_SIDE_MAX;
     }
 
     // 落在哪个洞：先看有没有洞正好接住，没有就挑离得最近的那个
@@ -1246,7 +1276,7 @@
       });
     }
 
-    // -------------------------------------------------- 结算卡（横屏）
+    // -------------------------------------------------- 结算卡
     showCard() {
       if (this.cardShown) return;
       this.cardShown = true;
@@ -1271,20 +1301,22 @@
         return t;
       };
 
-      mk(L.y + 56, '本轮结束', 26, '#4A3A6B', true);
-      mk(L.y + 104, '打中 ' + this.hits + ' 只小动物', 24, '#E2643A', true);
+      mk(L.y + 52, '本轮结束', 26, '#4A3A6B', true);
+      mk(L.y + 100, '打中 ' + this.hits + ' 只小动物', 24, '#E2643A', true);
 
-      const num = mk(L.y + 186, String(this.score), 52, '#E0A32A', true);
+      const num = mk(L.y + 172, String(this.score), 52, '#E0A32A', true);
       const tw = 44 + 14 + num.width;
       const left = WIDTH / 2 - tw / 2;
       const ig = this.add.graphics().setDepth(DEPTH.overlay + 1);
       ig.fillStyle(0xFFC93D, 1);
-      fillPts(ig, starPoints(left + 22, L.y + 186, 22, 9.4, 5, 0));
+      fillPts(ig, starPoints(left + 22, L.y + 172, 22, 9.4, 5, 0));
       items.push(ig);
       num.setX(left + 44 + 14 + num.width / 2);
 
-      mk(L.y + 238, '打中小动物 +' + this.hitScore + '　掉进洞里 +' + this.pocketScore, 16, '#6E5F8C');
-      mk(L.y + 270, '小猪小鸭小青蛙 10 分 · 熊猫小兔小猫 20 分 · 独角兽小狐狸 30 分', 13, '#A79BC4');
+      mk(L.y + 224, '打中小动物 +' + this.hitScore + '　掉进洞里 +' + this.pocketScore, 16, '#6E5F8C');
+      mk(L.y + 254, '小猪 · 小鸭 · 小青蛙　10 分', 13, '#A79BC4');
+      mk(L.y + 274, '熊猫 · 小兔 · 小猫　20 分', 13, '#A79BC4');
+      mk(L.y + 294, '独角兽 · 小狐狸　30 分', 13, '#A79BC4');
 
       const btnY = L.y + L.h - 76;
       const btn = this.add.rectangle(WIDTH / 2, btnY, 232, 62, C.awningA, 1)

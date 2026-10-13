@@ -24,45 +24,21 @@
     }
     #home-link:hover { background: #ffffff; }
     #home-link:active { transform: scale(0.92); }
-    /* 横屏专用：竖屏时盖一层提示，只是盖住，不重载也不暂停。
-       z-index 比 #home-link(30) 低，所以返回首页按钮永远点得到。 */
-    #rotate-hint {
-      position: fixed; inset: 0; z-index: 20; display: none;
-      flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-      background: rgba(18, 30, 48, 0.94); color: #FFF3D6; text-align: center;
-      font-family: "Microsoft YaHei", "PingFang SC", sans-serif; padding: 24px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #rotate-hint svg { width: 88px; height: 88px; }
-    #rotate-hint .big { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
-    #rotate-hint .small { font-size: 15px; opacity: 0.78; }
-    @media (orientation: portrait) { #rotate-hint { display: flex; } }
-    @media (orientation: landscape) { #rotate-hint { display: none; } }
   </style>
   <script src="./phaser.min.js"></script>
-  <script src="js/target-game.js?v=2"></script>
+  <script src="js/target-game.js?v=3"></script>
 </head>
 <body>
 <main id="game-root" aria-label="弹珠打靶"></main>
 <a id="home-link" href="./index.html" aria-label="返回首页">&#8592;</a>
-<div id="rotate-hint" aria-hidden="true">
-  <svg viewBox="0 0 100 100" fill="none" stroke="#FFF3D6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="32" y="14" width="36" height="58" rx="8"/>
-    <line x1="44" y1="64" x2="56" y2="64"/>
-    <path d="M16 84 a42 42 0 0 0 68 0" stroke-dasharray="10 10"/>
-    <path d="M14 72 l2 12 12 -2"/>
-  </svg>
-  <div class="big">把手机横过来玩</div>
-  <div class="small">这个游戏是横屏的</div>
-</div>
 <script>
 (function () {
-  // 横屏专用：竖屏时由 #rotate-hint 盖住画面给提示，不重载、不暂停
+  // 只做竖屏：横屏时用 FIT 缩放居中显示，不需要重载
   window.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game-root',
-    width: 960,
-    height: 540,
+    width: 540,
+    height: 960,
     backgroundColor: '#BFE9FF',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
     scene: [window.TargetScene],
