@@ -95,6 +95,8 @@
     .thumb.mandala { background: radial-gradient(circle at 50% 30%, #fdfaf4, #e2e8f0 88%); }
     .card.target { --glow: #ff8a5c; }
     .thumb.target { background: radial-gradient(circle at 50% 30%, #ddf3ff, #ffe3c6 88%); }
+.card.doodle { --glow: #9ae66e; }
+.thumb.doodle { background: radial-gradient(circle at 50% 30%, #fdfaf4, #dcecd0 88%); }
     .meta { min-width: 0; display: flex; flex-direction: column; }
     .meta h2 { margin: 0; font-size: clamp(17px, 2.5vw, 21px); letter-spacing: .03em; }
     .meta p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: #c9bce4; }
@@ -514,6 +516,32 @@
           <h2>弹珠打靶</h2>
           <p>点一下屏幕就发射一颗弹珠，打中传送带上排着队的纸片小动物就得分；弹珠会被撞回来、掉进底下带分数的洞里再得一次。</p>
           <div class="tags"><span class="tag">点一下发射</span><span class="tag">5岁友好</span><span class="tag">打中得分</span></div>
+        </div>
+        <div class="play">▶</div>
+      </a>
+
+      <a class="card doodle" href="./doodle.html">
+        <div class="thumb doodle">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <rect x="6" y="6" width="108" height="108" rx="18" fill="#FDFAF4"/>
+            <ellipse cx="60" cy="110" rx="33" ry="5" fill="#33562A" opacity="0.14"/>
+            <path d="M30 74 C22 52 34 34 56 32 C80 30 98 44 96 66 C94 84 76 92 58 90 C44 88 34 84 30 74 Z" fill="none" stroke="#F4623A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M34 46 C40 30 62 24 78 32" fill="none" stroke="#4FB3E8" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="48" cy="56" r="10.5" fill="#FFFFFF" stroke="#4A4640" stroke-width="2.6"/>
+            <circle cx="73" cy="54" r="10.5" fill="#FFFFFF" stroke="#4A4640" stroke-width="2.6"/>
+            <circle cx="49.5" cy="58" r="4.4" fill="#4A4640"/>
+            <circle cx="74.5" cy="56" r="4.4" fill="#4A4640"/>
+            <circle cx="46.5" cy="54.5" r="1.7" fill="#FFFFFF"/>
+            <circle cx="71.5" cy="52.5" r="1.7" fill="#FFFFFF"/>
+            <path d="M55 74 Q61 80 67 74" fill="none" stroke="#4A4640" stroke-width="3" stroke-linecap="round"/>
+            <path d="M42 88 L37 103" stroke="#4A4640" stroke-width="6.5" stroke-linecap="round"/>
+            <path d="M76 88 L81 103" stroke="#4A4640" stroke-width="6.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="meta">
+          <h2>会动的画</h2>
+          <p>在纸上随便画一团，点一下它就活过来：长出手脚眼睛，跟着你手指走，点它还会蹦。</p>
+          <div class="tags"><span class="tag">随便画</span><span class="tag">5岁友好</span><span class="tag">不限想象力</span></div>
         </div>
         <div class="play">▶</div>
       </a>
