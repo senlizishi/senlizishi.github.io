@@ -1,50 +1,48 @@
 /*
- * 弹珠打靶：竖屏打靶机。靶场里一排纸片小动物坐着传送带从左往右匀速走，
- * 底部六个洞里挂着分数；按住屏幕瞄准、松手把弹珠打出去，
+ * 弹珠打靶：横屏打靶机（960x540）。靶场里一排纸片小动物坐在传送带从左往右匀速走，
+ * 底部六个洞里挂着分数；点一下屏幕，固定在正中间的炮台就竖直向上射一颗弹珠，
  * 打中小动物得分，弹珠常常会被撞回来、掉进底下的洞里再得一次分。
  * 一轮固定 15 发，打完给结算卡；没有失败、没有惩罚，只有分数。
+ * 本游戏是横屏专用：竖屏时由 target.html 盖一层「把手机横过来玩」的提示，不重载。
  * 美术全部 Phaser.Graphics 程序化绘制，音效 WebAudio 合成，不加载任何素材文件。
  */
 (function () {
   'use strict';
 
   // ---------------------------------------------------------------- 基础常量
-  const WIDTH = 540;                 // 只做竖屏，横屏时用 FIT 缩放居中
-  const HEIGHT = 960;
+  const WIDTH = 960;                 // 横屏专用；竖屏时页面会给提示
+  const HEIGHT = 540;
   const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
 
   const ROUND_BALLS = 15;            // 一轮 15 发
   const BALL_R = 12;
 
   const GRAVITY = 850;               // px/s^2
-  const SPEED_MIN = 950;             // 蓄力刚起步就有这个速度，已经够摸到纸片
-  const SPEED_MAX = 1450;            // 蓄满力（CHARGE_TIME 秒）就有这个速度，多半会顶到天花板再弹回来
-  const CHARGE_TIME = 1.0;           // 按住 1 秒蓄满
-  const AIM_MAX_DEG = 50;            // 最多能偏出竖直方向 50 度
+  const LAUNCH_SPEED = 900;          // 固定的出膛速度，永远竖直向上
   const SUBSTEP = 1 / 240;           // 固定子步推进，高速也不会穿墙穿纸片
   const STALL_PUSH = 70;             // 慢吞吞卡住时推一把
   const STALL_TIME = 0.35;
   const WALL_REST = 0.62;
   const CEIL_REST = 0.55;
-  const FIG_REST = 0.42;             // 撞到纸片后保留多少向上的速度
-  const FIG_KICK = 190;              // 撞纸片时附加的横向乱飘
+  const FIG_REST = 0.42;             // 撞到纸片后保留多少速度（改成往下走）
+  const FIG_KICK = 950;              // 撞纸片后附加的横向乱飘上限（实际取 0~这个值的随机数）
   const SPEED_CAP = 1600;
   const MAX_FLIGHT = 8;              // 兜底：飞太久直接判给正下方的洞
   const STALL_SPEED = 26;            // 慢到这个速度以下
   const STALL_SEC = 0.6;             // 持续这么久就推一把
-  const CAPTURE_Y = 790;             // 中心越过这条线就算进洞
+  const CAPTURE_Y = 412;             // 中心越过这条线就算进洞
   const SETTLE_SEC = 0.3;            // 落洞后缩小淡出的时长
 
-  const FIG_COUNT = 5;               // 传送带上一共 5 只纸片小动物
-  const FIG_SPEED = 72;              // 匀速从左往右 px/s
+  const FIG_COUNT = 12;              // 传送带上一共 12 只纸片小动物
+  const FIG_SPEED = 64;              // 匀速从左往右 px/s
   const FIG_W = 54;                  // 命中框
   const FIG_H = 62;
   const FIG_RESPAWN = 1.1;           // 被打掉之后隔多久从传送带那头再出来
   // 传送带是一条闭合的环：纸片从左往右匀速走，出了靶场窗口就从左边再转回来。
-  // 环长 560、5 只之间正好隔 112，窗口里任何时候都留得下 4 只以上可打。
-  const BELT_X0 = -14;               // 环上最左边的位置（窗口外，看不见）
-  const BELT_LOOP = 560;             // 环长
+  // 环长 1200、12 只之间正好隔 100，横屏窗口里任何时候都同时看得到 8 只以上。
+  const BELT_LOOP = 1200;
   const FIG_SPACING = BELT_LOOP / FIG_COUNT;
+  const BELT_X0 = -20;               // 环上最左边的位置（窗口外，看不见）
 
   // 六个洞的分数：正中间最便宜，越靠边越贵 —— 直着打上去保底只有 5 分，
   // 想拿 20 分得靠撞纸片之后的乱弹，这样才有得玩。
@@ -54,15 +52,28 @@
   const CARD_DELAY_SEC = 0.8;        // 最后一发落定后隔多久弹结算卡
   const CARD_LOCK_MS = 400;          // 结算卡弹出后的防误触时间
 
+  const RECOIL_DECAY = 4;            // 炮身回弹衰减速度
+  const RECOIL_DY = 5;               // 炮身下沉的最大像素
+
   // ---------------------------------------------------------------- 纸片小动物
   // 每一只都是「白边纸片 + 彩色本体」，分值直接写在肚子上
   const FIGURES = [
     { key: 'duck', kind: 'duck', name: '小鸭', value: 10, body: 0xFFD93D, accent: 0xFF9A3D, dark: 0xC98F1E },
     { key: 'frog', kind: 'frog', name: '青蛙', value: 10, body: 0x74D26C, accent: 0x3E9E52, dark: 0x2E7A44 },
+    { key: 'pig', kind: 'pig', name: '小猪', value: 10, body: 0xFFA8C8, accent: 0xF07AA8, dark: 0xC25A85 },
     { key: 'panda', kind: 'panda', name: '熊猫', value: 20, body: 0xFFFFFF, accent: 0x3A3A46, dark: 0xB9BFC8 },
     { key: 'cat', kind: 'cat', name: '小猫', value: 20, body: 0xFFB368, accent: 0xE07A3A, dark: 0xB35F27 },
-    { key: 'uni', kind: 'uni', name: '独角兽', value: 30, body: 0xE8B6FF, accent: 0xA06BFF, dark: 0x8A5AD8 },
+    { key: 'bunny', kind: 'bunny', name: '小兔', value: 20, body: 0xFFF1DC, accent: 0xF3C9A0, dark: 0xB98A63 },
+    { key: 'unicorn', kind: 'uni', name: '独角兽', value: 30, body: 0xE8B6FF, accent: 0xA06BFF, dark: 0x8A5AD8 },
+    { key: 'fox', kind: 'fox', name: '小狐狸', value: 30, body: 0xFF9A5C, accent: 0xFFF1E0, dark: 0xB35A20 },
   ];
+  const FIGURES_BY_KEY = {};
+  for (let i = 0; i < FIGURES.length; i++) FIGURES_BY_KEY[FIGURES[i].key] = FIGURES[i];
+
+  // 传送带上 12 只的排布：相邻两只不重样，高分（30 分）稀有一点点。
+  // 10 分 5 只 / 20 分 5 只 / 30 分 2 只。
+  const FIG_ORDER = ['duck', 'panda', 'frog', 'pig', 'unicorn', 'cat',
+    'bunny', 'duck', 'fox', 'panda', 'frog', 'cat'];
 
   // ---------------------------------------------------------------- 配色（嘉年华）
   const C = {
@@ -99,29 +110,30 @@
     turret: 6, aim: 7, ball: 8, fx: 12, hud: 20, overlay: 40,
   };
 
-  // ---------------------------------------------------------------- 布局
+  // ---------------------------------------------------------------- 布局（横屏）
   function computeLayout() {
-    const field = { x0: 52, x1: 488, yTop: 200, yBottom: CAPTURE_Y };
-    const span = field.x1 - field.x0;
-    const midX = (field.x0 + field.x1) / 2;
-    // 正中间留一条 56 宽的发射道，炮台就塞在里面；六个洞分成左边三个、右边三个，
+    const field = { x0: 40, x1: 920, yTop: 96, yBottom: CAPTURE_Y };
+    const span = field.x1 - field.x0;         // 880
+    const midX = (field.x0 + field.x1) / 2;   // 480
+    // 正中间留一条 64 宽的发射道，炮台就塞在里面；六个洞分成左边三个、右边三个，
     // 从中间往两边依次是 5 / 10 / 20 分 —— 想拿高分就得让弹珠弹到边上去。
-    const laneW = 56;
+    const laneW = 64;
     const lane = { x0: midX - laneW / 2, x1: midX + laneW / 2 };
-    const per = (span - laneW) / 6;
+    const per = (span - laneW) / 6;           // 每个洞 136 宽
+    const mouthY = 422, bottomY = 490;
     const pockets = [];
     for (let i = 0; i < 3; i++) {
       const x0 = field.x0 + per * i;
       pockets.push({
         i: i, x0: x0, x1: x0 + per, cx: x0 + per / 2,
-        mouthY: 800, bottomY: 866, value: POCKET_VALUES[i], color: POCKET_COLORS[i],
+        mouthY: mouthY, bottomY: bottomY, value: POCKET_VALUES[i], color: POCKET_COLORS[i],
       });
     }
     for (let i = 0; i < 3; i++) {
       const x0 = lane.x1 + per * i;
       pockets.push({
         i: i + 3, x0: x0, x1: x0 + per, cx: x0 + per / 2,
-        mouthY: 800, bottomY: 866, value: POCKET_VALUES[i + 3], color: POCKET_COLORS[i + 3],
+        mouthY: mouthY, bottomY: bottomY, value: POCKET_VALUES[i + 3], color: POCKET_COLORS[i + 3],
       });
     }
     return {
@@ -129,14 +141,17 @@
       lane: lane,
       pockets: pockets,
       pw: per,
-      rail: { y: 310, x0: field.x0, x1: field.x1 },
-      window: { x: field.x0, y: 208, w: span, h: 116 },
-      turret: { x: midX, y: 880, len: 38, base: 24 },
+      rail: { y: 210, x0: field.x0, x1: field.x1 },
+      window: { x: field.x0, y: 98, w: span, h: 112 },
+      awning: { h: 16, n: 28 },
+      beam: { y: 84, h: 12 },
+      turret: { x: midX, y: 508, len: 38, base: 24 },
+      deck: { y: bottomY, h: HEIGHT - bottomY },
       hud: {
-        left: { x: 62, y: 24, w: 156, h: 44 },
-        right: { x: WIDTH - 20, y: 24, w: 156, h: 44 },
+        left: { x: 20, y: 36, w: 190, h: 44 },
+        right: { x: WIDTH - 20, y: 36, w: 190, h: 44 },
       },
-      card: { x: (WIDTH - 430) / 2, y: (HEIGHT - 420) / 2 - 10, w: 430, h: 420 },
+      card: { x: (WIDTH - 480) / 2, y: (HEIGHT - 400) / 2, w: 480, h: 400 },
     };
   }
 
@@ -167,10 +182,10 @@
   }
 
   // ---------------------------------------------------------------- 背景（嘉年华）
-  // 天空 + 太阳 + 云 + 彩旗 + 红白帐篷顶，颜色分段近似渐变（WebGL 没有线性渐变）
-  function drawSky(g) {
-    const bands = 40;
-    const topY = 96, bottomY = 800;
+  // 天空 + 太阳 + 云，颜色分段近似渐变（WebGL 没有线性渐变）
+  function drawSky(g, L) {
+    const bands = 26;
+    const topY = L.awning.h, bottomY = L.deck.y;
     const bh = (bottomY - topY) / bands;
     for (let i = 0; i < bands; i++) {
       const t = i / (bands - 1);
@@ -180,36 +195,35 @@
       g.fillStyle((r << 16) | (gg << 8) | b, 1);
       g.fillRect(0, topY + i * bh, WIDTH, bh + 1);
     }
-    // 太阳
+    // 太阳（放在右上角，避开左边那枚「还剩几发」的胶囊）
     g.fillStyle(C.sun, 0.55);
-    g.fillCircle(430, 176, 40);
+    g.fillCircle(700, 58, 30);
     g.fillStyle(0xFFF3C4, 0.95);
-    g.fillCircle(430, 176, 26);
+    g.fillCircle(700, 58, 20);
     // 云
-    const clouds = [[96, 174, 1], [268, 150, 0.8], [474, 172, 0.7]];
+    const clouds = [[210, 58, 0.9], [470, 46, 0.8], [846, 50, 0.7]];
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
       const k = c[2];
       g.fillStyle(C.cloud, 0.9);
-      g.fillCircle(c[0], c[1], 22 * k);
-      g.fillCircle(c[0] + 26 * k, c[1] + 6 * k, 17 * k);
-      g.fillCircle(c[0] - 24 * k, c[1] + 7 * k, 15 * k);
-      g.fillRect(c[0] - 24 * k, c[1], 52 * k, 16 * k);
+      g.fillCircle(c[0], c[1], 20 * k);
+      g.fillCircle(c[0] + 24 * k, c[1] + 5 * k, 15 * k);
+      g.fillCircle(c[0] - 22 * k, c[1] + 6 * k, 13 * k);
+      g.fillRect(c[0] - 22 * k, c[1], 46 * k, 15 * k);
     }
   }
 
   // 顶部红白条纹的帐篷檐（扇形边）
-  function drawAwning(g) {
-    const y0 = 96, h = 50;
-    const n = 12;
+  function drawAwning(g, L) {
+    const y0 = 0, h = L.awning.h, n = L.awning.n;
     const w = WIDTH / n;
     for (let i = 0; i < n; i++) {
       g.fillStyle(i % 2 === 0 ? C.awningA : C.awningB, 1);
-      g.fillRect(i * w, y0, w + 1, h - 16);
-      g.fillCircle(i * w + w / 2, y0 + h - 16, w / 2 + 0.5);
+      g.fillRect(i * w, y0, w + 1, h);
+      g.fillCircle(i * w + w / 2, y0 + h, w / 2 + 0.5);
     }
     g.fillStyle(C.woodDark, 0.35);
-    g.fillRect(0, y0 + h - 20, WIDTH, 4);
+    g.fillRect(0, y0 + h - 4, WIDTH, 4);
   }
 
   // 靶场窗口只铺一层淡淡的玻璃色，纸片站在上面更跳
@@ -223,24 +237,25 @@
   // 画在纸片之上，纸片进出窗口时就像从框后面转出来。
   function drawRangeFront(g, L) {
     const f = L.field, wdw = L.window, rail = L.rail;
+    const span = f.x1 - f.x0;
     g.fillStyle(C.woodMid, 1);
     g.fillRect(f.x0 - 16, wdw.y - 10, 16, rail.y - wdw.y + 26);
     g.fillRect(f.x1, wdw.y - 10, 16, rail.y - wdw.y + 26);
     g.fillStyle(C.woodDark, 0.5);
     g.fillRect(f.x1 - 3, wdw.y - 10, 3, rail.y - wdw.y + 26);
     g.fillStyle(C.wood, 1);
-    g.fillRect(f.x0 - 10, wdw.y - 14, f.x1 - f.x0 + 20, 12);
+    g.fillRect(f.x0 - 10, wdw.y - 14, span + 20, 12);
     g.fillStyle(C.woodDark, 0.4);
-    g.fillRect(f.x0 - 10, wdw.y - 4, f.x1 - f.x0 + 20, 3);
+    g.fillRect(f.x0 - 10, wdw.y - 4, span + 20, 3);
     g.fillStyle(C.wood, 1);
-    g.fillRect(f.x0 - 10, rail.y - 2, f.x1 - f.x0 + 20, 16);
+    g.fillRect(f.x0 - 10, rail.y - 2, span + 20, 16);
     g.fillStyle(C.woodDark, 0.45);
-    g.fillRect(f.x0 - 10, rail.y + 9, f.x1 - f.x0 + 20, 4);
+    g.fillRect(f.x0 - 10, rail.y + 9, span + 20, 4);
   }
 
   // 传送带上会跑的小格子：每帧重画，一眼看得出带子在往右走
   function drawBeltStripes(g, L, phase) {
-    const f = L.field, rail = L.rail, step = 24;
+    const f = L.field, rail = L.rail, step = 26;
     g.clear();
     g.fillStyle(C.woodDark, 0.3);
     const off = wrap(phase, step);
@@ -249,42 +264,42 @@
     }
   }
 
-  // 靶场里空着的地方别太素：顶上一条彩旗 + 背板上一圈画上去的靶环 + 几颗小星星
+  // 靶场里空着的地方别太素：传送带梁下面一条彩旗 + 背板上一圈画上去的靶环 + 几颗小星星
   function drawFieldDecor(g, L) {
     const f = L.field;
-    const x0 = 34, x1 = 506, y0 = 152, sag = 26;
+    const x0 = f.x0 + 46, x1 = f.x1 - 46, y0 = 226, sag = 34;
     g.lineStyle(2.5, C.woodDark, 0.45);
     g.beginPath();
     g.moveTo(x0, y0);
-    for (let i = 1; i <= 16; i++) {
-      const u = i / 16;
+    for (let i = 1; i <= 22; i++) {
+      const u = i / 22;
       g.lineTo(x0 + (x1 - x0) * u, y0 + Math.sin(u * Math.PI) * sag);
     }
     g.strokePath();
     const cols = [C.awningA, C.hudLine, 0x4BB8FF, 0x74D26C, 0xE8B6FF];
-    for (let i = 0; i < 16; i++) {
-      const u = (i + 0.5) / 16;
+    for (let i = 0; i < 22; i++) {
+      const u = (i + 0.5) / 22;
       const px = x0 + (x1 - x0) * u;
       const py = y0 + Math.sin(u * Math.PI) * sag;
       g.fillStyle(cols[i % cols.length], 0.92);
-      g.fillTriangle(px - 9, py, px + 9, py, px, py + 18);
+      g.fillTriangle(px - 8, py, px + 8, py, px, py + 16);
     }
     const cx = (f.x0 + f.x1) / 2;
-    g.lineStyle(13, 0xFFFFFF, 0.13);
-    g.strokeCircle(cx, 540, 154);
-    g.lineStyle(13, C.awningA, 0.09);
-    g.strokeCircle(cx, 540, 110);
-    g.lineStyle(13, 0x4BB8FF, 0.07);
-    g.strokeCircle(cx, 540, 66);
-    const stars = [[104, 412, 11], [430, 372, 9], [150, 648, 8], [392, 630, 12], [268, 466, 7],
-      [212, 726, 9], [330, 700, 8], [118, 536, 7], [424, 520, 8]];
+    g.lineStyle(12, 0xFFFFFF, 0.13);
+    g.strokeCircle(cx, 310, 100);
+    g.lineStyle(12, C.awningA, 0.09);
+    g.strokeCircle(cx, 310, 72);
+    g.lineStyle(12, 0x4BB8FF, 0.07);
+    g.strokeCircle(cx, 310, 44);
+    const stars = [[120, 300, 10], [300, 356, 9], [640, 292, 11], [820, 372, 9],
+      [222, 392, 8], [470, 330, 7], [706, 356, 8], [368, 286, 7], [562, 396, 9], [862, 288, 8]];
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
       g.fillStyle(i % 2 === 0 ? 0xFFFFFF : C.hudLine, 0.20);
       fillPts(g, starPoints(s[0], s[1], s[2], s[2] * 0.44, 5, 0));
     }
     // 内侧两条导轨：弹珠就是被它们弹回来的，也让场子看着有个边界
-    const railTop = 200, railH = 596;
+    const railTop = f.yTop, railH = CAPTURE_Y - f.yTop;
     g.fillStyle(C.metal, 0.92);
     g.fillRect(f.x0, railTop, 12, railH);
     g.fillRect(f.x1 - 12, railTop, 12, railH);
@@ -299,15 +314,16 @@
   }
 
   // 机器最下面那块木头台面（放提示文字用）
-  function drawCounter(g) {
+  function drawCounter(g, L) {
+    const y = L.deck.y;
     g.fillStyle(C.woodMid, 1);
-    g.fillRect(0, 888, WIDTH, HEIGHT - 888);
+    g.fillRect(0, y, WIDTH, HEIGHT - y);
     g.fillStyle(C.wood, 1);
-    g.fillRect(0, 888, WIDTH, 10);
-    g.fillStyle(C.woodDark, 0.3);
-    g.fillRect(0, HEIGHT - 14, WIDTH, 14);
+    g.fillRect(0, y, WIDTH, 10);
     g.fillStyle(0xFFFFFF, 0.18);
-    g.fillRect(0, 898, WIDTH, 3);
+    g.fillRect(0, y + 10, WIDTH, 3);
+    g.fillStyle(C.woodDark, 0.3);
+    g.fillRect(0, HEIGHT - 12, WIDTH, 12);
   }
 
   // 底部的六个洞（暗态）
@@ -320,20 +336,21 @@
       g.fillRoundedRect(p.x0 + 7, p.mouthY, w - 14, p.bottomY - p.mouthY, rc);
       g.lineStyle(2.5, C.holeLine, 0.9);
       g.strokeRoundedRect(p.x0 + 7, p.mouthY, w - 14, p.bottomY - p.mouthY, rc);
-      // 洞口那圈亮色 + 分数
+      // 洞口那圈亮色
       g.fillStyle(p.color, 0.18);
-      g.fillCircle(p.cx, p.mouthY + 26, Math.max(11, w * 0.3));
+      g.fillCircle(p.cx, p.mouthY + 28, Math.max(12, w * 0.24));
     }
-    // 接珠盘
+    // 接珠盘：洞里掉下来的珠子最后都堆在这里
     g.fillStyle(0x2A2233, 1);
-    g.fillRect(L.field.x0, 866, L.field.x1 - L.field.x0, 26);
+    g.fillRect(L.field.x0, L.pockets[0].bottomY, L.field.x1 - L.field.x0, 12);
     g.fillStyle(C.hudLine, 0.22);
-    g.fillRect(L.field.x0, 866, L.field.x1 - L.field.x0, 4);
+    g.fillRect(L.field.x0, L.pockets[0].bottomY, L.field.x1 - L.field.x0, 3);
   }
 
-  // 炮台（底座 + 炮管，按瞄准角度转）
-  function drawTurret(g, L, ang) {
+  // 炮台：固定的底座 + 永远竖直向上的炮管（发射时会往下沉一下再弹回来）
+  function drawTurret(g, L, ang, dy) {
     const t = L.turret;
+    const off = dy || 0;
     g.fillStyle(C.metalDark, 1);
     g.fillCircle(t.x, t.y, t.base);
     g.fillStyle(C.metal, 1);
@@ -341,37 +358,15 @@
     g.fillStyle(0xFFFFFF, 0.35);
     g.fillCircle(t.x - 5, t.y - 6, 5);
     const ex = t.x + Math.sin(ang) * t.len;
-    const ey = t.y - Math.cos(ang) * t.len;
+    const ey = t.y + off - Math.cos(ang) * t.len;
     g.lineStyle(21, C.metalDark, 1);
-    g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(ex, ey); g.strokePath();
+    g.beginPath(); g.moveTo(t.x, t.y + off); g.lineTo(ex, ey); g.strokePath();
     g.lineStyle(15, C.metal, 1);
-    g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(ex, ey); g.strokePath();
+    g.beginPath(); g.moveTo(t.x, t.y + off); g.lineTo(ex, ey); g.strokePath();
     g.fillStyle(C.hudLine, 1);
     g.fillCircle(ex, ey, 8);
     g.fillStyle(0xFFFFFF, 0.55);
     g.fillCircle(ex - 2, ey - 2.2, 3);
-  }
-
-  // 瞄准虚线：一串小点，越长力度越大
-  function drawAim(g, L, ang, k) {
-    const t = L.turret;
-    const len = 56 + 150 * k;
-    g.fillStyle(C.aim, 0.85);
-    const n = 9;
-    for (let i = 1; i <= n; i++) {
-      const u = i / n;
-      const d = len * u;
-      const x = t.x + Math.sin(ang) * (t.len + d);
-      const y = t.y - Math.cos(ang) * (t.len + d);
-      g.fillCircle(x, y, 5.2 - 3.2 * u);
-    }
-    // 力度条（贴着小点最后一段）
-    const ex = t.x + Math.sin(ang) * (t.len + len + 12);
-    const ey = t.y - Math.cos(ang) * (t.len + len + 12);
-    g.fillStyle(C.aimSoft, 0.9);
-    g.fillCircle(ex, ey, 7);
-    g.fillStyle(C.aim, 1);
-    g.fillCircle(ex, ey, 7 * Math.max(0.18, k));
   }
 
   // 一只纸片小动物：脚踩在 y=0，头顶大约 y=-66
@@ -406,6 +401,21 @@
       g.fillEllipse(0, -14, 26, 20);
       g.lineStyle(2.6, D, 0.9);
       g.beginPath(); g.moveTo(-8, -30); g.lineTo(8, -30); g.strokePath();
+    } else if (kind === 'pig') {
+      g.fillStyle(B, 1);
+      g.fillTriangle(-16, -50, -5, -64, -1, -48);
+      g.fillTriangle(16, -50, 5, -64, 1, -48);
+      g.fillEllipse(0, -18, 48, 36);
+      g.fillCircle(0, -44, 15);
+      g.fillStyle(A, 1);
+      g.fillEllipse(1, -42, 21, 14);
+      g.fillCircle(-25, -21, 6);
+      g.fillStyle(D, 1);
+      g.fillCircle(-25, -21, 3);
+      g.fillCircle(-3.2, -42, 2.1);
+      g.fillCircle(5.2, -42, 2.1);
+      g.fillCircle(-6, -49, 2.3);
+      g.fillCircle(6, -49, 2.3);
     } else if (kind === 'panda') {
       g.fillStyle(A, 1);
       g.fillCircle(-12, -55, 7.5);
@@ -439,6 +449,44 @@
         g.beginPath(); g.moveTo(-19, -42 + i * 4); g.lineTo(-30, -45 + i * 6); g.strokePath();
         g.beginPath(); g.moveTo(19, -42 + i * 4); g.lineTo(30, -45 + i * 6); g.strokePath();
       }
+    } else if (kind === 'bunny') {
+      g.fillStyle(B, 1);
+      g.fillEllipse(-7, -60, 12, 30);
+      g.fillEllipse(7, -60, 12, 30);
+      g.fillEllipse(0, -18, 44, 34);
+      g.fillCircle(0, -44, 15);
+      g.fillStyle(A, 1);
+      g.fillEllipse(-7, -60, 6, 20);
+      g.fillEllipse(7, -60, 6, 20);
+      g.fillEllipse(0, -40, 8, 6);
+      g.fillStyle(D, 1);
+      g.fillCircle(-6, -47, 2.6);
+      g.fillCircle(6, -47, 2.6);
+      g.lineStyle(1.4, D, 0.7);
+      g.beginPath(); g.moveTo(-16, -42); g.lineTo(-27, -45); g.strokePath();
+      g.beginPath(); g.moveTo(-16, -38); g.lineTo(-27, -37); g.strokePath();
+      g.beginPath(); g.moveTo(16, -42); g.lineTo(27, -45); g.strokePath();
+      g.beginPath(); g.moveTo(16, -38); g.lineTo(27, -37); g.strokePath();
+      g.fillStyle(0xFFFFFF, 1);
+      g.fillCircle(-22, -16, 6);
+    } else if (kind === 'fox') {
+      g.fillStyle(B, 1);
+      g.fillTriangle(-18, -50, -6, -68, -1, -46);
+      g.fillTriangle(18, -50, 6, -68, 1, -46);
+      g.fillStyle(D, 1);
+      g.fillTriangle(-15, -52, -7, -64, -3, -48);
+      g.fillTriangle(15, -52, 7, -64, 3, -48);
+      g.fillStyle(B, 1);
+      g.fillEllipse(0, -18, 46, 36);
+      g.fillCircle(0, -44, 15);
+      g.fillEllipse(-26, -23, 26, 22);
+      g.fillStyle(A, 1);
+      g.fillCircle(-33, -23, 8);
+      g.fillEllipse(0, -38, 20, 14);
+      g.fillStyle(D, 1);
+      g.fillCircle(-6, -47, 2.6);
+      g.fillCircle(6, -47, 2.6);
+      g.fillCircle(0, -39, 2.6);
     } else {
       // uni：独角兽
       g.fillStyle(0xFFE066, 1);
@@ -546,6 +594,8 @@
       resume: resume,
       // 出膛：一口气 + 一点低音
       launch: function () { noise(0.16, 0.10, 0, 900, 2400, 1.3); tone(280, 0.12, 0.05, 0, 'triangle'); },
+      // 飞行中还点了一下：弹珠没落定，给一声轻轻的「咔」（表示还在装弹）
+      reload: function () { tone(300, 0.05, 0.03, 0, 'square'); noise(0.04, 0.02, 0, 1200, 0, 2.0); },
       // 打中纸片：分值越高越清脆
       hit: function (value) {
         const f = value >= 30 ? 880 : (value >= 20 ? 680 : 540);
@@ -581,24 +631,24 @@
       this.L = computeLayout();
       this.pockets = this.L.pockets;
       this.CONST = {
+        WIDTH: WIDTH, HEIGHT: HEIGHT,
         ROUND_BALLS: ROUND_BALLS, BALL_R: BALL_R, GRAVITY: GRAVITY,
-        SPEED_MIN: SPEED_MIN, SPEED_MAX: SPEED_MAX, CHARGE_TIME: CHARGE_TIME,
-        AIM_MAX_DEG: AIM_MAX_DEG, WALL_REST: WALL_REST, CEIL_REST: CEIL_REST,
+        LAUNCH_SPEED: LAUNCH_SPEED,
+        WALL_REST: WALL_REST, CEIL_REST: CEIL_REST,
         FIG_REST: FIG_REST, FIG_KICK: FIG_KICK, SPEED_CAP: SPEED_CAP,
         MAX_FLIGHT: MAX_FLIGHT, SUBSTEP: SUBSTEP, CAPTURE_Y: CAPTURE_Y,
         SETTLE_SEC: SETTLE_SEC, STALL_SPEED: STALL_SPEED, STALL_PUSH: STALL_PUSH,
         FIG_COUNT: FIG_COUNT, FIG_SPEED: FIG_SPEED, FIG_W: FIG_W, FIG_H: FIG_H,
         FIG_RESPAWN: FIG_RESPAWN, BELT_X0: BELT_X0, BELT_LOOP: BELT_LOOP,
-        FIG_SPACING: FIG_SPACING, POCKET_VALUES: POCKET_VALUES.slice(),
+        FIG_SPACING: FIG_SPACING, FIG_ORDER: FIG_ORDER.slice(),
+        POCKET_VALUES: POCKET_VALUES.slice(),
         POCKET_COUNT: POCKET_VALUES.length,
         CARD_DELAY_SEC: CARD_DELAY_SEC, CARD_LOCK_MS: CARD_LOCK_MS,
       };
 
       // 状态
-      this.phase = 'ready';          // ready / charging / flight / over
-      this.charge = 0;               // 0~1
-      this.chargeT = 0;
-      this.aimAng = 0;               // 0 = 正上方，正数 = 往右偏
+      this.phase = 'ready';          // ready / flight / over
+      this.recoil = 0;               // 发射时置 1，按 RECOIL_DECAY 衰减，给炮身一个下沉回弹
       this.ballsLeft = ROUND_BALLS;
       this.shots = 0;                // 这一轮已经打出去几发
       this.hits = 0;                 // 打中几只纸片
@@ -651,8 +701,8 @@
     // -------------------------------------------------- 搭场景
     buildSky() {
       const g = this.add.graphics().setDepth(DEPTH.sky);
-      drawSky(g);
-      drawAwning(g);
+      drawSky(g, this.L);
+      drawAwning(g, this.L);
     }
 
     buildDecor() {
@@ -668,7 +718,7 @@
       drawBeltStripes(this.beltG, this.L, this.belt);
     }
 
-    // 五只纸片小动物：白边纸片 + 彩色本体，预先画好，之后只改位置
+    // 十二只纸片小动物：白边纸片 + 彩色本体，预先画好，之后只改位置
     // 用一块几何遮罩把她们裁在靶场窗口里，进出窗口就像从框后面转出来
     buildFigures() {
       const wdw = this.L.window;
@@ -680,7 +730,7 @@
 
       this.figureConts = [];
       for (let i = 0; i < FIG_COUNT; i++) {
-        const spec = FIGURES[i % FIGURES.length];
+        const spec = FIGURES_BY_KEY[FIG_ORDER[i % FIG_ORDER.length]];
         const cont = this.add.container(0, 0).setDepth(DEPTH.figure);
         const sil = this.add.graphics();
         drawCritter(sil, spec.kind, spec.body, spec.accent, spec.dark, true);
@@ -693,7 +743,8 @@
         this.figureConts.push(cont);
         this.figures.push({
           i: i, key: spec.key, kind: spec.kind, name: spec.name, value: spec.value,
-          x: 0, offset: i * FIG_SPACING, dead: false, respawnAt: 0, frozen: false, cont: cont,
+          spec: spec, offset: i * FIG_SPACING,
+          x: 0, dead: false, respawnAt: 0, frozen: false, cont: cont,
         });
       }
     }
@@ -715,8 +766,7 @@
 
     buildTurret() {
       this.turretG = this.add.graphics().setDepth(DEPTH.turret);
-      this.aimG = this.add.graphics().setDepth(DEPTH.aim);
-      drawTurret(this.turretG, this.L, this.aimAng);
+      drawTurret(this.turretG, this.L, 0, 0);
     }
 
     buildHud() {
@@ -754,8 +804,8 @@
 
     buildCounter() {
       const g = this.add.graphics().setDepth(DEPTH.decor + 0.5);
-      drawCounter(g);
-      this.hintText = this.add.text(WIDTH / 2, 928, '按住屏幕蓄力，松手发射', {
+      drawCounter(g, this.L);
+      this.hintText = this.add.text(WIDTH / 2 - 220, 516, '点一下屏幕，就发射一颗弹珠', {
         fontFamily: FONT, fontSize: '19px', fontStyle: 'bold', color: '#FFF3D6',
         stroke: '#5A3A1E', strokeThickness: 5,
       }).setOrigin(0.5).setDepth(DEPTH.decor + 0.6);
@@ -768,64 +818,23 @@
     }
 
     // -------------------------------------------------- 输入
+    // 只有一种操作：点一下屏幕 = 打一发。飞出去的那颗没落定之前点不动。
     bindInput() {
-      this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
-      this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-      this.input.on('pointerup', () => this.onPointerUp());
-      this.input.on('pointerupoutside', () => this.onPointerUp());
+      this.input.on('pointerdown', () => this.onPointerDown());
       if (this.input.keyboard) {
         const KC = Phaser.Input.Keyboard.KeyCodes;
         this.input.keyboard.addKeys({ space: KC.SPACE });
-        this.input.keyboard.on('keydown-SPACE', () => {
-          if (this.phase === 'over') { this.tryRestart(); return; }
-          if (this.phase === 'charging') { this.releaseCharge(); return; }
-          if (this.phase === 'ready') { this.aimAng = 0; this.launchWith(0.6); }
-        });
+        this.input.keyboard.on('keydown-SPACE', () => this.onPointerDown());
       }
     }
 
-    onPointerDown(pointer) {
+    onPointerDown() {
       Sound.resume();
-      if (this.phase === 'over') { this.tryRestart(); return; }
-      if (this.phase !== 'ready') return;      // 蓄力中 / 飞行中不再受理
-      this.beginCharge(pointer);
-    }
-
-    onPointerMove(pointer) {
-      if (this.phase !== 'charging') return;
-      this.setAimFromPointer(pointer);
-    }
-
-    onPointerUp() {
-      if (this.phase !== 'charging') return false;
-      return this.releaseCharge();
-    }
-
-    // 手指点在哪里，炮口就朝哪里：0 = 正上方，往左右各最多偏 50 度
-    setAimFromPointer(pointer) {
-      const t = this.L.turret;
-      const dx = pointer.x - t.x;
-      const dy = pointer.y - t.y;
-      const maxA = AIM_MAX_DEG * Math.PI / 180;
-      let ang;
-      if (dy >= 0) ang = dx >= 0 ? maxA : -maxA;
-      else ang = Math.max(-maxA, Math.min(maxA, Math.atan2(dx, -dy)));
-      this.aimAng = ang;
-      return ang;
-    }
-
-    beginCharge(pointer) {
-      if (this.phase !== 'ready') return false;
-      this.phase = 'charging';
-      this.chargeT = 0;
-      this.charge = 0;
-      if (pointer) this.setAimFromPointer(pointer);
-      return true;
-    }
-
-    releaseCharge() {
-      if (this.phase !== 'charging') return false;
-      return this.launchWith(this.charge);
+      if (this.phase === 'over') { this.tryRestart(); return false; }
+      if (this.phase === 'ready') return this.fire();
+      // 飞行中：弹珠还没落定，给一声轻轻的「还在装弹」，免得孩子以为点了没反应
+      Sound.reload();
+      return false;
     }
 
     tryRestart() {
@@ -838,25 +847,20 @@
     // -------------------------------------------------- 上膛 / 发射
     loadBall() {
       this.phase = 'ready';
-      this.charge = 0;
-      this.chargeT = 0;
-      this.aimAng = 0;
       this.ball = null;
       this.settle = null;
       if (this.ballCont) this.ballCont.setVisible(false);
     }
 
-    launchWith(charge) {
+    // 点一下 = 打一发：炮口永远在正中间，弹珠竖直向上，没有蓄力也没有左右瞄准
+    fire() {
       if (this.phase === 'over' || this.shots >= ROUND_BALLS) return false;
-      const k = Math.max(0, Math.min(1, charge));
+      if (this.phase !== 'ready') return false;
       const t = this.L.turret;
-      const ang = this.aimAng;
-      const speed = SPEED_MIN + (SPEED_MAX - SPEED_MIN) * k;
-      const mx = t.x + Math.sin(ang) * t.len;
-      const my = t.y - Math.cos(ang) * t.len;
+      const mx = t.x;
+      const my = t.y - t.len;
       this.ball = {
-        x: mx, y: my,
-        vx: Math.sin(ang) * speed, vy: -Math.cos(ang) * speed,
+        x: mx, y: my, vx: 0, vy: -LAUNCH_SPEED,
         settling: false, fromX: mx, fromY: my, tx: mx, ty: my,
       };
       this.phase = 'flight';
@@ -864,10 +868,11 @@
       this.ballsLeft = Math.max(0, ROUND_BALLS - this.shots);
       this.flightT = 0;
       this.stallT = 0;
-      this.deepY = my;
+      // 「最深位置」从天花板算起：弹珠刚出膛的那段上升不算「卡住」，
+      // 只有真的悬在半空不再往下走才会被兜底判进洞。
+      this.deepY = this.L.field.yTop + BALL_R;
       this.deepAt = 0;
-      this.charge = 0;
-      this.chargeT = 0;
+      this.recoil = 1;
       this.paintHud();
       Sound.launch();
       this.spawnPuff(mx, my);
@@ -886,6 +891,8 @@
       this.elapsed += dt;
       this.lastDt = dt;
 
+      if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - dt * RECOIL_DECAY);
+
       for (let i = 0; i < this.flash.length; i++) {
         if (this.flash[i].t > 0) this.flash[i].t = Math.max(0, this.flash[i].t - dt);
       }
@@ -896,13 +903,6 @@
       if (this.settle) {
         this.settle.t += dt;
         if (this.settle.t >= this.settle.dur) this.finishSettle();
-        return;
-      }
-
-      if (this.phase === 'charging') {
-        this.chargeT += dt;
-        const c = Math.min(1, this.chargeT / CHARGE_TIME);
-        if (c !== this.charge) this.charge = c;
         return;
       }
 
@@ -986,7 +986,8 @@
         const dx = m.x - nx, dy = m.y - ny;
         if (dx * dx + dy * dy <= BALL_R * BALL_R) {
           this.hitFigure(fig);
-          m.vx = m.vx * 0.35 + (Math.random() < 0.5 ? -1 : 1) * FIG_KICK;
+          // 横向乱飘的幅度是随机的：飘得小就落回中间便宜洞，飘得大才够到边上贵洞
+          m.vx = m.vx * 0.35 + (Math.random() < 0.5 ? -1 : 1) * FIG_KICK * Math.random();
           m.vy = Math.max(120, Math.abs(m.vy) * FIG_REST);
           break;
         }
@@ -1012,7 +1013,7 @@
         return;
       }
 
-      // 防卡死：一直往下走才算有进展；0.35 秒没进展就判给正下方的洞
+      // 防卡死：一直往下走才算有进展；这么久没进展就判给正下方的洞
       if (m.vy > 0) {
         if (m.y > this.deepY + 6) {
           this.deepY = m.y;
@@ -1038,7 +1039,7 @@
     }
 
     hitFigure(fig) {
-      const spec = FIGURES[fig.i % FIGURES.length];
+      const spec = fig.spec;
       fig.dead = true;
       fig.respawnAt = this.elapsed + FIG_RESPAWN;
       this.hits += 1;
@@ -1052,7 +1053,7 @@
     }
 
     // 落在哪个洞：先看有没有洞正好接住，没有就挑离得最近的那个
-    // （正中间那条发射道没有洞，弹珠滚下来会算给旁边最近的洞）
+    // （正中间那条发射道没有洞，弹珠直上直下会算给旁边最近的洞）
     pocketForX(x) {
       const ps = this.L.pockets;
       let best = 0, bestD = Infinity;
@@ -1141,23 +1142,10 @@
         }
       }
 
-      // 炮台朝着瞄准方向 + 瞄准虚线
-      if (this.turretG) drawTurret(this.turretG, this.L, this.aimAng);
-      if (this.aimG) {
-        const g = this.aimG;
-        g.clear();
-        if (this.phase === 'charging') {
-          drawAim(g, this.L, this.aimAng, this.charge);
-        } else if (this.phase === 'ready') {
-          // 待机时炮口上方轻轻跳的小箭头，提醒往哪儿瞄
-          const t = this.L.turret;
-          const bob = Math.sin(this.elapsed * 3) * 4;
-          g.fillStyle(0xFFFFFF, 0.5);
-          for (let i = 0; i < 3; i++) {
-            const yy = t.y - t.len - 22 - i * 15 + bob;
-            g.fillTriangle(t.x - 10, yy + 9, t.x + 10, yy + 9, t.x, yy - 2);
-          }
-        }
+      // 炮台永远竖直向上；发射时下沉一下再弹回来，飞行中整台压暗表示「在装弹」
+      if (this.turretG) {
+        drawTurret(this.turretG, this.L, 0, this.recoil * RECOIL_DY);
+        this.turretG.setAlpha(this.phase === 'flight' ? 0.55 : 1);
       }
 
       // 传送带上的小格子
@@ -1173,7 +1161,7 @@
           const p = this.L.pockets[fl.i];
           const k = fl.t / 0.45;
           g.lineStyle(3 + 4 * k, p.color, 0.7 * k);
-          g.strokeCircle(p.cx, p.mouthY + 26, 16 + 22 * (1 - k));
+          g.strokeCircle(p.cx, p.mouthY + 28, 16 + 22 * (1 - k));
         }
       }
     }
@@ -1221,7 +1209,7 @@
       });
     }
 
-    // 被打飞的那一只：翻着跟头往右上角飞出去再淡掉
+    // 被打飞的那一只：翻着跟头往斜上方飞出去再淡掉
     knockOut(fig, spec) {
       const cont = this.add.container(fig.x, this.L.rail.y).setDepth(DEPTH.fx);
       const sil = this.add.graphics();
@@ -1258,7 +1246,7 @@
       });
     }
 
-    // -------------------------------------------------- 结算卡
+    // -------------------------------------------------- 结算卡（横屏）
     showCard() {
       if (this.cardShown) return;
       this.cardShown = true;
@@ -1269,9 +1257,9 @@
       g.fillStyle(0x0B0820, 0.55);
       g.fillRect(0, 0, WIDTH, HEIGHT);
       g.fillStyle(0xFFFFFF, 0.98);
-      g.fillRoundedRect(L.x, L.y, L.w, L.h, 30);
+      g.fillRoundedRect(L.x, L.y, L.w, L.h, 28);
       g.lineStyle(5, C.awningA, 1);
-      g.strokeRoundedRect(L.x, L.y, L.w, L.h, 30);
+      g.strokeRoundedRect(L.x, L.y, L.w, L.h, 28);
 
       const items = [g];
       const mk = (ty, text, size, color, bold) => {
@@ -1283,29 +1271,29 @@
         return t;
       };
 
-      mk(L.y + 52, '本轮结束', 26, '#4A3A6B', true);
+      mk(L.y + 56, '本轮结束', 26, '#4A3A6B', true);
       mk(L.y + 104, '打中 ' + this.hits + ' 只小动物', 24, '#E2643A', true);
 
-      const num = mk(L.y + 180, String(this.score), 52, '#E0A32A', true);
+      const num = mk(L.y + 186, String(this.score), 52, '#E0A32A', true);
       const tw = 44 + 14 + num.width;
       const left = WIDTH / 2 - tw / 2;
       const ig = this.add.graphics().setDepth(DEPTH.overlay + 1);
       ig.fillStyle(0xFFC93D, 1);
-      fillPts(ig, starPoints(left + 22, L.y + 180, 22, 9.4, 5, 0));
+      fillPts(ig, starPoints(left + 22, L.y + 186, 22, 9.4, 5, 0));
       items.push(ig);
       num.setX(left + 44 + 14 + num.width / 2);
 
-      mk(L.y + 234, '打中小动物 +' + this.hitScore + '　掉进洞里 +' + this.pocketScore, 16, '#6E5F8C');
-      mk(L.y + 266, '小鸭青蛙 10 分 · 熊猫小猫 20 分 · 独角兽 30 分', 14, '#A79BC4');
+      mk(L.y + 238, '打中小动物 +' + this.hitScore + '　掉进洞里 +' + this.pocketScore, 16, '#6E5F8C');
+      mk(L.y + 270, '小猪小鸭小青蛙 10 分 · 熊猫小兔小猫 20 分 · 独角兽小狐狸 30 分', 13, '#A79BC4');
 
-      const btnY = L.y + L.h - 84;
+      const btnY = L.y + L.h - 76;
       const btn = this.add.rectangle(WIDTH / 2, btnY, 232, 62, C.awningA, 1)
         .setStrokeStyle(3, 0xFFC0A0, 0.95).setDepth(DEPTH.overlay + 1);
       const btnText = this.add.text(WIDTH / 2, btnY, '再玩一次', {
         fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#FFFFFF',
       }).setOrigin(0.5).setDepth(DEPTH.overlay + 2);
       items.push(btn, btnText);
-      mk(L.y + L.h - 30, '点屏幕也可以', 15, '#A8BCC9');
+      mk(L.y + L.h - 26, '点屏幕也可以', 15, '#A8BCC9');
 
       this.cardG = g;
       this.cardItems = items;
@@ -1340,20 +1328,6 @@
       return this.phase;
     }
 
-    forceAim(ang) {
-      this.aimAng = ang || 0;
-      return this.aimAng;
-    }
-
-    forceLaunch(ang, charge) {
-      if (this.phase === 'over') return false;
-      if (this.settle) this.settle = null;
-      this.phase = 'ready';
-      this.charge = 0;
-      if (ang !== undefined) this.aimAng = ang;
-      return this.launchWith(charge === undefined ? 0.6 : charge);
-    }
-
     // 把某只纸片钉在指定的 x 上（测试用），releaseFigures() 放开
     forceFigure(index, x) {
       const fig = this.figures[Math.max(0, Math.min(this.figures.length - 1, index | 0))];
@@ -1369,16 +1343,15 @@
       for (let i = 0; i < this.figures.length; i++) this.figures[i].frozen = false;
     }
 
-    // 现在这个瞬间，窗口里能做靶子的有几只（弹珠够得着的范围算）
-    hittableFigures() {
-      const lo = this.L.field.x0 + BALL_R - FIG_W * 0.5;
-      const hi = this.L.field.x1 - BALL_R + FIG_W * 0.5;
-      let n = 0;
+    // 现在这个瞬间，有没有纸片正好压在炮口那条竖直线上（没有就 -1）
+    figureOverCannon() {
+      const t = this.L.turret;
       for (let i = 0; i < this.figures.length; i++) {
         const f = this.figures[i];
-        if (!f.dead && f.x >= lo && f.x <= hi) n += 1;
+        if (f.dead) continue;
+        if (Math.abs(f.x - t.x) <= FIG_W * 0.5 + BALL_R) return i;
       }
-      return n;
+      return -1;
     }
 
     // 强制投一颗弹珠进第 index 个洞（测试用，不扣发数）
