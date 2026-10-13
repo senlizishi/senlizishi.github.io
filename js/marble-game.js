@@ -1,7 +1,9 @@
 /*
  * 弹珠进洞：竖屏弹珠机。按住右下角的大圆钮蓄力，松手把弹珠从右侧竖轨弹上去，
- * 弹珠冲进钉子阵里弹来弹去，最后落到底部 10 个洞里（每发只亮 3 个，命中率三成）。
- * 每发之前点亮 3 个洞，三个亮洞分别挂 +1 / +2 / +3 颗弹珠（暗洞不给也不罚）。
+ * 弹珠冲进钉子阵里弹来弹去，最后落到底部 12 个洞里。
+ * 每发之前点亮其中几个洞：开局亮 3 个，每打 4 发少亮一个，降到 1 个之后就一直保持 1 个，
+ * 亮洞挂 +1 / +2 / +3 颗弹珠（暗洞不给也不罚）。亮洞越少回收越少，一局平均 19 发左右就收摊，
+ * 不会没完没了。
  * 弹珠数就是能继续玩下去的本钱：发射扣 1 颗，进亮洞按洞口的数字加回来，
  * 弹珠用光才弹结算卡；右上角只保留「弹珠数」这一块记分牌。
  * 美术走游乐厅霓虹风，全部 Phaser.Graphics 程序化绘制；音效 WebAudio 合成，不加载任何素材文件。
@@ -14,9 +16,14 @@
   const HEIGHT = 960;
   const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
 
-  const POCKET_COUNT = 10;           // 底部 10 个洞（每发只亮 3 个，命中率 3/10 = 30%）
-  const LIT_COUNT = 3;               // 每发点亮其中 3 个
-  const LIT_REWARDS = [1, 2, 3];     // 三个亮洞分别挂 +1 / +2 / +3（每次随机分配给这三个洞）
+  const POCKET_COUNT = 12;           // 底部 12 个洞
+  // 亮洞数随轮次递减的算法：开局亮 3 个，每打 SHOTS_PER_STAGE 发降一档，降到 1 之后一直保持 1。
+  // 每发期望回收 = (亮洞数 / 12) x 亮洞平均 2 颗，也就是 3 亮 = 0.50 颗、2 亮 = 0.33 颗、
+  // 1 亮 = 0.17 颗，全都低于「发射扣 1 颗」——所以越往后弹珠掉得越快，一局平均 19 发左右收摊。
+  const LIT_STAGES = [3, 3, 2, 2, 1];  // 每一档亮几个洞
+  const SHOTS_PER_STAGE = 4;           // 每打几发降一档
+  const LIT_COUNT_MAX = LIT_STAGES[0]; // 开局最多的亮洞数
+  const LIT_REWARDS = [1, 2, 3];     // 亮洞的奖励池：每次洗完牌按亮洞数取前几个（亮洞之间不重复）
   const START_MARBLES = 12;          // 起始弹珠数：发射扣 1 颗，用光这局才结束
 
   const CHARGE_TIME = 1.2;           // 蓄满所需时间（秒）
@@ -43,7 +50,7 @@
   const STUCK_SEC = 3;               // 这么久没再往下走就判定卡住，直接算进洞
   const POCKET_CAPTURE_Y = 700;      // 中心越过这条线就算进洞
   const SETTLE_SEC = 0.25;           // 落洞后缩小淡出的时长
-  const DIV_TOP_R = 5;               // 隔板顶端的小圆头（10 个洞时格子只有 40px，圆头得小到弹珠还过得去）
+  const DIV_TOP_R = 3;               // 隔板顶端的小圆头（12 个洞时格子只有 33.7px，圆头再大就会把弹珠卡住）
   const RAIL_WALL_X = 452;           // 右侧竖轨的左边壁：飞行段的实体墙，弹珠进不去
   const RAIL_WALL_TOP = 205;         // 这条实体墙从出口下方开始生效
 
@@ -52,7 +59,7 @@
 
   // ---------------------------------------------------------------- 配色（游乐厅霓虹）
   const RAINBOW = [0xFF6EC7, 0xFF9A3D, 0xFFD93D, 0x4BE08A, 0x2EE6FF, 0xA06BFF];
-  // 10 个洞各自的色带：彩虹循环取色，相邻两个永远不同色
+  // 12 个洞各自的色带：彩虹循环取色，相邻两个永远不同色
   const POCKET_COLORS = [];
   for (let i = 0; i < POCKET_COUNT; i++) POCKET_COLORS.push(RAINBOW[i % RAINBOW.length]);
 
@@ -298,7 +305,7 @@
     g.fillCircle(x - 1.8, y - 2, 2.3);
   }
 
-  // 10 个洞的底子（暗态）：灰紫色带 + 隔板圆头，永远可见
+  // 12 个洞的底子（暗态）：灰紫色带 + 隔板圆头，永远可见
   function drawPocketBase(g, L) {
     for (let i = 0; i < L.pockets.length; i++) {
       const p = L.pockets[i];
@@ -504,7 +511,9 @@
       this.POCKETS = this.L.pockets;
       this.PEGS = this.L.pegs;
       this.CONST = {
-        POCKET_COUNT: POCKET_COUNT, LIT_COUNT: LIT_COUNT,
+        POCKET_COUNT: POCKET_COUNT,
+        LIT_STAGES: LIT_STAGES.slice(), SHOTS_PER_STAGE: SHOTS_PER_STAGE,
+        LIT_COUNT_MAX: LIT_COUNT_MAX,
         LIT_REWARDS: LIT_REWARDS.slice(), START_MARBLES: START_MARBLES,
         CHARGE_TIME: CHARGE_TIME, MIN_CHARGE: MIN_CHARGE,
         GRAVITY: GRAVITY, MARBLE_R: MARBLE_R, PEG_R: PEG_R, SPEED_CAP: SPEED_CAP,
@@ -639,8 +648,8 @@
       this.pocketPlus = [];
       for (let i = 0; i < POCKET_COUNT; i++) {
         const p = this.L.pockets[i];
-        // 洞窄了，星星和数字都按格子宽度缩一缩，10 个洞才不会挤在一起
-        const pk = Math.min(1, (p.x1 - p.x0) / 67);
+        // 洞窄了，星星和数字都按格子宽度缩一缩，12 个洞才不会挤在一起
+        const pk = Math.min(1, (p.x1 - p.x0) / 48);
         const st = this.add.graphics().setDepth(DEPTH.pocketLit + 0.4);
         // 洞口一颗会跳的小星星 + 洞口下方的数字，一眼看出「这里加几颗」
         st.fillStyle(0xFFE066, 0.35);
@@ -800,25 +809,35 @@
       Sound.reload();
     }
 
+    // 当前这一档亮几个洞：每打 SHOTS_PER_STAGE 发降一档，降到最后一档就一直保持
+    litCountFor(shots) {
+      const stage = Math.floor((shots || 0) / SHOTS_PER_STAGE);
+      return LIT_STAGES[Math.min(stage, LIT_STAGES.length - 1)];
+    }
+
+    litCountNow() { return this.litCountFor(this.shots); }
+
     rerollLit() {
+      const want = this.litCountNow();
       const pool = [];
       for (let i = 0; i < POCKET_COUNT; i++) pool.push(i);
       const out = [];
-      for (let k = 0; k < LIT_COUNT && pool.length; k++) {
+      for (let k = 0; k < want && pool.length; k++) {
         const j = Math.floor(Math.random() * pool.length);
         out.push(pool.splice(j, 1)[0]);
       }
       out.sort(function (a, b) { return a - b; });
-      // 三个亮洞分别是 +1 / +2 / +3：洗牌后随机挂到这三个洞上。
-      // 这样长期看每发平均正好收回 1 颗（发射扣 1 颗、亮洞按 1/2/3 各三分之一给），
-      // 既不会越玩越多，也不会越玩越少，弹珠数就在 12 附近自然浮动。
-      const rw = LIT_REWARDS.slice(0, out.length);
+      // 奖励池 [1,2,3] 先洗牌再按亮洞数取前几个：
+      //   亮 3 个 -> 1/2/3 各一个；亮 2 个 -> 从 1/2/3 里随机挑两个；亮 1 个 -> 随机是 +1 / +2 / +3。
+      // 于是每发回收期望 = (亮洞数 / 12) x 2，永远小于发射扣掉的 1 颗：
+      // 3 亮时每发平均净掉 0.5 颗，2 亮时 0.67 颗，1 亮时 0.83 颗 —— 一局必定会结束，而且不拖。
+      const rw = LIT_REWARDS.slice();
       for (let i = rw.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         const tmp = rw[i]; rw[i] = rw[j]; rw[j] = tmp;
       }
       this.lit = out;
-      this.litRewards = rw;
+      this.litRewards = rw.slice(0, out.length);
       this.paintLit();
     }
 
@@ -998,7 +1017,7 @@
             m.vx -= (1 + WALL_REST) * vn * nx;
             m.vy -= (1 + WALL_REST) * vn * ny;
           }
-          // 10 个洞的格子窄，圆头顶上只留 4px 余量：给一点横向抖动，
+          // 12 个洞的格子更窄，圆头顶上几乎不留余量：给一点横向抖动，
           // 保证正好落在圆头正上方时也一定会被甩开，不会原地弹个不停。
           m.vx += (Math.random() < 0.5 ? -1 : 1) * 26;
         }
@@ -1340,7 +1359,7 @@
       items.push(ig);
 
       mk(L.y + 254, '这局最多攒到这么多弹珠', 18, '#6E5F8C');
-      mk(L.y + 284, '亮洞分别加 1 / 2 / 3 颗，攒够了就能接着玩', 15, '#A79BC4');
+      mk(L.y + 284, '亮洞挂 1 / 2 / 3 颗；越往后亮得越少，弹珠用光就收摊', 15, '#A79BC4');
 
       const btnY = L.y + L.h - 84;
       const btn = this.add.rectangle(WIDTH / 2, btnY, 232, 62, 0xE2489B, 1)
