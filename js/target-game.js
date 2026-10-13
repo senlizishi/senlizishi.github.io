@@ -1,7 +1,8 @@
 /*
  * 弹珠打靶：竖屏打靶机（540x960）。靶场里一排纸片小动物坐在传送带从左往右匀速走，
  * 底部六个洞里挂着分数；点一下屏幕，固定在正中间的炮台就竖直向上射一颗弹珠，
- * 打中小动物得分，弹珠会被纸片顶回来、掉进底下的洞里再得一次分。
+ * 打中小动物得分，弹珠会被纸片顶回来、掉进底下的洞里再得一次分；
+ * 打空了弹珠就直接从机器顶上飞出去，这一发没有分。
  * 一轮固定 15 发，打完给结算卡；没有失败、没有惩罚，只有分数。
  * 只做竖屏，横屏时由 Phaser 的 FIT 缩放居中。
  * 美术全部 Phaser.Graphics 程序化绘制，音效 WebAudio 合成，不加载任何素材文件。
@@ -22,26 +23,26 @@
   const SUBSTEP = 1 / 240;           // 固定子步推进，高速也不会穿墙穿纸片
   const STALL_PUSH = 70;             // 慢吞吞卡住时推一把
   const STALL_TIME = 0.35;
-  const WALL_REST = 0.62;
-  const CEIL_REST = 0.55;
+  const WALL_REST = 0.62;            // 两侧导轨的反弹（纸片把球打歪才会碰到）
   const FIG_REST = 0.45;             // 撞到纸片后，沿法线方向保留多少速度（纸片轻，弹回来的速度只有一半不到）
-  const FIG_TILT = 0.22;             // 撞击点越偏，接触法线歪得越多（0.22 约等于最多歪 12 度）
+  const FIG_TILT = 0.17;             // 撞击点越偏，接触法线歪得越多（0.17 约等于最多歪 10 度）
   const FIG_JITTER = 90;             // 回弹上撒一点随机，免得每一发都一模一样
   const FIG_SIDE_MAX = 300;          // 横向回弹速度上限，别一弹就贴着墙根走
   const SPEED_CAP = 1600;
+  const ESCAPE_Y = 96;               // 打空的球淡出到这里就算飞出机器（不再回弹）
   const MAX_FLIGHT = 8;              // 兜底：飞太久直接判给正下方的洞
   const STALL_SPEED = 26;            // 慢到这个速度以下
   const STALL_SEC = 0.6;             // 持续这么久就推一把
   const CAPTURE_Y = 790;             // 中心越过这条线就算进洞
   const SETTLE_SEC = 0.3;            // 落洞后缩小淡出的时长
 
-  const FIG_COUNT = 12;              // 传送带上一共 12 只纸片小动物
-  const FIG_SPEED = 72;              // 匀速从左往右 px/s
+  const FIG_COUNT = 8;               // 传送带上一共 8 只纸片小动物（少一点、疏一点才不容易蒙中）
+  const FIG_SPEED = 100;             // 匀速从左往右 px/s，走得快才要盯紧了打
   const FIG_W = 54;                  // 命中框
   const FIG_H = 62;
   const FIG_RESPAWN = 1.1;           // 被打掉之后隔多久从传送带那头再出来
   // 传送带是一条闭合的环：纸片从左往右匀速走，出了靶场窗口就从左边再转回来。
-  // 环长 1200、12 只之间正好隔 100，窗口里任何时候都同时看得到 4 只以上。
+  // 环长 1200、8 只之间正好隔 150，两只之间空出 96 像素的缝 —— 打偏了就飞出去。
   const BELT_LOOP = 1200;
   const FIG_SPACING = BELT_LOOP / FIG_COUNT;
   const BELT_X0 = -14;               // 环上最左边的位置（窗口外，看不见）
@@ -72,10 +73,9 @@
   const FIGURES_BY_KEY = {};
   for (let i = 0; i < FIGURES.length; i++) FIGURES_BY_KEY[FIGURES[i].key] = FIGURES[i];
 
-  // 传送带上 12 只的排布：相邻两只不重样，高分（30 分）稀有一点点。
-  // 10 分 5 只 / 20 分 5 只 / 30 分 2 只。
-  const FIG_ORDER = ['duck', 'panda', 'frog', 'pig', 'unicorn', 'cat',
-    'bunny', 'duck', 'fox', 'panda', 'frog', 'cat'];
+  // 传送带上 8 只的排布：相邻两只不重样（首尾也算相邻），高分（30 分）只有一只。
+  // 10 分 4 只 / 20 分 3 只 / 30 分 1 只。
+  const FIG_ORDER = ['duck', 'panda', 'frog', 'cat', 'pig', 'unicorn', 'bunny', 'frog'];
 
   // ---------------------------------------------------------------- 配色（嘉年华）
   const C = {
@@ -607,6 +607,8 @@
       },
       // 撞墙：闷闷一小下
       wall: function () { tone(170, 0.08, 0.035, 0, 'sine'); },
+      // 打空了：弹珠从头顶飞走的一声「咻」（不吓人，也不像失败）
+      miss: function () { noise(0.26, 0.045, 0, 1900, 460, 1.4); tone(420, 0.20, 0.025, 0.02, 'sine'); },
       // 掉进洞口
       drop: function () { tone(430, 0.10, 0.05, 0, 'sine'); },
       // 洞口得分：按分数高低给不同音高
@@ -636,10 +638,10 @@
         WIDTH: WIDTH, HEIGHT: HEIGHT,
         ROUND_BALLS: ROUND_BALLS, BALL_R: BALL_R, GRAVITY: GRAVITY,
         LAUNCH_SPEED: LAUNCH_SPEED,
-        WALL_REST: WALL_REST, CEIL_REST: CEIL_REST,
+        WALL_REST: WALL_REST,
         FIG_REST: FIG_REST, FIG_TILT: FIG_TILT, FIG_JITTER: FIG_JITTER,
         FIG_SIDE_MAX: FIG_SIDE_MAX, SPEED_CAP: SPEED_CAP,
-        MAX_FLIGHT: MAX_FLIGHT, SUBSTEP: SUBSTEP, CAPTURE_Y: CAPTURE_Y,
+        ESCAPE_Y: ESCAPE_Y, MAX_FLIGHT: MAX_FLIGHT, SUBSTEP: SUBSTEP, CAPTURE_Y: CAPTURE_Y,
         SETTLE_SEC: SETTLE_SEC, STALL_SPEED: STALL_SPEED, STALL_PUSH: STALL_PUSH,
         FIG_COUNT: FIG_COUNT, FIG_SPEED: FIG_SPEED, FIG_W: FIG_W, FIG_H: FIG_H,
         FIG_RESPAWN: FIG_RESPAWN, BELT_X0: BELT_X0, BELT_LOOP: BELT_LOOP,
@@ -721,7 +723,7 @@
       drawBeltStripes(this.beltG, this.L, this.belt);
     }
 
-    // 十二只纸片小动物：白边纸片 + 彩色本体，预先画好，之后只改位置
+    // 八只纸片小动物：白边纸片 + 彩色本体，预先画好，之后只改位置
     // 用一块几何遮罩把她们裁在靶场窗口里，进出窗口就像从框后面转出来
     buildFigures() {
       const wdw = this.L.window;
@@ -1003,9 +1005,11 @@
         m.x = f.x1 - BALL_R;
         if (m.vx > 0) { m.vx = -m.vx * WALL_REST; Sound.wall(); }
       }
-      if (m.y < f.yTop + BALL_R) {
-        m.y = f.yTop + BALL_R;
-        if (m.vy < 0) { m.vy = -m.vy * CEIL_REST; Sound.wall(); }
+      // 打空了就飞出去：球冲出靶场上沿之后不再碰木框弹回来，
+      // 继续往上飞、一边淡出，飞出机器这一发就算落空。
+      if (m.y < this.L.window.y - BALL_R) {
+        m.escaped = true;
+        if (m.y < ESCAPE_Y) { this.escapeShot(); return; }
       }
 
       // 落洞：只在往下走的时候算，免得刚出膛就被判进洞
@@ -1130,6 +1134,18 @@
       this.nextShot();
     }
 
+    // 打空了：弹珠从机器顶上飞出去，不给分，直接换下一发
+    escapeShot() {
+      const m = this.ball;
+      const x = m ? m.x : this.L.turret.x;
+      this.spawnPuff(x, this.L.window.y - 10);
+      Sound.miss();
+      this.ball = null;
+      this.settle = null;
+      if (this.ballCont) this.ballCont.setVisible(false);
+      this.nextShot();
+    }
+
     nextShot() {
       if (this.shots >= ROUND_BALLS) { this.endRound(); return; }
       this.loadBall();
@@ -1164,7 +1180,10 @@
           this.ballCont.setScale(1 - 0.5 * u);
           this.ballCont.setAlpha(1 - 0.4 * u);
         } else {
-          this.ballCont.setVisible(true).setScale(1).setAlpha(1);
+          // 飞出去的球：从靶场上沿开始淡，到 ESCAPE_Y 完全淡掉
+          const top = this.L.window.y - BALL_R;
+          const fade = m.escaped ? Math.max(0, Math.min(1, (m.y - ESCAPE_Y) / (top - ESCAPE_Y))) : 1;
+          this.ballCont.setVisible(true).setScale(1).setAlpha(fade);
           this.ballCont.setPosition(m.x, m.y);
           const sp = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
           this.spin += (0.05 + Math.min(0.5, sp / 3000)) * (this.lastDt * 60);
