@@ -807,6 +807,28 @@
   // ---------------------------------------------------------------- 场景
   const DEPTH = { bg: 0, art: 1, grid: 2, stroke: 3, trail: 4, fx: 12, ui: 20, card: 40 };
 
+  // ---------------------------------------------------------------- 选中文语音
+  // 只认普通话：粤语（zh-HK / 粤語 / Cantonese）一律不用，免得把「鸟」念成粤语。
+  // 返回分数，越大越优先；<= 0 表示没有可用的普通话语音。
+  function zhVoiceScore(v) {
+    const lang = String((v && v.lang) || '').toLowerCase().replace(/_/g, '-');
+    const name = String((v && v.name) || '').toLowerCase();
+    const text = lang + ' ' + name;
+    if (!text.trim()) return 0;
+    if (/yue|zh-hk|zh-hant-hk|cantonese|粤|粵|广东话|廣東話|hong kong|香港/.test(text)) return 0;
+    const langZh = /^zh(-|$)/.test(lang) || /^cmn/.test(lang);
+    const nameZh = /chinese|mandarin|普通话|中文|国语|國語|简体|簡體|华语|華語/.test(name);
+    if (!langZh && !nameZh) return -1;
+    let sc;
+    if (/^zh-cn$|^zh-hans|^cmn-hans|^zh-sg$/.test(lang)) sc = 100;
+    else if (/^zh(-|$)/.test(lang) || /^cmn/.test(lang)) sc = 55;
+    else sc = 40;
+    if (/mandarin|普通话|简体|簡體|mainland|大陆|大陸|华语/.test(text)) sc += 10;
+    if (/taiwan|台灣|台湾|traditional|繁體/.test(text)) sc -= 25;
+    if (v && v.localService) sc += 20;
+    return sc > 0 ? sc : 1;
+  }
+
   class ShiziScene extends Phaser.Scene {
     constructor() {
       super('ShiziScene');
@@ -1261,19 +1283,19 @@
         const S = window.speechSynthesis;
         const vs = S && S.getVoices ? S.getVoices() : [];
         if (vs && vs.length) {
-          let zh = null;
+          let best = null, bestScore = 0;
           for (let i = 0; i < vs.length; i++) {
-            const tag = ((vs[i].lang || '') + ' ' + (vs[i].name || ''));
-            if (/zh|chinese|中文|普通话/i.test(tag)) { zh = vs[i]; break; }
+            const sc = zhVoiceScore(vs[i]);
+            if (sc > bestScore) { bestScore = sc; best = vs[i]; }
           }
-          this.zhVoice = zh;
-          this.ttsOk = !!zh;
+          this.zhVoice = best;
+          this.ttsOk = bestScore > 0;
         }
       } catch (e) { /* ignore */ }
     }
 
     speak(text) {
-      if (this.ttsSupported === false) return false;
+      if (this.ttsSupported === false || this.ttsOk === false) return false;
       try {
         const S = window.speechSynthesis;
         if (!S || !window.SpeechSynthesisUtterance) return false;
