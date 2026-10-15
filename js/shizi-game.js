@@ -81,94 +81,120 @@
     { key: 'life', label: '动植物' },
   ];
   // ---------------------------------------------------------------- 字库
-  // 每条：c 字 / py 拼音 / mean 一句话意思 / word 组词 / art 插图键 / g 组号 / strokes 笔顺
+  // 每条：c 字 / py 拼音 / mean 一句话意思 / word 组词 / art 插图键 / g 组号 / ks 笔画类型 / strokes 笔顺
   // strokes 里每一笔是一串 0..1 的控制点（x 向右、y 向下），载入时会平滑重采样成密集折线；
   // 字形大致落在 0.15~0.88 之间，够大又好描。
+  // ks 与 strokes 一一对应，决定这一笔怎么收放笔锋：
+  // d 点（水滴）/ h 横 / s 竖 / p 撇（收细）/ n 捺（出脚）/ z 折·钩 / t 提
   const CHARS = [
     // ---------- 组 0：数字方位
     { c: '一', py: 'yī', mean: '一根小棍子，就是「一」', word: '一个', art: 'one', g: 0,
+      ks: ['h'],
       strokes: [[[0.18, 0.50], [0.82, 0.50]]] },
     { c: '二', py: 'èr', mean: '两根小棍子，就是「二」', word: '二月', art: 'two', g: 0,
+      ks: ['h', 'h'],
       strokes: [[[0.30, 0.36], [0.70, 0.36]], [[0.18, 0.68], [0.82, 0.68]]] },
     { c: '三', py: 'sān', mean: '三根小棍子，就是「三」', word: '三个', art: 'three', g: 0,
+      ks: ['h', 'h', 'h'],
       strokes: [[[0.30, 0.24], [0.72, 0.24]], [[0.35, 0.48], [0.66, 0.48]], [[0.15, 0.73], [0.86, 0.73]]] },
     { c: '十', py: 'shí', mean: '一横一竖，合起来是「十」', word: '十个', art: 'ten', g: 0,
+      ks: ['h', 's'],
       strokes: [[[0.20, 0.44], [0.80, 0.44]], [[0.50, 0.16], [0.50, 0.86]]] },
     { c: '上', py: 'shàng', mean: '在上面，往上看', word: '上面', art: 'up', g: 0,
+      ks: ['s', 'h', 'h'],
       strokes: [[[0.48, 0.08], [0.48, 0.74]], [[0.48, 0.34], [0.84, 0.35]], [[0.14, 0.74], [0.88, 0.74]]] },
     { c: '下', py: 'xià', mean: '在下面，往下看', word: '下面', art: 'down', g: 0,
+      ks: ['h', 's', 'd'],
       strokes: [[[0.14, 0.24], [0.86, 0.24]], [[0.48, 0.24], [0.48, 0.82]], [[0.57, 0.34], [0.67, 0.48]]] },
 
     // ---------- 组 1：大自然
     { c: '日', py: 'rì', mean: '天上的太阳，也叫日', word: '日出', art: 'sun', g: 1,
+      ks: ['s', 'z', 'h', 'h'],
       strokes: [[[0.32, 0.20], [0.32, 0.82]], [[0.32, 0.20], [0.68, 0.20], [0.68, 0.82]],
         [[0.32, 0.51], [0.68, 0.51]], [[0.32, 0.82], [0.68, 0.82]]] },
     { c: '月', py: 'yuè', mean: '晚上弯弯的月亮', word: '月亮', art: 'moon', g: 1,
+      ks: ['p', 'z', 'h', 'h'],
       strokes: [[[0.45, 0.16], [0.37, 0.46], [0.30, 0.68], [0.25, 0.86]],
         [[0.45, 0.16], [0.72, 0.16], [0.72, 0.78], [0.64, 0.85]],
         [[0.38, 0.43], [0.72, 0.43]], [[0.33, 0.62], [0.72, 0.62]]] },
     { c: '山', py: 'shān', mean: '高高的山，爬上去看风景', word: '高山', art: 'mountain', g: 1,
+      ks: ['s', 'z', 's'],
       strokes: [[[0.50, 0.16], [0.50, 0.80]], [[0.26, 0.38], [0.26, 0.80], [0.78, 0.80]],
         [[0.72, 0.34], [0.72, 0.80]]] },
     { c: '水', py: 'shuǐ', mean: '喝的、洗手用的水', word: '喝水', art: 'water', g: 1,
+      ks: ['z', 'z', 'p', 'n'],
       strokes: [[[0.50, 0.14], [0.50, 0.72], [0.42, 0.82]],
         [[0.20, 0.30], [0.44, 0.33], [0.28, 0.56], [0.17, 0.70]],
         [[0.63, 0.24], [0.53, 0.44]],
         [[0.52, 0.44], [0.68, 0.62], [0.87, 0.82]]] },
     { c: '火', py: 'huǒ', mean: '红红的火，热热的', word: '火苗', art: 'fire', g: 1,
+      ks: ['d', 'p', 'p', 'n'],
       strokes: [[[0.34, 0.34], [0.26, 0.47]], [[0.64, 0.28], [0.56, 0.43]],
         [[0.47, 0.16], [0.42, 0.42], [0.31, 0.66], [0.22, 0.82]],
         [[0.55, 0.44], [0.69, 0.62], [0.86, 0.82]]] },
     { c: '土', py: 'tǔ', mean: '地上一堆土，能种花', word: '泥土', art: 'soil', g: 1,
+      ks: ['h', 's', 'h'],
       strokes: [[[0.34, 0.30], [0.66, 0.30]], [[0.50, 0.30], [0.50, 0.78]], [[0.16, 0.78], [0.84, 0.78]]] },
 
     // ---------- 组 2：身体
     { c: '人', py: 'rén', mean: '一个站着的你和我', word: '大人', art: 'person', g: 2,
+      ks: ['p', 'n'],
       strokes: [[[0.50, 0.18], [0.36, 0.50], [0.20, 0.84]], [[0.52, 0.22], [0.68, 0.52], [0.84, 0.84]]] },
     { c: '口', py: 'kǒu', mean: '嘴巴，用来吃饭说话', word: '开口', art: 'mouth', g: 2,
+      ks: ['s', 'z', 'h'],
       strokes: [[[0.30, 0.28], [0.30, 0.74]], [[0.30, 0.28], [0.70, 0.28], [0.70, 0.74]],
         [[0.30, 0.74], [0.70, 0.74]]] },
     { c: '目', py: 'mù', mean: '眼睛，用来看东西', word: '目光', art: 'eye', g: 2,
+      ks: ['s', 'z', 'h', 'h', 'h'],
       strokes: [[[0.30, 0.16], [0.30, 0.84]], [[0.30, 0.16], [0.70, 0.16], [0.70, 0.84]],
         [[0.30, 0.39], [0.70, 0.39]], [[0.30, 0.62], [0.70, 0.62]], [[0.30, 0.84], [0.70, 0.84]]] },
     { c: '手', py: 'shǒu', mean: '小手，用来画画拿东西', word: '小手', art: 'hand', g: 2,
+      ks: ['p', 'h', 'h', 'z'],
       strokes: [[[0.48, 0.09], [0.32, 0.25]], [[0.34, 0.32], [0.67, 0.31]],
         [[0.20, 0.52], [0.87, 0.50]], [[0.49, 0.11], [0.49, 0.80], [0.40, 0.87]]] },
     { c: '心', py: 'xīn', mean: '心里暖暖的，爱你的心', word: '开心', art: 'heart', g: 2,
+      ks: ['d', 'z', 'd', 'd'],
       strokes: [[[0.31, 0.38], [0.23, 0.50]],
-        [[0.29, 0.47], [0.42, 0.62], [0.58, 0.71], [0.72, 0.66], [0.79, 0.55]],
+        [[0.26, 0.48], [0.37, 0.64], [0.49, 0.77], [0.62, 0.75], [0.70, 0.62]],
         [[0.49, 0.37], [0.55, 0.49]], [[0.67, 0.33], [0.74, 0.45]]] },
     { c: '大', py: 'dà', mean: '张开手，好大呀', word: '长大', art: 'big', g: 2,
+      ks: ['h', 'p', 'n'],
       strokes: [[[0.18, 0.36], [0.82, 0.36]], [[0.52, 0.16], [0.40, 0.48], [0.22, 0.84]],
         [[0.50, 0.36], [0.68, 0.58], [0.88, 0.82]]] },
 
     // ---------- 组 3：动植物
     { c: '木', py: 'mù', mean: '一棵大树，就是木', word: '大树', art: 'tree', g: 3,
+      ks: ['h', 's', 'p', 'n'],
       strokes: [[[0.18, 0.34], [0.82, 0.34]], [[0.50, 0.16], [0.50, 0.86]],
         [[0.50, 0.40], [0.32, 0.64], [0.20, 0.82]], [[0.50, 0.40], [0.68, 0.64], [0.82, 0.82]]] },
     { c: '牛', py: 'niú', mean: '哞哞叫的牛', word: '小牛', art: 'cow', g: 3,
+      ks: ['p', 'h', 'h', 's'],
       strokes: [[[0.52, 0.10], [0.38, 0.28]], [[0.30, 0.34], [0.70, 0.34]],
         [[0.16, 0.54], [0.84, 0.54]], [[0.50, 0.10], [0.50, 0.88]]] },
     { c: '马', py: 'mǎ', mean: '跑得很快的马', word: '小马', art: 'horse', g: 3,
+      ks: ['z', 'z', 'h'],
       strokes: [[[0.24, 0.20], [0.60, 0.20], [0.63, 0.48]],
         [[0.24, 0.20], [0.26, 0.58], [0.66, 0.60], [0.67, 0.76], [0.55, 0.85]],
         [[0.10, 0.70], [0.62, 0.70]]] },
     { c: '鸟', py: 'niǎo', mean: '会飞的小鸟', word: '小鸟', art: 'bird', g: 3,
+      ks: ['p', 'z', 'd', 'z', 'h'],
       strokes: [[[0.44, 0.06], [0.31, 0.18]],
         [[0.26, 0.20], [0.58, 0.20], [0.60, 0.50], [0.52, 0.56]],
         [[0.34, 0.29], [0.40, 0.38]],
         [[0.26, 0.20], [0.25, 0.60], [0.64, 0.62], [0.65, 0.78], [0.54, 0.86]],
         [[0.08, 0.72], [0.62, 0.72]]] },
     { c: '羊', py: 'yáng', mean: '咩咩叫的羊', word: '小羊', art: 'sheep', g: 3,
+      ks: ['d', 'p', 'h', 'h', 'h', 's'],
       strokes: [[[0.36, 0.14], [0.42, 0.22]], [[0.64, 0.14], [0.58, 0.22]],
         [[0.30, 0.30], [0.70, 0.30]], [[0.24, 0.46], [0.76, 0.46]],
         [[0.16, 0.66], [0.84, 0.66]], [[0.50, 0.30], [0.50, 0.88]]] },
     { c: '虫', py: 'chóng', mean: '爬呀爬的小虫', word: '小虫', art: 'worm', g: 3,
+      ks: ['s', 'z', 'h', 's', 't', 'd'],
       strokes: [[[0.32, 0.16], [0.32, 0.46]], [[0.32, 0.16], [0.68, 0.16], [0.68, 0.46]],
         [[0.32, 0.46], [0.68, 0.46]], [[0.50, 0.16], [0.50, 0.84]],
         [[0.27, 0.79], [0.49, 0.62]], [[0.58, 0.64], [0.66, 0.74]]] },
   ];
-  // ---------------------------------------------------------------- 布局
+﻿  // ---------------------------------------------------------------- 布局
   function computeLayout() {
     const L = {};
 
@@ -329,13 +355,39 @@
   }
 
   // ---------------------------------------------------------------- 盖章绘制
-  // 折线笔迹 = 沿路径盖一串圆点，天然圆头圆角，跨设备一致
-  function dabPath(g, pts, color, width, maxCount) {
+  // 笔画「笔锋」：同一条折线，按笔画类型决定这一段该粗还是该细。
+  // u 是沿笔画的进度 0..1；d 点 / h 横 / s 竖 / p 撇 / n 捺 / z 折·钩 / t 提。
+  function strokeTaper(kind, u) {
+    const t = u < 0 ? 0 : (u > 1 ? 1 : u);
+    switch (kind) {
+      case 'd': {                       // 点：起笔细、肚子最粗、收笔细，像个水滴
+        const f = t < 0.30 ? 0.42 + 2.00 * t : (t < 0.62 ? 1.02 : 1.02 - 1.50 * (t - 0.62));
+        return 1.28 * f;
+      }
+      case 'p': return 1.06 - 0.64 * t;  // 撇：起笔粗，一路收细到尖
+      case 'n':                          // 捺：起笔细，末端顿出捺脚再收尖
+        return t < 0.86 ? 0.42 + 0.70 * t : 1.04 - 0.42 * (t - 0.86) / 0.14;
+      case 't': return 1.00 - 0.52 * t;  // 提：起笔粗，末端收细
+      case 'h':                          // 横：中段略细，两头略顿
+        return 0.90 + (t < 0.10 ? 0.10 : 0) + (t > 0.92 ? 0.10 : 0);
+      default: return 1;                 // 竖 / 折 / 钩：粗细均匀
+    }
+  }
+
+  // 折线笔迹 = 沿路径盖一串圆点，天然圆头圆角，跨设备一致；半径按笔锋缩放
+  function dabStroke(g, pts, color, width, kind, maxCount, alpha) {
     if (!pts || !pts.length) return;
-    g.fillStyle(color, 1);
-    const r = width / 2;
-    const step = maxCount && pts.length > maxCount ? Math.ceil(pts.length / maxCount) : 1;
-    for (let i = 0; i < pts.length; i += step) g.fillCircle(pts[i].x, pts[i].y, r);
+    g.fillStyle(color, alpha === undefined ? 1 : alpha);
+    const n = pts.length;
+    const step = maxCount && n > maxCount ? Math.ceil(n / maxCount) : 1;
+    const stamp = function (i) {
+      const u = n > 1 ? i / (n - 1) : 0;
+      const k = strokeTaper(kind, u);
+      if (k > 0.02) g.fillCircle(pts[i].x, pts[i].y, width * k / 2);
+    };
+    let last = -1;
+    for (let i = 0; i < n; i += step) { stamp(i); last = i; }
+    if (last !== n - 1) stamp(n - 1);   // 收笔那一端一定要画到，不然撇的尖、捺的脚会缺
   }
 
   function dashedLine(g, x1, y1, x2, y2, dash) {
@@ -870,6 +922,7 @@
       }
 
       this.dense = [];
+      this.kinds = [];
       this.buildAllDense();
       this.buildLayers();
       this.bindInput();
@@ -880,11 +933,18 @@
     // -------------------------------------------------- 笔画数据
     buildAllDense() {
       this.allDense = [];
+      this.allKinds = [];
       for (let i = 0; i < CHARS.length; i++) {
         const box = this.L.box;
         const arr = [];
-        for (let k = 0; k < CHARS[i].strokes.length; k++) arr.push(buildDense(CHARS[i].strokes[k], box));
+        const kinds = [];
+        const ks = CHARS[i].ks || [];
+        for (let k = 0; k < CHARS[i].strokes.length; k++) {
+          arr.push(buildDense(CHARS[i].strokes[k], box));
+          kinds.push(ks[k] || '');
+        }
         this.allDense.push(arr);
+        this.allKinds.push(kinds);
       }
     }
 
@@ -1046,6 +1106,7 @@
       this.celebT = 0;
       this.phase = 'guess';
       this.dense = this.allDense[this.ci];
+      this.kinds = this.allKinds[this.ci] || [];
       this.trailG.clear();
       this.fxG.clear();
       this.strokeG.clear();
@@ -1111,7 +1172,7 @@
         else this.paintButtons();
       } else {
         Sound.nudge();
-        this.demo = { stroke: stroke };
+        this.demo = { stroke: stroke, kind: this.kinds[this.strokeIdx] || '' };
         this.demoT = 0;
       }
       return ok;
@@ -1119,7 +1180,7 @@
 
     demoStroke() {
       if (this.phase !== 'trace' || this.strokeIdx >= this.dense.length) return;
-      this.demo = { stroke: this.dense[this.strokeIdx] };
+      this.demo = { stroke: this.dense[this.strokeIdx], kind: this.kinds[this.strokeIdx] || '' };
       this.demoT = 0;
       Sound.tap();
     }
@@ -1161,7 +1222,7 @@
         if (this.phase === 'celebrate' || this.phase === 'paper') col = C.ink;
         else if (i < this.strokeIdx) col = C.done;
         else if (i === this.strokeIdx) col = C.cur;
-        dabPath(g, this.dense[i], col, STROKE_W, 900);
+        dabStroke(g, this.dense[i], col, STROKE_W, this.kinds[i], 900);
       }
     }
 
@@ -1238,7 +1299,7 @@
         const pts = this.dense[i].map(function (p) {
           return { x: ox + (p.x - (box.x + box.w / 2)) * k, y: oy + (p.y - (box.y + box.h / 2)) * k };
         });
-        dabPath(gg, pts, C.ghost, STROKE_W * k, 700);
+        dabStroke(gg, pts, C.ghost, STROKE_W * k, this.kinds[i], 700);
       }
       gg.setVisible(true);
 
@@ -1434,8 +1495,12 @@
         const s = this.demo.stroke;
         const u = clamp(this.demoT / (DEMO_MS / 1000), 0, 1);
         const idx = Math.max(1, Math.min(s.length - 1, Math.floor(u * (s.length - 1))));
+        const dk = this.demo.kind || '';
         g.fillStyle(C.cur, 0.5);
-        for (let i = 0; i <= idx; i += 2) g.fillCircle(s[i].x, s[i].y, STROKE_W * 0.32);
+        for (let i = 0; i <= idx; i += 2) {
+          const du = s.length > 1 ? i / (s.length - 1) : 0;
+          g.fillCircle(s[i].x, s[i].y, STROKE_W * 0.32 * strokeTaper(dk, du));
+        }
         g.fillStyle(C.dot, 1).fillCircle(s[idx].x, s[idx].y, 10);
         this.drawArrow(g, s, C.dot);
       }
