@@ -49,7 +49,9 @@
   const MAT_R = 30;               // 桌上的材料绘制半径（摊成两排，比原来略小）
   const MAT_HIT = 42;             // 材料的抓取半径（两排之间最近的两块也不会重叠）
   const STATION_R = 38;           // 工位绘制半径
-  const STATION_HIT = 54;         // 工位的命中半径（4 个工位步长 128，两块不重叠）
+  const STATION_HIT = 54;         // 工位的命中半径（4 个工位步长 108，两块不重叠）
+  const BIN_R = 32;               // 桌上那只垃圾桶的绘制半径
+  const BIN_HIT = 44;             // 垃圾桶的命中半径（把不想要的拖进来丢掉）
   const SERVE_R = 40;             // 出餐垫上成品的抓取半径（相邻 95）
   const PICK_HALF_W = 70;         // 客人接受区半宽（站位间距 152，两块不会重叠）
   const PICK_BOTTOM_PAD = 30;     // 接受区下沿越过脚底多少
@@ -173,7 +175,7 @@
     const table = { y0: 610, y1: 960 };         // 台面
 
     // 材料：摊成前后两排（前排做雪糕 / 汉堡，后排薯条 + 可乐 / 橙子 / 雪碧三个大瓶），
-    // 排距 88、排内间距 90 / 108，抓取圈两两不相交；都没有画框，只有形状 + 落影 + 一行小字。
+    // 排距 88、排内间距 90 / 108，抓取圈两两不相交；都没有画框，只有形状 + 落影。
     const matSpots = {
       cone: { x: 90, y: 642 }, bunBottom: { x: 180, y: 642 }, lettuce: { x: 270, y: 642 },
       patty: { x: 360, y: 642 }, bunTop: { x: 450, y: 642 },
@@ -181,14 +183,14 @@
     };
     const materials = MATERIALS.map(function (m, i) {
       const p = matSpots[m.key];
-      return { i: i, key: m.key, name: m.name, cx: p.x, cy: p.y, r: MAT_R, nameY: p.y + 36 };
+      return { i: i, key: m.key, name: m.name, cx: p.x, cy: p.y, r: MAT_R };
     });
 
-    // 工位排：材料下方一横排 4 个（步长 128：雪糕机 / 组装盘 / 薯条盒 / 杯子）
-    const stationXs = [78, 206, 334, 462];
+    // 工位排：材料下方一横排 4 个（步长 108：雪糕机 / 组装盘 / 薯条盒 / 杯子）
+    const stationXs = [108, 216, 324, 432];
     const stationY = 832;
     const stations = STATIONS.map(function (s, i) {
-      return { i: i, key: s.key, name: s.name, cx: stationXs[i], cy: stationY, r: STATION_R, nameY: stationY + 49 };
+      return { i: i, key: s.key, name: s.name, cx: stationXs[i], cy: stationY, r: STATION_R };
     });
 
     // 出餐垫：桌子最底下一块木垫，三个位置
@@ -197,11 +199,14 @@
       { x: 175, y: 922 }, { x: 270, y: 922 }, { x: 365, y: 922 },
     ];
 
+    // 垃圾桶：桌子右下角，不想要的东西（做多的成品 / 拿错的材料）拖进去丢掉
+    const bin = { x: 486, y: 920, r: BIN_R, hit: BIN_HIT };
+
     return {
       slotXs: slotXs, groundY: groundY,
       grassY0: grassY0, grassY1: grassY1, treeY0: treeY0, treeY1: treeY1,
       sign: sign, hud: hud, bubble: bubble, counter: counter, table: table,
-      materials: materials, stations: stations, matPad: matPad, matSlots: matSlots,
+      materials: materials, stations: stations, matPad: matPad, matSlots: matSlots, bin: bin,
       counterY: counter.y0, tableY0: table.y0,
       hint: { x: WIDTH / 2, y: 588 },
       tip: { x: WIDTH / 2, y: 622, w: 268, h: 34 },
@@ -805,6 +810,47 @@
 
     if (ghostMat) drawGhostOutline(g, ghostMat, cx, cy, r);
   }
+
+  // ---------------------------------------------------------------- 垃圾桶
+  // 桌子右下角一只斜口的小垃圾桶：拖东西过来时亮一圈，松手就丢进去。
+  // 做多的成品、拿错的材料都能丢，不扣星、不批评，也不会少什么。
+  function drawBin(g, cx, cy, r, highlight) {
+    if (highlight) {
+      g.fillStyle(C.star, 0.18);
+      g.fillCircle(cx, cy, r * 1.5);
+      g.lineStyle(3.5, C.star, 0.65);
+      g.strokeCircle(cx, cy, r * 1.42);
+    }
+    g.fillStyle(0x3A2A1E, 0.16);
+    fillEllipse(g, cx, cy + r * 0.86, r * 0.9, r * 0.2);
+
+    const topW = r * 0.8, botW = r * 0.6;
+    const top = cy - r * 0.4, bot = cy + r * 0.76;
+    const body = [[cx - topW, top], [cx + topW, top], [cx + botW, bot], [cx - botW, bot]];
+    g.fillStyle(C.steel, 1);
+    fillPoly(g, body);
+    // 右侧一道阴影，让它看着是个圆的桶
+    g.fillStyle(C.steelDark, 0.5);
+    fillPoly(g, [[cx + topW * 0.3, top], [cx + topW, top], [cx + botW, bot], [cx + botW * 0.3, bot]]);
+    // 桶身上三道竖纹：一眼就是垃圾桶
+    g.lineStyle(2.2, C.steelDark, 0.9);
+    strokePoly(g, [[cx - r * 0.36, top + r * 0.22], [cx - r * 0.3, bot - r * 0.14]], false);
+    strokePoly(g, [[cx - r * 0.03, top + r * 0.22], [cx + r * 0.03, bot - r * 0.14]], false);
+    strokePoly(g, [[cx + r * 0.3, top + r * 0.22], [cx + r * 0.34, bot - r * 0.14]], false);
+    g.lineStyle(3, C.ink, 0.85);
+    strokePoly(g, body, true);
+
+    // 桶盖 + 盖子上的小把手
+    g.fillStyle(C.steelDark, 1);
+    g.fillRoundedRect(cx - topW * 1.14, top - r * 0.36, topW * 2.28, r * 0.32, r * 0.14);
+    g.lineStyle(2.6, C.ink, 0.85);
+    g.strokeRoundedRect(cx - topW * 1.14, top - r * 0.36, topW * 2.28, r * 0.32, r * 0.14);
+    g.fillStyle(C.steel, 1);
+    g.fillRoundedRect(cx - r * 0.15, top - r * 0.52, r * 0.3, r * 0.22, r * 0.09);
+    g.lineStyle(2.2, C.ink, 0.8);
+    g.strokeRoundedRect(cx - r * 0.15, top - r * 0.52, r * 0.3, r * 0.22, r * 0.09);
+  }
+
   // ---------------------------------------------------------------- 小动物客人
   function drawEars(g, kind, tint, dark, headR, headCy, lw) {
     const sides = [-1, 1];
@@ -1256,6 +1302,8 @@
       },
       // 提醒（出餐垫满了）：很轻的低音两下
       nudge: function () { tone(330, 0.14, 0.035, 0, 'sine'); tone(262, 0.18, 0.03, 0.1, 'sine'); },
+      // 丢进垃圾桶：软软的一声「咚」，一点都不凶
+      trash: function () { noise(0.26, 0.045, 0, 700, 160, 0.9); tone(220, 0.14, 0.03, 0.04, 'sine'); },
     };
   })();
   // ---------------------------------------------------------------- 场景
@@ -1275,7 +1323,7 @@
         GHOST_BACK_SEC: GHOST_BACK_SEC, PLACE_FLY_SEC: PLACE_FLY_SEC,
         CARD_DELAY_SEC: CARD_DELAY_SEC, TAP_LOCK_SEC: TAP_LOCK_SEC,
         DRAG_LIFT: DRAG_LIFT, DRAG_R: DRAG_R, MAT_R: MAT_R, STATION_R: STATION_R,
-        MAT_HIT: MAT_HIT, STATION_HIT: STATION_HIT, SERVE_R: SERVE_R,
+        MAT_HIT: MAT_HIT, STATION_HIT: STATION_HIT, SERVE_R: SERVE_R, BIN_R: BIN_R, BIN_HIT: BIN_HIT,
         PLATE_STACK_DY: PLATE_STACK_DY, PLATE_STACK_SCALE: PLATE_STACK_SCALE,
         PICK_HALF_W: PICK_HALF_W, PICK_BOTTOM_PAD: PICK_BOTTOM_PAD,
         DISH_KEYS: DISHES.map(function (d) { return d.key; }),
@@ -1302,11 +1350,11 @@
       this.plan = buildPlan();
       this.customers = [null, null, null];
       this.materials = this.L.materials.map(function (m) {
-        return { i: m.i, key: m.key, name: m.name, cx: m.cx, cy: m.cy, r: m.r, nameY: m.nameY };
+        return { i: m.i, key: m.key, name: m.name, cx: m.cx, cy: m.cy, r: m.r };
       });
       this.stations = this.L.stations.map(function (s) {
         return {
-          i: s.i, key: s.key, name: s.name, cx: s.cx, cy: s.cy, r: s.r, nameY: s.nameY,
+          i: s.i, key: s.key, name: s.name, cx: s.cx, cy: s.cy, r: s.r,
           placed: [], assembling: null, stepIdx: 0, pulse: 0,
         };
       });
@@ -1315,6 +1363,7 @@
       this.dragId = -1;
       this.hoverSlot = -1;
       this.hoverStation = -1;
+      this.hoverBin = false;
       this.tipT = 0;
       this.liveProps = [];
       this.bulbT = 0;
@@ -1359,32 +1408,28 @@
       this.tableG = this.add.graphics().setDepth(DEPTH.table);
       drawTable(this.tableG, this.L);
 
-      // 摊在桌上的 6 样材料：画一次就不动了，只有拖动时把那一份调淡
+      // 摊在桌上的 9 样材料：画一次就不动了，只有拖动时把那一份调淡（不再写名字，靠形状认）
       this.materialGs = [];
       for (let i = 0; i < this.materials.length; i++) {
         const m = this.materials[i];
         const g = this.add.graphics().setDepth(DEPTH.table + 1);
         drawMaterial(g, m.key, m.cx, m.cy, m.r);
         this.materialGs.push(g);
-        this.add.text(m.cx, m.nameY, m.name, {
-          fontFamily: FONT, fontSize: '13px', color: C.nameText,
-        }).setOrigin(0.5).setDepth(DEPTH.table + 1);
       }
 
-      // 3 个工位：每帧重画（半成品、高亮、下一步的幽灵轮廓都会变）
+      // 4 个工位：每帧重画（半成品、高亮、下一步的幽灵轮廓都会变）
       this.stationGs = [];
       for (let i = 0; i < this.stations.length; i++) {
-        const st = this.stations[i];
         const g = this.add.graphics().setDepth(DEPTH.table + 2);
         this.stationGs.push(g);
-        this.add.text(st.cx, st.nameY, st.name, {
-          fontFamily: FONT, fontSize: '13px', color: C.nameText,
-        }).setOrigin(0.5).setDepth(DEPTH.table + 2);
       }
+
+      // 垃圾桶：每帧重画（拖东西过来时亮一圈）
+      this.binG = this.add.graphics().setDepth(DEPTH.table + 3);
 
       this.stagedG = this.add.graphics().setDepth(DEPTH.dish);
 
-      this.hintText = this.add.text(this.L.hint.x, this.L.hint.y, '把材料拖到该去的地方，做好再拖给客人', {
+      this.hintText = this.add.text(this.L.hint.x, this.L.hint.y, '把材料拖到该去的地方，做好拖给客人；不想要的丢进垃圾桶', {
         fontFamily: FONT, fontSize: '15px', color: C.hintText,
         stroke: C.hintStroke, strokeThickness: 3.5,
       }).setOrigin(0.5).setDepth(DEPTH.hud);
@@ -1561,6 +1606,13 @@
       return -1;
     }
 
+    // 桌上的垃圾桶：松手落在它身上就是丢掉（不扣星、不批评、不会少什么）
+    binAt(x, y) {
+      const b = this.L.bin;
+      const dx = x - b.x, dy = y - b.y;
+      return dx * dx + dy * dy <= b.hit * b.hit;
+    }
+
     // 某个工位这会儿会不会收下这份材料（用来做拖动时的高亮）
     acceptStation(matKey) {
       for (let i = 0; i < this.stations.length; i++) {
@@ -1728,6 +1780,7 @@
       this.dragId = p.id === undefined ? -1 : p.id;
       this.hoverSlot = this.slotAt(p.x, p.y);
       this.hoverStation = this.drag.kind === 'mat' ? this.acceptStation(this.drag.key) : -1;
+      this.hoverBin = this.binAt(p.x, p.y);
       Sound.pick();
     }
 
@@ -1738,6 +1791,7 @@
       this.drag.y = p.y;
       this.hoverSlot = this.drag.kind === 'dish' ? this.slotAt(p.x, p.y) : -1;
       this.hoverStation = this.drag.kind === 'mat' ? this.stationAt(p.x, p.y) : -1;
+      this.hoverBin = this.binAt(p.x, p.y);
     }
 
     onUp(p) {
@@ -1748,6 +1802,10 @@
       this.dragId = -1;
       this.hoverSlot = -1;
       this.hoverStation = -1;
+      this.hoverBin = false;
+
+      // 落在垃圾桶上：手上这份直接丢掉（成品从出餐垫撤掉，材料本来就不限量）
+      if (this.binAt(d.x, d.y)) { this.discardDrag(d); return; }
 
       if (d.kind === 'mat') {
         if (d.from >= 0 && this.materialGs[d.from]) this.materialGs[d.from].setAlpha(1);
@@ -1835,6 +1893,39 @@
       this.trackObj({ g: g, kind: 'sparkle', t: 0, dur: 0.85, x: x, y: y, parts: parts });
     }
 
+    // 丢进垃圾桶：从手上飞进桶口，越飞越小
+    spawnBinFx(isMat, key, x0, y0, bottle) {
+      const b = this.L.bin;
+      const g = this.add.graphics().setDepth(DEPTH.fx);
+      return this.trackObj({
+        g: g, kind: 'bin', t: 0, dur: 0.3, isMat: isMat, key: key, r: DRAG_R, bottle: bottle,
+        x0: x0, y0: y0, x1: b.x, y1: b.y - b.r * 0.45,
+      });
+    }
+
+    // 丢掉东西时桶口冒的一小团气（就是「收进去啦」的那一下）
+    puffAt(x, y) {
+      const g = this.add.graphics().setDepth(DEPTH.fx);
+      const parts = [];
+      for (let i = 0; i < 4; i++) {
+        parts.push({ dx: (i - 1.5) * 15, dy: -8 - Math.random() * 10, s: 8 + Math.random() * 5 });
+      }
+      this.trackObj({ g: g, kind: 'poof', t: 0, dur: 0.5, x: x, y: y, parts: parts });
+    }
+
+    // 丢掉手上这份：成品从出餐垫上撤掉；材料是无限供应的，只把手里的那点气收回桌上
+    discardDrag(d) {
+      if (d.kind === 'dish') {
+        if (this.staged[d.from]) this.removeStaged(d.from);
+      } else if (d.from >= 0 && this.materialGs[d.from]) {
+        this.materialGs[d.from].setAlpha(1);
+      }
+      this.spawnBinFx(d.kind === 'mat', d.key, d.x, d.y - DRAG_LIFT, d.bottle || null);
+      this.puffAt(this.L.bin.x, this.L.bin.y - this.L.bin.r * 0.5);
+      Sound.trash();
+      this.showTip('不想要的就丢进垃圾桶～');
+    }
+
     stepFx(dt) {
       for (let i = this.liveProps.length - 1; i >= 0; i--) {
         const o = this.liveProps[i];
@@ -1878,6 +1969,22 @@
             const py = o.y + pt.dy * k - k * 28;
             o.g.fillStyle(pt.heart ? C.pink : C.star, 1);
             fillPoly(o.g, pt.heart ? heartPts(px, py, pt.s) : starPts(px, py, pt.s, pt.s * 0.44, 5));
+          }
+        } else if (o.kind === 'bin') {
+          // 飞进垃圾桶：越飞越小，最后消失在小桶里
+          const kk = easeIn(k);
+          const x = lerp(o.x0, o.x1, kk);
+          const y = lerp(o.y0, o.y1, kk) - Math.sin(k * Math.PI) * 12;
+          const rr = o.r * (1 - 0.5 * k);
+          o.g.setAlpha(k > 0.62 ? Math.max(0, 1 - (k - 0.62) / 0.38) : 1);
+          if (o.isMat) drawMaterial(o.g, o.key, x, y, rr);
+          else drawDish(o.g, o.key, x, y, rr, o.bottle);
+        } else if (o.kind === 'poof') {
+          o.g.setAlpha(1 - k);
+          for (let p = 0; p < o.parts.length; p++) {
+            const pt = o.parts[p];
+            o.g.fillStyle(C.steelDark, 0.75);
+            o.g.fillCircle(o.x + pt.dx * (0.4 + k * 0.9), o.y + pt.dy * k - k * 12, pt.s * (0.55 + k * 0.6));
           }
         }
         if (k >= 1) {
@@ -1962,6 +2069,10 @@
         drawStation(g, st.key, st.cx, st.cy - st.pulse * 4, st.r, st.placed,
           this.hoverStation === i, ghostMat);
       }
+
+      // 桌上的垃圾桶：拖东西过来时亮一圈
+      this.binG.clear();
+      drawBin(this.binG, this.L.bin.x, this.L.bin.y, this.L.bin.r, this.hoverBin);
 
       // 出餐垫上已经落定的成品
       this.stagedG.clear();
@@ -2048,6 +2159,7 @@
       this.dragId = -1;
       this.hoverSlot = -1;
       this.hoverStation = -1;
+      this.hoverBin = false;
       this.ghostG.setVisible(false);
       this.ghostKey = null;
       for (let i = 0; i < this.materialGs.length; i++) this.materialGs[i].setAlpha(1);
