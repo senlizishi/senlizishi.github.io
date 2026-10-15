@@ -1,8 +1,9 @@
 /*
  * 森林甜品站（V2）：竖屏 540×960 的甜品摊位小玩具。
  * 顶部是甜品店的木招牌，中间是森林里来买甜点的动物客人，底部是玩家面前的木台面。
- * 客人头顶的气泡里画出想吃的（雪糕 / 热狗 / 薯条），玩家把摊在桌上的材料按顺序拖到
- * 雪糕机 / 组装盘 / 薯条盒上做好，成品落到桌子下方的出餐垫，再从出餐垫拖给客人。
+ * 客人头顶的气泡里画出想吃的（雪糕 / 汉堡包 / 薯条 / 汽水），玩家把摊在桌上的材料拖到
+ * 雪糕机 / 组装盘 / 薯条盒 / 杯子上做好（汉堡包要按顺序叠四层；汽水随便哪一瓶倒进杯子都算），
+ * 成品落到桌子下方的出餐垫，再从出餐垫拖给客人。
  * 给对了客人开心吃完走人、下一位补位；给错了客人轻轻摇头、成品飞回出餐垫，不扣星、不结束。
  * 一轮固定 8 位客人（同时最多 3 位），服务满 8 位弹结算卡「今天收摊啦」。
  * 没有倒计时、没有进度条、没有存档、没有背景音乐；画面全部 Phaser.Graphics 程序化绘制，
@@ -22,9 +23,9 @@
 
   const ROUND_SIZE = 8;           // 一轮服务 8 位客人
   const SLOT_COUNT = 3;           // 同时最多 3 位客人在等
-  const DISH_COUNT = 3;           // 3 样菜：雪糕 / 热狗 / 薯条
-  const MATERIAL_COUNT = 5;       // 桌上摊着 5 样材料
-  const STATION_COUNT = 3;        // 3 个工位：雪糕机 / 组装盘 / 薯条盒
+  const DISH_COUNT = 4;           // 4 样：雪糕 / 汉堡包 / 薯条 / 汽水
+  const MATERIAL_COUNT = 9;       // 桌上摊着 9 样材料（含可乐 / 橙子 / 雪碧三个大瓶）
+  const STATION_COUNT = 4;        // 4 个工位：雪糕机 / 组装盘 / 薯条盒 / 杯子
   const MAT_SLOTS = 3;            // 出餐垫最多放 3 份成品
 
   const ARRIVE_SEC = 0.5;         // 客人走进站位
@@ -45,14 +46,16 @@
 
   const DRAG_LIFT = 40;           // 拖拽幻影比手指高多少
   const DRAG_R = 34;              // 幻影里的绘制半径（再乘 1.15）
-  const MAT_R = 34;               // 桌上的材料绘制半径
-  const MAT_HIT = 44;             // 材料的抓取半径（相邻 92，两块不重叠）
-  const STATION_R = 44;           // 工位绘制半径
-  const STATION_HIT = 58;         // 工位的命中半径（相邻 140，两块不重叠）
-  const SERVE_R = 42;             // 出餐垫上成品的抓取半径（相邻 95）
+  const MAT_R = 30;               // 桌上的材料绘制半径（摊成两排，比原来略小）
+  const MAT_HIT = 42;             // 材料的抓取半径（两排之间最近的两块也不会重叠）
+  const STATION_R = 38;           // 工位绘制半径
+  const STATION_HIT = 54;         // 工位的命中半径（4 个工位步长 128，两块不重叠）
+  const SERVE_R = 40;             // 出餐垫上成品的抓取半径（相邻 95）
   const PICK_HALF_W = 70;         // 客人接受区半宽（站位间距 152，两块不会重叠）
   const PICK_BOTTOM_PAD = 30;     // 接受区下沿越过脚底多少
   const GHOST_ALPHA = 0.13;       // 盘上「下一步」提示的幽灵轮廓
+  const PLATE_STACK_DY = -0.28;   // 组装盘上整只汉堡的中心相对盘心的偏移（× 工位半径）
+  const PLATE_STACK_SCALE = 0.72; // 组装盘上汉堡相对工位半径的缩放
 
   // 马卡龙粉彩 + 桌面木头/食材色
   const C = {
@@ -69,10 +72,16 @@
     pink: 0xFFB3C7, cream: 0xFFE3A3, mint: 0xA8E6CF, sky: 0xA9D7F2, lilac: 0xCDBBF0,
     ivory: 0xFFF6E8, berry: 0xF4787E, cocoa: 0xB98A5E,
     cone: 0xE0A85E, coneDark: 0xB87F35,
-    bunTop: 0xE8B86A, bunDark: 0xC08F44,
-    sausage: 0xE2726A, sausageDark: 0xB54F49,
+    bunTop: 0xE8B86A, bunBottom: 0xE0AC57, bunDark: 0xC08F44, sesame: 0xFFF3DC,
+    patty: 0x8C5A3C, pattyDark: 0x654026,
     lettuce: 0x8CC96B, lettuceDark: 0x66A64B,
     fry: 0xF7C846, fryDark: 0xD8A21F,
+    glass: 0xEFF7FC, glassDark: 0xC8DAE6,
+    cola: 0x6B3A20, colaDark: 0x4A2614, colaCap: 0xE0483C,
+    orange: 0xF5A22E, orangeDark: 0xC97A12, orangeCap: 0xFFF3DC,
+    soda: 0xBFE36A, sodaDark: 0x8FBF3C, sodaCap: 0x3FBF63,
+    drinkCup: 0xFFFFFF, drinkCupDark: 0xE2DACB, drinkLid: 0xE8604F, drinkLidDark: 0xC24A3C,
+    straw: 0xF4787E, strawLight: 0xFFE0E4,
     fryBox: 0xF0554F, fryBoxDark: 0xC03A36,
     steel: 0xE9EEF2, steelDark: 0xB9C4CC,
     plateW: 0xFFFDF6, plateLine: 0xE0D6C4,
@@ -90,37 +99,51 @@
     ghost: 12, fx: 14, hud: 20, card: 40,
   };
 
-  // 3 样菜：客人点的、气泡里画的、出餐垫上放的，都是这三样
+  // 4 样：客人点的、气泡里画的、出餐垫上放的，都是这四样
   const DISHES = [
     { key: 'icecream', name: '雪糕' },
-    { key: 'hotdog', name: '热狗' },
+    { key: 'burger', name: '汉堡包' },
     { key: 'fries', name: '薯条' },
+    { key: 'drink', name: '汽水' },
   ];
 
-  // 5 样材料：摊在桌上，取之不尽
+  // 一轮 8 位客人点单的配比：汉堡包要叠四层、最费劲，所以一轮只来 1 次；
+  // 雪糕 3、汽水 2、薯条 2、汉堡包 1（加起来正好 8）。
+  const DISH_WEIGHTS = { icecream: 3, drink: 2, fries: 2, burger: 1 };
+
+  // 9 样材料：摊在桌上，取之不尽（面包底 / 面包顶是两样；可乐 / 橙子 / 雪碧是三个大瓶）
   const MATERIALS = [
     { key: 'cone', name: '甜筒' },
-    { key: 'bun', name: '面包' },
-    { key: 'sausage', name: '香肠' },
+    { key: 'bunBottom', name: '面包底' },
     { key: 'lettuce', name: '生菜' },
+    { key: 'patty', name: '肉饼' },
+    { key: 'bunTop', name: '面包顶' },
     { key: 'fries', name: '薯条' },
+    { key: 'cola', name: '可乐' },
+    { key: 'orange', name: '橙子' },
+    { key: 'soda', name: '雪碧' },
   ];
 
-  // 3 个工位：把材料拖到这儿
+  // 4 个工位：把材料拖到这儿
   const STATIONS = [
     { key: 'machine', name: '雪糕机' },
     { key: 'plate', name: '盘子' },
     { key: 'box', name: '薯条盒' },
+    { key: 'cup', name: '杯子' },
   ];
 
-  // 每道菜按顺序要放的步骤：雪糕 1 步、薯条 1 步、热狗 3 步
+  // 每道菜按顺序要放的步骤：雪糕 1 步、薯条 1 步、汽水 1 步、汉堡包 4 步
+  // 汉堡包是从下往上叠的：面包底 → 生菜 → 肉饼 → 面包顶（面包要出现两次）
+  // 汽水的 mat 是一组：可乐 / 橙子 / 雪碧 随便哪一瓶倒进杯子都算做好
   const RECIPES = {
     icecream: [{ mat: 'cone', station: 'machine' }],
     fries: [{ mat: 'fries', station: 'box' }],
-    hotdog: [
-      { mat: 'bun', station: 'plate' },
-      { mat: 'sausage', station: 'plate' },
+    drink: [{ mat: ['cola', 'orange', 'soda'], station: 'cup' }],
+    burger: [
+      { mat: 'bunBottom', station: 'plate' },
       { mat: 'lettuce', station: 'plate' },
+      { mat: 'patty', station: 'plate' },
+      { mat: 'bunTop', station: 'plate' },
     ],
   };
 
@@ -145,24 +168,29 @@
     const counter = { y0: grassY1, y1: 610 };   // 柜台前沿木板
     const table = { y0: 610, y1: 960 };         // 台面
 
-    // 材料排：桌上靠后一横排，5 样摊开（左右对称，步长 92）
-    const matXs = [86, 178, 270, 362, 454];
-    const matY = 676;
+    // 材料：摊成前后两排（前排做雪糕 / 汉堡，后排薯条 + 可乐 / 橙子 / 雪碧三个大瓶），
+    // 排距 88、排内间距 90 / 108，抓取圈两两不相交；都没有画框，只有形状 + 落影 + 一行小字。
+    const matSpots = {
+      cone: { x: 90, y: 642 }, bunBottom: { x: 180, y: 642 }, lettuce: { x: 270, y: 642 },
+      patty: { x: 360, y: 642 }, bunTop: { x: 450, y: 642 },
+      fries: { x: 108, y: 730 }, cola: { x: 216, y: 730 }, orange: { x: 324, y: 730 }, soda: { x: 432, y: 730 },
+    };
     const materials = MATERIALS.map(function (m, i) {
-      return { i: i, key: m.key, name: m.name, cx: matXs[i], cy: matY, r: MAT_R, nameY: matY + 46 };
+      const p = matSpots[m.key];
+      return { i: i, key: m.key, name: m.name, cx: p.x, cy: p.y, r: MAT_R, nameY: p.y + 36 };
     });
 
-    // 工位排：材料下方一横排 3 个（步长 140）
-    const stationXs = [130, 270, 410];
-    const stationY = 800;
+    // 工位排：材料下方一横排 4 个（步长 128：雪糕机 / 组装盘 / 薯条盒 / 杯子）
+    const stationXs = [78, 206, 334, 462];
+    const stationY = 832;
     const stations = STATIONS.map(function (s, i) {
-      return { i: i, key: s.key, name: s.name, cx: stationXs[i], cy: stationY, r: STATION_R, nameY: stationY + 60 };
+      return { i: i, key: s.key, name: s.name, cx: stationXs[i], cy: stationY, r: STATION_R, nameY: stationY + 49 };
     });
 
     // 出餐垫：桌子最底下一块木垫，三个位置
-    const matPad = { x: 120, y: 872, w: 300, h: 76, cx: 270, cy: 910 };
+    const matPad = { x: 120, y: 890, w: 300, h: 64, cx: 270, cy: 922 };
     const matSlots = [
-      { x: 175, y: 910 }, { x: 270, y: 910 }, { x: 365, y: 910 },
+      { x: 175, y: 922 }, { x: 270, y: 922 }, { x: 365, y: 922 },
     ];
 
     return {
@@ -252,6 +280,11 @@
     }
     return a;
   }
+  // 配方的一步可能只认一样材料，也可能「这几样都行」（三个大瓶倒进杯子都算汽水）
+  function stepAccepts(step, matKey) {
+    if (!step) return false;
+    return step.mat instanceof Array ? step.mat.indexOf(matKey) >= 0 : step.mat === matKey;
+  }
   function materialByKey(key) {
     for (let i = 0; i < MATERIALS.length; i++) if (MATERIALS[i].key === key) return MATERIALS[i];
     return null;
@@ -261,10 +294,28 @@
     return null;
   }
 
-  // 一轮 8 位客人的排列：菜品「三样轮着来」（同一时间在场的三位客人永远不点重样），
-  // 动物「相邻不重样」。
+  // 一轮 8 位客人点什么：按 DISH_WEIGHTS 的配比抽（汉堡包一轮只来 1 次），
+  // 排好之后检查一遍：相邻两位、以及同时在场的三位（隔一位）都不会点重样；动物也是相邻不重样。
   function buildPlan() {
-    const cycle = shuffledIdx(DISH_COUNT).map(function (i) { return DISHES[i].key; });
+    const bag = [];
+    for (let i = 0; i < DISHES.length; i++) {
+      const key = DISHES[i].key;
+      const w = DISH_WEIGHTS[key] || 1;
+      for (let j = 0; j < w; j++) bag.push(key);
+    }
+    while (bag.length < ROUND_SIZE) bag.push(DISHES[0].key);
+    bag.length = ROUND_SIZE;
+
+    let order = null;
+    for (let attempt = 0; attempt < 600 && !order; attempt++) {
+      const s = shuffledIdx(bag.length).map(function (i) { return bag[i]; });
+      let good = true;
+      for (let i = 1; i < s.length; i++) {
+        if (s[i] === s[i - 1] || (i >= 2 && s[i] === s[i - 2])) { good = false; break; }
+      }
+      if (good) order = s;
+    }
+    if (!order) order = ["icecream", "drink", "fries", "icecream", "burger", "drink", "fries", "icecream"];
     let animals = null;
     for (let attempt = 0; attempt < 240 && !animals; attempt++) {
       const shuffled = shuffledIdx(ROUND_SIZE).map(function (i) { return i % ANIMALS.length; });
@@ -283,11 +334,169 @@
       plan.push({
         animalIndex: animals[i],
         tintIndex: Math.floor(Math.random() * 3),
-        wantKey: cycle[i % DISH_COUNT],
+        wantKey: order[i],
       });
     }
     return plan;
   }
+  // ---------------------------------------------------------------- 汉堡包的层
+  // 一只汉堡包是四层叠出来的：底面包 -> 生菜 -> 肉饼 -> 顶面包。
+  // 四层共用一个参考系：以「整只汉堡的中心 (cx, cy) + 基准半径 r」定好各自的高度与大小，
+  // 所以手上拖的那一层、盘子上该落的位置、最后成品里的同一层，永远严丝合缝。
+  const BURGER_LAYERS = ['bunBottom', 'lettuce', 'patty', 'bunTop'];
+
+  // 画汉堡包的某一层。ghost = true 时只画一层淡墨轮廓（「这一步放这儿」）
+  function drawBurgerLayer(g, key, cx, cy, r, ghost) {
+    const lw = Math.max(1.4, r * 0.07);
+    const paint = function (color, alpha) {
+      g.fillStyle(ghost ? C.ink : color, ghost ? GHOST_ALPHA : (alpha === undefined ? 1 : alpha));
+    };
+    const ink = function (color, alpha, w) {
+      g.lineStyle(w === undefined ? lw : w, ghost ? C.ink : color, ghost ? 0.5 : alpha);
+    };
+
+    if (key === 'bunBottom') {
+      // 底面包：上面平、下面圆
+      const top = cy + r * 0.3;
+      const pts = [];
+      for (let i = 0; i <= 18; i++) {
+        const a = Math.PI + (i / 18) * Math.PI;
+        pts.push([cx + Math.cos(a) * r * 0.86, top - Math.sin(a) * r * 0.4]);
+      }
+      paint(C.bunBottom);
+      fillPoly(g, pts);
+      ink(C.ink, 0.85);
+      strokePoly(g, pts, true);
+      if (!ghost) {
+        paint(lighten(C.bunBottom, 0.4), 0.6);
+        fillEllipse(g, cx - r * 0.24, top + r * 0.2, r * 0.3, r * 0.09);
+      }
+    } else if (key === 'lettuce') {
+      // 生菜：一层皱皱的叶子，比肉饼宽一点，两边翘出来
+      const y = cy + r * 0.2;
+      for (let i = -2; i <= 2; i++) {
+        const lx = cx + i * r * 0.3;
+        const ly = y + (i % 2 === 0 ? r * 0.02 : -r * 0.05);
+        paint(i === -2 || i === 2 ? C.lettuceDark : C.lettuce);
+        g.fillCircle(lx, ly, r * 0.19);
+        ink(C.lettuceDark, 0.7, lw * 0.8);
+        g.strokeCircle(lx, ly, r * 0.19);
+      }
+    } else if (key === 'patty') {
+      // 肉饼：厚厚一片，底下一道深色边 + 几点焦痕
+      const y = cy + r * 0.02;
+      paint(C.pattyDark);
+      fillEllipse(g, cx, y + r * 0.07, r * 0.72, r * 0.23);
+      ink(C.pattyDark, 0.95);
+      strokeEllipse(g, cx, y + r * 0.07, r * 0.72, r * 0.23);
+      paint(C.patty);
+      fillEllipse(g, cx, y - r * 0.02, r * 0.72, r * 0.21);
+      ink(C.ink, 0.8);
+      strokeEllipse(g, cx, y - r * 0.02, r * 0.72, r * 0.21);
+      if (!ghost) {
+        paint(C.pattyDark, 0.8);
+        fillEllipse(g, cx - r * 0.26, y - r * 0.06, r * 0.09, r * 0.04);
+        fillEllipse(g, cx + r * 0.14, y + r * 0.04, r * 0.11, r * 0.045);
+      }
+    } else {
+      // 面包顶：鼓鼓的圆顶 + 几粒芝麻
+      const base = cy - r * 0.16;
+      const pts = [];
+      for (let i = 0; i <= 18; i++) {
+        const a = Math.PI + (i / 18) * Math.PI;
+        pts.push([cx + Math.cos(a) * r * 0.86, base + Math.sin(a) * r * 0.55]);
+      }
+      paint(C.bunTop);
+      fillPoly(g, pts);
+      ink(C.ink, 0.85);
+      strokePoly(g, pts, true);
+      if (!ghost) {
+        paint(lighten(C.bunTop, 0.4), 0.5);
+        fillEllipse(g, cx - r * 0.3, base - r * 0.3, r * 0.22, r * 0.11);
+        paint(C.sesame);
+        const seeds = [[-0.44, -0.16], [-0.16, -0.36], [0.16, -0.34], [0.44, -0.14], [0, -0.14]];
+        for (let i = 0; i < seeds.length; i++) {
+          fillEllipse(g, cx + seeds[i][0] * r, base + seeds[i][1] * r, r * 0.055, r * 0.033);
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- 饮料大瓶
+  // 三个大瓶（可乐 / 橙子 / 雪碧）是同一个瓶型，只换瓶里液体的颜色和瓶盖颜色；
+  // 瓶身中间是一条空白的标签，不画任何商标。ghost = true 时只画一层淡墨轮廓。
+  const BOTTLES = {
+    cola: { liquid: C.cola, dark: C.colaDark, cap: C.colaCap },
+    orange: { liquid: C.orange, dark: C.orangeDark, cap: C.orangeCap },
+    soda: { liquid: C.soda, dark: C.sodaDark, cap: C.sodaCap },
+  };
+  const BOTTLE_KEYS = ['cola', 'orange', 'soda'];
+
+  function drawBottle(g, key, cx, cy, r, ghost) {
+    const b = BOTTLES[key] || BOTTLES.cola;
+    const lw = Math.max(1.4, r * 0.075);
+    const paint = function (color, alpha) {
+      g.fillStyle(ghost ? C.ink : color, ghost ? GHOST_ALPHA : (alpha === undefined ? 1 : alpha));
+    };
+    const ink = function (color, alpha, w) {
+      g.lineStyle(w === undefined ? lw : w, ghost ? C.ink : color, ghost ? 0.5 : alpha);
+    };
+    const bw = r * 0.62;
+    const neckW = r * 0.19;
+    const bodyTop = cy - r * 0.3;
+    const bodyBot = cy + r * 0.72;
+    const neckTop = cy - r * 0.86;
+    const cr = r * 0.14;
+    const ins = r * 0.06;
+    const outline = [
+      [cx - bw, bodyTop - r * 0.04],
+      [cx - bw, bodyBot - cr],
+      [cx - bw + cr, bodyBot],
+      [cx + bw - cr, bodyBot],
+      [cx + bw, bodyBot - cr],
+      [cx + bw, bodyTop - r * 0.04],
+      [cx + neckW + r * 0.2, bodyTop - r * 0.24],
+      [cx + neckW, neckTop],
+      [cx - neckW, neckTop],
+      [cx - neckW - r * 0.2, bodyTop - r * 0.24],
+    ];
+    // 玻璃瓶身
+    paint(C.glass);
+    fillPoly(g, outline);
+    ink(C.ink, 0.85);
+    strokePoly(g, outline, true);
+
+    if (!ghost) {
+      // 瓶里的饮料：贴着瓶型、装到瓶肩下面
+      const liqTop = cy - r * 0.18;
+      paint(b.liquid);
+      fillPoly(g, [
+        [cx - bw + ins, liqTop],
+        [cx - bw + ins, bodyBot - cr],
+        [cx - bw + cr, bodyBot - ins * 0.7],
+        [cx + bw - cr, bodyBot - ins * 0.7],
+        [cx + bw - ins, bodyBot - cr],
+        [cx + bw - ins, liqTop],
+      ]);
+      ink(b.dark, 0.85, lw * 0.9);
+      strokePoly(g, [[cx - bw + ins, liqTop], [cx + bw - ins, liqTop]], false);
+      // 瓶身侧面的反光
+      paint(0xFFFFFF, 0.35);
+      g.fillRoundedRect(cx - r * 0.42, cy - r * 0.1, r * 0.14, r * 0.6, r * 0.06);
+      // 空白标签
+      paint(0xFFFFFF, 0.92);
+      g.fillRoundedRect(cx - bw + ins, cy + r * 0.08, (bw - ins) * 2, r * 0.36, r * 0.06);
+      ink(C.glassDark, 0.9, lw * 0.8);
+      g.strokeRoundedRect(cx - bw + ins, cy + r * 0.08, (bw - ins) * 2, r * 0.36, r * 0.06);
+    }
+
+    // 瓶盖
+    paint(b.cap);
+    g.fillRoundedRect(cx - r * 0.26, neckTop - r * 0.14, r * 0.52, r * 0.2, r * 0.07);
+    ink(C.ink, 0.8);
+    g.strokeRoundedRect(cx - r * 0.26, neckTop - r * 0.14, r * 0.52, r * 0.2, r * 0.07);
+  }
+
   // ---------------------------------------------------------------- 成品绘制
   // 三样做好的东西：都以 (cx, cy) 为中心、r 为基准半径（≈30~40）
   const DRAW_DISH = {
@@ -320,29 +529,44 @@
       g.fillCircle(cx - r * 0.32, cy - r * 0.38, r * 0.11);
     },
 
-    // 热狗：面包夹香肠 + 生菜 + 一点酱
-    hotdog: function (g, cx, cy, r) {
+    // 汉堡包：底面包 + 生菜 + 肉饼 + 顶面包，一层层叠上去
+    burger: function (g, cx, cy, r) {
+      for (let i = 0; i < BURGER_LAYERS.length; i++) {
+        drawBurgerLayer(g, BURGER_LAYERS[i], cx, cy, r, false);
+      }
+    },
+
+    // 汽水：带盖的杯子 + 一根吸管 + 一点气泡（哪一瓶倒进去都是这一杯）
+    drink: function (g, cx, cy, r) {
       const lw = Math.max(1.5, r * 0.06);
-      g.fillStyle(C.bunTop, 1);
-      fillEllipse(g, cx, cy + r * 0.18, r * 0.9, r * 0.4);
-      g.lineStyle(lw, C.ink, 0.85);
-      strokeEllipse(g, cx, cy + r * 0.18, r * 0.9, r * 0.4);
-      g.fillStyle(C.lettuce, 1);
-      for (let i = -2; i <= 2; i++) g.fillCircle(cx + i * r * 0.28, cy - r * 0.02, r * 0.16);
-      g.lineStyle(lw * 0.8, C.lettuceDark, 0.7);
-      for (let i = -2; i <= 2; i++) g.strokeCircle(cx + i * r * 0.28, cy - r * 0.02, r * 0.16);
-      g.fillStyle(C.sausage, 1);
-      fillEllipse(g, cx, cy - r * 0.14, r * 0.78, r * 0.22);
-      g.lineStyle(lw, C.sausageDark, 0.9);
-      strokeEllipse(g, cx, cy - r * 0.14, r * 0.78, r * 0.22);
-      g.fillStyle(C.bunTop, 1);
-      fillEllipse(g, cx - r * 0.44, cy - r * 0.34, r * 0.4, r * 0.26);
-      fillEllipse(g, cx + r * 0.44, cy - r * 0.34, r * 0.4, r * 0.26);
-      g.lineStyle(lw, C.ink, 0.85);
-      strokeEllipse(g, cx - r * 0.44, cy - r * 0.34, r * 0.4, r * 0.26);
-      strokeEllipse(g, cx + r * 0.44, cy - r * 0.34, r * 0.4, r * 0.26);
-      g.lineStyle(Math.max(2, r * 0.1), C.berry, 1);
-      strokePoly(g, [[cx - r * 0.5, cy - r * 0.42], [cx - r * 0.18, cy - r * 0.5], [cx + r * 0.16, cy - r * 0.36], [cx + r * 0.5, cy - r * 0.46]], false);
+      const topW = r * 0.7, botW = r * 0.5;
+      const top = cy - r * 0.22, bottom = cy + r * 0.86;
+      const cup = [[cx - topW, top], [cx + topW, top], [cx + botW, bottom], [cx - botW, bottom]];
+      g.fillStyle(C.drinkCup, 1);
+      fillPoly(g, cup);
+      g.lineStyle(lw, C.ink, 0.8);
+      strokePoly(g, cup, true);
+      g.lineStyle(lw * 0.75, C.drinkCupDark, 0.9);
+      strokePoly(g, [[cx - topW * 0.74, top + r * 0.18], [cx - botW * 0.66, bottom - r * 0.14]], false);
+      strokePoly(g, [[cx + topW * 0.6, top + r * 0.2], [cx + botW * 0.5, bottom - r * 0.16]], false);
+      // 盖子
+      g.fillStyle(C.drinkLid, 1);
+      g.fillRoundedRect(cx - topW * 1.16, top - r * 0.3, topW * 2.32, r * 0.24, r * 0.09);
+      g.lineStyle(lw, C.ink, 0.8);
+      g.strokeRoundedRect(cx - topW * 1.16, top - r * 0.3, topW * 2.32, r * 0.24, r * 0.09);
+      g.fillStyle(0xFFFFFF, 0.35);
+      g.fillRoundedRect(cx - topW * 0.98, top - r * 0.26, topW * 1.96, r * 0.06, r * 0.03);
+      // 吸管：外面一圈深色描边、里面一道红一道白
+      g.lineStyle(r * 0.2, C.ink, 0.85);
+      strokePoly(g, [[cx + topW * 0.3, top - r * 0.2], [cx + topW * 0.52, cy - r * 1.0]], false);
+      g.lineStyle(r * 0.15, C.straw, 1);
+      strokePoly(g, [[cx + topW * 0.3, top - r * 0.2], [cx + topW * 0.52, cy - r * 1.0]], false);
+      g.lineStyle(r * 0.06, C.strawLight, 1);
+      strokePoly(g, [[cx + topW * 0.35, top - r * 0.2], [cx + topW * 0.56, cy - r * 0.96]], false);
+      // 气泡
+      g.fillStyle(0xFFFFFF, 0.7);
+      g.fillCircle(cx + topW * 0.82, cy - r * 0.52, r * 0.07);
+      g.fillCircle(cx + topW * 1.02, cy - r * 0.78, r * 0.05);
     },
 
     // 薯条：红盒子里插着一把薯条
@@ -373,7 +597,22 @@
   }
 
   // ---------------------------------------------------------------- 材料绘制
-  // 摊在桌上的生料：都没有画框，只有自己的形状 + 一小片落影
+  // 摊在桌上的生料：都没有画框，只有自己的形状 + 一小片落影。
+  // 与汉堡包对应的四层跟成品里同形，孩子看桌上的样子就能对上盘子里该摆哪一层。
+  const LOOSE_CENTER = { bunBottom: 0.5, lettuce: 0.2, patty: 0.03, bunTop: -0.435 };
+  function drawLooseLayer(g, key, cx, cy, r) {
+    g.fillStyle(0x3A2A1E, 0.14);
+    fillEllipse(g, cx, cy + r * 0.3, r * 0.8, r * 0.17);
+    drawBurgerLayer(g, key, cx, cy - LOOSE_CENTER[key] * r, r, false);
+  }
+
+  // 桌上的大瓶：多一小片落影，形状跟「倒进杯子里」的瓶子完全一样
+  function drawLooseBottle(g, key, cx, cy, r) {
+    g.fillStyle(0x3A2A1E, 0.14);
+    fillEllipse(g, cx, cy + r * 0.78, r * 0.6, r * 0.17);
+    drawBottle(g, key, cx, cy, r, false);
+  }
+
   const DRAW_MATERIAL = {
     // 一小叠甜筒
     cone: function (g, cx, cy, r) {
@@ -392,58 +631,22 @@
       strokePoly(g, [[cx + r * 0.16, cy - r * 0.28], [cx + r * 0.5, cy + r * 0.08]], false);
     },
 
-    // 一个面包胚
-    bun: function (g, cx, cy, r) {
-      g.fillStyle(0x3A2A1E, 0.14);
-      fillEllipse(g, cx, cy + r * 0.54, r * 0.84, r * 0.2);
-      g.fillStyle(C.bunTop, 1);
-      fillEllipse(g, cx, cy + r * 0.08, r * 0.86, r * 0.52);
-      g.lineStyle(2.8, C.ink, 0.8);
-      strokeEllipse(g, cx, cy + r * 0.08, r * 0.86, r * 0.52);
-      g.lineStyle(3, C.bunDark, 0.85);
-      strokePoly(g, [[cx - r * 0.52, cy + r * 0.02], [cx - r * 0.16, cy - r * 0.16], [cx + r * 0.2, cy - r * 0.02], [cx + r * 0.52, cy - r * 0.12]], false);
-      g.fillStyle(0xFFF6E8, 0.95);
-      g.fillCircle(cx - r * 0.3, cy - r * 0.22, r * 0.07);
-      g.fillCircle(cx + r * 0.06, cy - r * 0.3, r * 0.07);
-      g.fillCircle(cx + r * 0.36, cy - r * 0.16, r * 0.07);
-    },
+    // 面包底：跟汉堡包里最下面那层同形（平顶 + 圆底）
+    bunBottom: function (g, cx, cy, r) { drawLooseLayer(g, 'bunBottom', cx, cy, r); },
 
-    // 两根香肠
-    sausage: function (g, cx, cy, r) {
-      g.fillStyle(0x3A2A1E, 0.14);
-      fillEllipse(g, cx, cy + r * 0.54, r * 0.8, r * 0.2);
-      g.fillStyle(C.sausageDark, 1);
-      fillEllipse(g, cx + r * 0.24, cy - r * 0.32, r * 0.62, r * 0.2);
-      g.lineStyle(2.6, C.ink, 0.8);
-      strokeEllipse(g, cx + r * 0.24, cy - r * 0.32, r * 0.62, r * 0.2);
-      g.fillStyle(C.sausage, 1);
-      fillEllipse(g, cx - r * 0.1, cy + r * 0.12, r * 0.74, r * 0.24);
-      g.lineStyle(2.8, C.ink, 0.8);
-      strokeEllipse(g, cx - r * 0.1, cy + r * 0.12, r * 0.74, r * 0.24);
-      g.lineStyle(2.2, C.sausageDark, 0.8);
-      strokePoly(g, [[cx - r * 0.44, cy + r * 0.0], [cx - r * 0.28, cy + r * 0.24]], false);
-      strokePoly(g, [[cx + r * 0.06, cy - r * 0.02], [cx + r * 0.22, cy + r * 0.22]], false);
-      g.fillStyle(0xFFFFFF, 0.4);
-      fillEllipse(g, cx - r * 0.35, cy + r * 0.02, r * 0.24, r * 0.06);
-    },
+    // 生菜：一层皱皱的叶子
+    lettuce: function (g, cx, cy, r) { drawLooseLayer(g, 'lettuce', cx, cy, r); },
 
-    // 一丛生菜
-    lettuce: function (g, cx, cy, r) {
-      g.fillStyle(0x3A2A1E, 0.14);
-      fillEllipse(g, cx, cy + r * 0.56, r * 0.8, r * 0.2);
-      const leaves = [[-0.34, 0.14, 1.0], [0.34, 0.16, 1.05], [0, -0.16, 1.12]];
-      for (let i = 0; i < leaves.length; i++) {
-        const L2 = leaves[i];
-        const lx = cx + L2[0] * r, ly = cy + L2[1] * r;
-        const rx = r * 0.46 * L2[2], ry = r * 0.34 * L2[2];
-        g.fillStyle(i === 1 ? C.lettuceDark : C.lettuce, 1);
-        fillEllipse(g, lx, ly, rx, ry);
-        g.lineStyle(2.6, C.ink, 0.78);
-        strokeEllipse(g, lx, ly, rx, ry);
-        g.fillStyle(C.lettuceDark, 0.35);
-        fillEllipse(g, lx - rx * 0.3, ly + ry * 0.25, rx * 0.36, ry * 0.32);
-      }
-    },
+    // 肉饼：厚厚一片
+    patty: function (g, cx, cy, r) { drawLooseLayer(g, 'patty', cx, cy, r); },
+
+    // 面包顶：鼓鼓的圆顶 + 芝麻（跟面包底是两样，别拿错）
+    bunTop: function (g, cx, cy, r) { drawLooseLayer(g, 'bunTop', cx, cy, r); },
+
+    // 可乐 / 橙子 / 雪碧：三个大瓶，只换液体和瓶盖的颜色
+    cola: function (g, cx, cy, r) { drawLooseBottle(g, 'cola', cx, cy, r); },
+    orange: function (g, cx, cy, r) { drawLooseBottle(g, 'orange', cx, cy, r); },
+    soda: function (g, cx, cy, r) { drawLooseBottle(g, 'soda', cx, cy, r); },
 
     // 一堆散着的薯条
     fries: function (g, cx, cy, r) {
@@ -464,26 +667,24 @@
     const fn = DRAW_MATERIAL[key];
     if (fn) fn(g, cx, cy, r);
   }
+
   // ---------------------------------------------------------------- 工位绘制
   // 「下一步要放什么」的淡色幽灵轮廓：不靠文字，孩子看形状就知道
   function drawGhostOutline(g, matKey, cx, cy, r) {
+    if (BOTTLE_KEYS.indexOf(matKey) >= 0) {
+      // 饮料大瓶：举在杯口上面，示意「把这一瓶倒进去」
+      drawBottle(g, matKey, cx, cy - r * 0.5, r * 0.82, true);
+      return;
+    }
+    if (BURGER_LAYERS.indexOf(matKey) >= 0) {
+      // 汉堡包的某一层：直接画在盘子上它将来该待的位置，孩子一看就知道放哪儿
+      drawBurgerLayer(g, matKey, cx, cy + r * PLATE_STACK_DY, r * PLATE_STACK_SCALE, true);
+      return;
+    }
     g.fillStyle(C.ink, GHOST_ALPHA);
     g.lineStyle(2.5, C.ink, 0.6);
-    if (matKey === 'bun') {
-      fillEllipse(g, cx, cy - r * 0.06, r * 0.72, r * 0.34);
-      strokeEllipse(g, cx, cy - r * 0.06, r * 0.72, r * 0.34);
-    } else if (matKey === 'sausage') {
-      fillEllipse(g, cx, cy - r * 0.3, r * 0.66, r * 0.2);
-      strokeEllipse(g, cx, cy - r * 0.3, r * 0.66, r * 0.2);
-    } else if (matKey === 'lettuce') {
-      for (let i = -1; i <= 1; i++) {
-        g.fillCircle(cx + i * r * 0.26, cy - r * 0.44, r * 0.16);
-        g.strokeCircle(cx + i * r * 0.26, cy - r * 0.44, r * 0.16);
-      }
-    } else {
-      g.fillCircle(cx, cy, r * 0.34);
-      g.strokeCircle(cx, cy, r * 0.34);
-    }
+    g.fillCircle(cx, cy, r * 0.34);
+    g.strokeCircle(cx, cy, r * 0.34);
   }
 
   // 一个工位：key = machine 雪糕机 / plate 组装盘 / box 薯条盒
@@ -530,48 +731,55 @@
       strokeEllipse(g, cx, cy + r * 0.2, r * 1.08, r * 0.42);
       g.fillStyle(0xFFFFFF, 0.7);
       fillEllipse(g, cx, cy + r * 0.14, r * 0.86, r * 0.3);
-      const hasBun = placed.indexOf('bun') >= 0;
-      const hasSausage = placed.indexOf('sausage') >= 0;
-      const hasLettuce = placed.indexOf('lettuce') >= 0;
-      if (hasBun && hasSausage && hasLettuce) {
-        drawDish(g, 'hotdog', cx, cy - r * 0.12, r * 0.62);
-      } else {
-        if (hasBun) {
-          g.fillStyle(C.bunTop, 1);
-          fillEllipse(g, cx, cy - r * 0.06, r * 0.72, r * 0.34);
-          g.lineStyle(2.8, C.ink, 0.8);
-          strokeEllipse(g, cx, cy - r * 0.06, r * 0.72, r * 0.34);
-          g.lineStyle(2.6, C.bunDark, 0.8);
-          strokePoly(g, [[cx - r * 0.44, cy - r * 0.1], [cx - r * 0.12, cy - r * 0.24], [cx + r * 0.2, cy - r * 0.12]], false);
-        }
-        if (hasSausage) {
-          g.fillStyle(C.sausage, 1);
-          fillEllipse(g, cx, cy - r * 0.3, r * 0.66, r * 0.2);
-          g.lineStyle(2.8, C.ink, 0.85);
-          strokeEllipse(g, cx, cy - r * 0.3, r * 0.66, r * 0.2);
-          g.lineStyle(2.2, C.sausageDark, 0.85);
-          strokePoly(g, [[cx - r * 0.36, cy - r * 0.36], [cx - r * 0.2, cy - r * 0.22]], false);
-          strokePoly(g, [[cx + r * 0.06, cy - r * 0.38], [cx + r * 0.22, cy - r * 0.24]], false);
-        }
-        if (hasLettuce) {
-          g.fillStyle(C.lettuce, 1);
-          for (let i = -1; i <= 1; i++) g.fillCircle(cx + i * r * 0.26, cy - r * 0.44, r * 0.16);
-          g.lineStyle(2.2, C.lettuceDark, 0.7);
-          for (let i = -1; i <= 1; i++) g.strokeCircle(cx + i * r * 0.26, cy - r * 0.44, r * 0.16);
-        }
+      // 已经放上去的层：底面包 -> 生菜 -> 肉饼 -> 顶面包，一层压一层；
+      // 全都放齐时画出来的就是成品本身
+      const br = r * PLATE_STACK_SCALE;
+      const by = cy + r * PLATE_STACK_DY;
+      for (let i = 0; i < BURGER_LAYERS.length; i++) {
+        if (placed.indexOf(BURGER_LAYERS[i]) >= 0) drawBurgerLayer(g, BURGER_LAYERS[i], cx, by, br, false);
       }
-    } else {
-      // 薯条盒（空着等薯条）
+    } else if (key === 'box') {
+      // 薯条盒：张着口的纸质盒，正面一道奶油色纸套（跟旁边的白杯子一眼分得开）
+      const boxTop = cy - r * 0.42, boxBot = cy + r * 0.78;
+      const boxTopW = r * 0.72, boxBotW = r * 0.46;
+      const boxPts = [[cx - boxTopW, boxTop], [cx + boxTopW, boxTop], [cx + boxBotW, boxBot], [cx - boxBotW, boxBot]];
       g.fillStyle(C.fryBox, 1);
-      fillPoly(g, [[cx - r * 0.62, cy - r * 0.34], [cx + r * 0.62, cy - r * 0.34], [cx + r * 0.44, cy + r * 0.78], [cx - r * 0.44, cy + r * 0.78]]);
-      g.lineStyle(3, C.ink, 0.82);
-      strokePoly(g, [[cx - r * 0.62, cy - r * 0.34], [cx + r * 0.62, cy - r * 0.34], [cx + r * 0.44, cy + r * 0.78], [cx - r * 0.44, cy + r * 0.78]], true);
-      g.fillStyle(0xFFFFFF, 0.85);
-      g.fillRoundedRect(cx - r * 0.62, cy - r * 0.44, r * 1.24, r * 0.16, r * 0.06);
-      g.fillStyle(C.fryBoxDark, 0.5);
-      fillEllipse(g, cx, cy - r * 0.32, r * 0.54, r * 0.12);
-      g.fillStyle(0xFFFFFF, 0.3);
-      fillPoly(g, [[cx - r * 0.44, cy + r * 0.0], [cx - r * 0.26, cy + r * 0.0], [cx - r * 0.22, cy + r * 0.66], [cx - r * 0.4, cy + r * 0.66]]);
+      fillPoly(g, boxPts);
+      // 纸套跟着盒身的斜边收一点，别露在盒子外面
+      const halfAt = function (y) { return boxTopW + (boxBotW - boxTopW) * ((y - boxTop) / (boxBot - boxTop)); };
+      const sw1 = halfAt(boxTop + r * 0.34) - r * 0.04;
+      const sw2 = halfAt(boxTop + r * 0.78) - r * 0.04;
+      g.fillStyle(C.cream, 0.95);
+      fillPoly(g, [[cx - sw1, boxTop + r * 0.34], [cx + sw1, boxTop + r * 0.34],
+        [cx + sw2, boxTop + r * 0.78], [cx - sw2, boxTop + r * 0.78]]);
+      g.lineStyle(2.2, C.fryBoxDark, 0.8);
+      strokePoly(g, [[cx - sw1, boxTop + r * 0.34], [cx + sw1, boxTop + r * 0.34]], false);
+      strokePoly(g, [[cx - sw2, boxTop + r * 0.78], [cx + sw2, boxTop + r * 0.78]], false);
+      // 盒口张着，里面是暗的
+      g.fillStyle(C.fryBoxDark, 0.7);
+      fillEllipse(g, cx, boxTop, boxTopW, r * 0.17);
+      g.lineStyle(3, C.ink, 0.85);
+      strokePoly(g, boxPts, true);
+      g.lineStyle(2.4, C.ink, 0.7);
+      strokeEllipse(g, cx, boxTop, boxTopW, r * 0.17);
+    } else {
+      // 杯子：敞着口的空杯，等着把饮料倒进去（倒完就变成带盖的汽水杯飞出去）
+      const topW = r * 0.7, botW = r * 0.5;
+      const top = cy - r * 0.44, bottom = cy + r * 0.62;
+      const cup = [[cx - topW, top], [cx + topW, top], [cx + botW, bottom], [cx - botW, bottom]];
+      g.fillStyle(C.drinkCup, 1);
+      fillPoly(g, cup);
+      g.lineStyle(2.8, C.ink, 0.85);
+      strokePoly(g, cup, true);
+      // 杯口：空着，里面是暗的
+      g.fillStyle(C.drinkCupDark, 0.8);
+      fillEllipse(g, cx, top, topW * 0.94, r * 0.15);
+      g.lineStyle(2.4, C.ink, 0.7);
+      strokeEllipse(g, cx, top, topW * 0.94, r * 0.15);
+      // 杯身两道淡淡的斜纹
+      g.lineStyle(2.2, C.drinkCupDark, 0.9);
+      strokePoly(g, [[cx - topW * 0.74, top + r * 0.32], [cx - botW * 0.66, bottom - r * 0.12]], false);
+      strokePoly(g, [[cx + topW * 0.6, top + r * 0.34], [cx + botW * 0.5, bottom - r * 0.14]], false);
     }
 
     if (ghostMat) drawGhostOutline(g, ghostMat, cx, cy, r);
@@ -851,7 +1059,7 @@
     g.strokeRoundedRect(p.x + 7, p.y + 7, p.w - 14, p.h - 14, 13);
     for (let i = 0; i < L.matSlots.length; i++) {
       g.lineStyle(2.4, C.matRing, 0.5);
-      g.strokeCircle(L.matSlots[i].x, L.matSlots[i].y, 34);
+      g.strokeCircle(L.matSlots[i].x, L.matSlots[i].y, 29);
     }
   }  function drawHud(g, L) {
     const h = L.hud;
@@ -1019,6 +1227,12 @@
           tone(523.25 * Math.pow(2, notes[i] / 12), 0.16, 0.05, (when || 0) + i * 0.07, 'sine');
         }
       },
+      // 汽水：倒进杯子的一声「呲——」
+      fizz: function () {
+        noise(0.42, 0.05, 0.02, 900, 4200, 0.8);
+        tone(720, 0.1, 0.02, 0.04, 'sine');
+        noise(0.3, 0.028, 0.2, 3600, 7200, 0.6);
+      },
       // 提醒（出餐垫满了）：很轻的低音两下
       nudge: function () { tone(330, 0.14, 0.035, 0, 'sine'); tone(262, 0.18, 0.03, 0.1, 'sine'); },
     };
@@ -1040,12 +1254,17 @@
         GHOST_BACK_SEC: GHOST_BACK_SEC, PLACE_FLY_SEC: PLACE_FLY_SEC,
         CARD_DELAY_SEC: CARD_DELAY_SEC, TAP_LOCK_SEC: TAP_LOCK_SEC,
         DRAG_LIFT: DRAG_LIFT, DRAG_R: DRAG_R, MAT_R: MAT_R, STATION_R: STATION_R,
+        MAT_HIT: MAT_HIT, STATION_HIT: STATION_HIT, SERVE_R: SERVE_R,
+        PLATE_STACK_DY: PLATE_STACK_DY, PLATE_STACK_SCALE: PLATE_STACK_SCALE,
         PICK_HALF_W: PICK_HALF_W, PICK_BOTTOM_PAD: PICK_BOTTOM_PAD,
         DISH_KEYS: DISHES.map(function (d) { return d.key; }),
         MATERIAL_KEYS: MATERIALS.map(function (m) { return m.key; }),
         STATION_KEYS: STATIONS.map(function (s) { return s.key; }),
         ANIMAL_KEYS: ANIMALS.map(function (a) { return a.key; }),
         RECIPES: RECIPES,
+        DISH_WEIGHTS: DISH_WEIGHTS,
+        BOTTLE_KEYS: BOTTLE_KEYS,
+        BURGER_LAYERS: BURGER_LAYERS,
       };
       this.DISHES = DISHES;
       this.MATERIALS = MATERIALS;
@@ -1119,7 +1338,7 @@
       this.tableG = this.add.graphics().setDepth(DEPTH.table);
       drawTable(this.tableG, this.L);
 
-      // 摊在桌上的 5 样材料：画一次就不动了，只有拖动时把那一份调淡
+      // 摊在桌上的 6 样材料：画一次就不动了，只有拖动时把那一份调淡
       this.materialGs = [];
       for (let i = 0; i < this.materials.length; i++) {
         const m = this.materials[i];
@@ -1328,12 +1547,12 @@
         if (st.assembling) {
           const recipe = RECIPES[st.assembling];
           const step = recipe[st.stepIdx];
-          if (step && step.station === st.key && step.mat === matKey) return i;
+          if (step && step.station === st.key && stepAccepts(step, matKey)) return i;
           continue;
         }
         const cand = DISHES.filter(function (d) {
           const s0 = RECIPES[d.key][0];
-          return s0.station === st.key && s0.mat === matKey;
+          return s0.station === st.key && stepAccepts(s0, matKey);
         })[0];
         if (cand) return i;
       }
@@ -1363,14 +1582,14 @@
       if (!dishKey) {
         const cand = DISHES.filter(function (d) {
           const s0 = RECIPES[d.key][0];
-          return s0.station === stationKey && s0.mat === matKey;
+          return s0.station === stationKey && stepAccepts(s0, matKey);
         })[0];
         if (!cand) return 'rejected';
         dishKey = cand.key;
       }
       const recipe = RECIPES[dishKey];
       const step = recipe[st.stepIdx];
-      if (!step || step.station !== stationKey || step.mat !== matKey) return 'rejected';
+      if (!step || step.station !== stationKey || !stepAccepts(step, matKey)) return 'rejected';
 
       const last = st.stepIdx === recipe.length - 1;
       if (last && this.staged.length >= MAT_SLOTS) { Sound.nudge(); return 'blocked'; }
@@ -1387,10 +1606,12 @@
       const entry = { key: dishKey, slot: slot, ready: false, fx: null };
       this.staged.push(entry);
       if (dishKey === 'icecream') Sound.machine();
+      if (dishKey === 'drink') Sound.fizz();
       Sound.done(0.18);
       // 出餐动效的起点：雪糕机从机身右侧「推」出来，盘子上、薯条盒里就地出来
       const mkX = st.key === 'machine' ? st.cx + st.r * 0.85 : st.cx;
-      const mkY = st.key === 'machine' ? st.cy + st.r * 0.3 : (st.key === 'box' ? st.cy + st.r * 0.2 : st.cy - st.r * 0.1);
+      const mkY = st.key === 'machine' ? st.cy + st.r * 0.3
+        : (st.key === 'box' ? st.cy + st.r * 0.2 : (st.key === 'cup' ? st.cy - st.r * 0.1 : st.cy + st.r * PLATE_STACK_DY));
       entry.fx = this.spawnMakeFx(dishKey, mkX, mkY, this.L.matSlots[slot].x, this.L.matSlots[slot].y, entry);
       st.placed = [];
       st.assembling = null;
@@ -1703,7 +1924,7 @@
         // 正被拖走的那一份先别画，免得和幻影重影
         if (this.drag && this.drag.kind === 'dish' && this.drag.from === i) continue;
         const p = this.L.matSlots[e.slot];
-        drawDish(this.stagedG, e.key, p.x, p.y, 30);
+        drawDish(this.stagedG, e.key, p.x, p.y, 28);
       }
 
       // 拖拽幻影
