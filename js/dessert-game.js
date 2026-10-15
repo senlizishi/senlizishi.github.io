@@ -42,7 +42,7 @@
   const TAP_LOCK_SEC = 0.4;       // 结算卡出现后的防误触
   const HINT_HOLD_SEC = 6;        // 台面提示停留多久才淡出
   const HINT_FADE_SEC = 0.6;
-  const TIP_HOLD_SEC = 1.9;       // 「先把手上的送出去吧～」气泡
+  const TIP_HOLD_SEC = 1.9;       // 桌面上方的小提示气泡气泡
 
   const DRAG_LIFT = 40;           // 拖拽幻影比手指高多少
   const DRAG_R = 34;              // 幻影里的绘制半径（再乘 1.15）
@@ -77,9 +77,10 @@
     lettuce: 0x8CC96B, lettuceDark: 0x66A64B,
     fry: 0xF7C846, fryDark: 0xD8A21F,
     glass: 0xEFF7FC, glassDark: 0xC8DAE6,
-    cola: 0x6B3A20, colaDark: 0x4A2614, colaCap: 0xE0483C,
-    orange: 0xF5A22E, orangeDark: 0xC97A12, orangeCap: 0xFFF3DC,
-    soda: 0xBFE36A, sodaDark: 0x8FBF3C, sodaCap: 0x3FBF63,
+    // 三瓶饮料的颜色 = 倒进杯子里那一杯的颜色：可乐近黑、橙汁橙、雪碧奶白（只靠瓶盖认牌子，不画商标）
+    cola: 0x3A1F12, colaDark: 0x1E0F07, colaCap: 0xE0483C,
+    orange: 0xF5991E, orangeDark: 0xBF6E08, orangeCap: 0xFFF3DC,
+    soda: 0xEDF4E0, sodaDark: 0xA9BC8E, sodaCap: 0x3FBF63,
     drinkCup: 0xFFFFFF, drinkCupDark: 0xE2DACB, drinkLid: 0xE8604F, drinkLidDark: 0xC24A3C,
     straw: 0xF4787E, strawLight: 0xFFE0E4,
     fryBox: 0xF0554F, fryBoxDark: 0xC03A36,
@@ -132,9 +133,12 @@
     { key: 'cup', name: '杯子' },
   ];
 
+  // 三个大瓶（同一个瓶型，靠瓶里的颜色区分）：客人点汽水时会指定要哪一瓶
+  const BOTTLE_KEYS = ['cola', 'orange', 'soda'];
+
   // 每道菜按顺序要放的步骤：雪糕 1 步、薯条 1 步、汽水 1 步、汉堡包 4 步
   // 汉堡包是从下往上叠的：面包底 → 生菜 → 肉饼 → 面包顶（面包要出现两次）
-  // 汽水的 mat 是一组：可乐 / 橙子 / 雪碧 随便哪一瓶倒进杯子都算做好
+  // 汽水的 mat 是一组：可乐 / 橙子 / 雪碧 哪一瓶都收得下，但要做成客人要的那一杯
   const RECIPES = {
     icecream: [{ mat: 'cone', station: 'machine' }],
     fries: [{ mat: 'fries', station: 'box' }],
@@ -335,6 +339,8 @@
         animalIndex: animals[i],
         tintIndex: Math.floor(Math.random() * 3),
         wantKey: order[i],
+        // 点汽水的时候顺带定下要哪一瓶：可乐 / 橙汁 / 雪碧
+        drinkBottle: order[i] === 'drink' ? BOTTLE_KEYS[Math.floor(Math.random() * BOTTLE_KEYS.length)] : null,
       });
     }
     return plan;
@@ -430,7 +436,6 @@
     orange: { liquid: C.orange, dark: C.orangeDark, cap: C.orangeCap },
     soda: { liquid: C.soda, dark: C.sodaDark, cap: C.sodaCap },
   };
-  const BOTTLE_KEYS = ['cola', 'orange', 'soda'];
 
   function drawBottle(g, key, cx, cy, r, ghost) {
     const b = BOTTLES[key] || BOTTLES.cola;
@@ -536,14 +541,29 @@
       }
     },
 
-    // 汽水：带盖的杯子 + 一根吸管 + 一点气泡（哪一瓶倒进去都是这一杯）
-    drink: function (g, cx, cy, r) {
+    // 汽水：带盖的杯子 + 一根吸管 + 一点气泡；杯里装的就是倒进去的那一瓶
+    // （可乐近黑 / 橙汁橙 / 雪碧奶白），一眼能看出是哪一杯
+    drink: function (g, cx, cy, r, bottle) {
       const lw = Math.max(1.5, r * 0.06);
+      const b = BOTTLES[bottle] || BOTTLES.cola;
       const topW = r * 0.7, botW = r * 0.5;
       const top = cy - r * 0.22, bottom = cy + r * 0.86;
       const cup = [[cx - topW, top], [cx + topW, top], [cx + botW, bottom], [cx - botW, bottom]];
       g.fillStyle(C.drinkCup, 1);
       fillPoly(g, cup);
+      // 杯里的饮料：从液面往下一直灌到杯底
+      const lv = top + r * 0.22;
+      const ins = r * 0.08;
+      g.fillStyle(b.liquid, 1);
+      fillPoly(g, [
+        [cx - topW + ins, lv], [cx + topW - ins, lv],
+        [cx + botW - ins * 0.6, bottom - ins], [cx - botW + ins * 0.6, bottom - ins],
+      ]);
+      // 液面 + 杯底的一点暗，奶白色的雪碧也能看出装了东西
+      g.lineStyle(lw * 0.95, b.dark, 0.95);
+      strokePoly(g, [[cx - topW + ins, lv], [cx + topW - ins, lv]], false);
+      g.fillStyle(b.dark, 0.34);
+      fillEllipse(g, cx, bottom - ins * 1.8, botW - ins * 0.5, r * 0.11);
       g.lineStyle(lw, C.ink, 0.8);
       strokePoly(g, cup, true);
       g.lineStyle(lw * 0.75, C.drinkCupDark, 0.9);
@@ -591,9 +611,10 @@
     },
   };
 
-  function drawDish(g, key, cx, cy, r) {
+  // bottle 只对 drink 有意义：杯里装的是哪一瓶（可乐 / 橙汁 / 雪碧），其它成品忽略它
+  function drawDish(g, key, cx, cy, r, bottle) {
     const fn = DRAW_DISH[key];
-    if (fn) fn(g, cx, cy, r);
+    if (fn) fn(g, cx, cy, r, bottle);
   }
 
   // ---------------------------------------------------------------- 材料绘制
@@ -1368,7 +1389,7 @@
         stroke: C.hintStroke, strokeThickness: 3.5,
       }).setOrigin(0.5).setDepth(DEPTH.hud);
 
-      // 「先把手上的送出去吧～」的小气泡
+      // 桌面上方的小提示气泡的小气泡
       this.tipG = this.add.graphics().setDepth(DEPTH.hud + 1);
       this.tipText = this.add.text(this.L.tip.x, this.L.tip.y, '', {
         fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: C.hudText,
@@ -1433,7 +1454,7 @@
       const slotX = this.L.slotXs[slot];
       const c = {
         slot: slot, animal: animal.key, tint: animal.tints[spec.tintIndex], h: animal.h,
-        want: { key: spec.wantKey },
+        want: { key: spec.wantKey, bottle: spec.wantKey === 'drink' ? spec.drinkBottle : null },
         state: 'in', t: 0,
         x: slotX + side * 360, ax: slotX + side * 360, bx: slotX,
         sideOut: -side,
@@ -1494,7 +1515,7 @@
 
     wantOf(slot) {
       const c = this.customers[slot];
-      return c ? { key: c.want.key } : null;
+      return c ? { key: c.want.key, bottle: c.want.bottle || null } : null;
     }
 
     // 接受区：气泡到脚底之间、半个身位宽（相邻站位间距 152，两块不会重叠）
@@ -1571,7 +1592,7 @@
     // -------------------------------------------------- 做菜
     // 把一份材料放到某个工位上。
     // 返回 'placed' 放上去了 / 'completed' 这一步做完了、成品出餐 /
-    //      'rejected' 位置或顺序不对（材料不消耗）/ 'blocked' 出餐垫满了
+    //      'rejected' 位置或顺序不对（材料不消耗）
     placeMaterial(matKey, stationKey) {
       if (this.phase !== 'play') return 'rejected';
       let st = null;
@@ -1592,7 +1613,8 @@
       if (!step || step.station !== stationKey || !stepAccepts(step, matKey)) return 'rejected';
 
       const last = st.stepIdx === recipe.length - 1;
-      if (last && this.staged.length >= MAT_SLOTS) { Sound.nudge(); return 'blocked'; }
+      // 出餐垫满了就让最旧的一份从桌沿滑下去腾地方：不批评、不扣分，也绝不会把玩法卡死
+      if (last && this.staged.length >= MAT_SLOTS) this.sweepOldestStaged();
 
       st.assembling = dishKey;
       st.placed.push(matKey);
@@ -1603,7 +1625,7 @@
 
       // 最后一步：工位腾空，成品从工位飞向出餐垫
       const slot = this.freeMatSlot();
-      const entry = { key: dishKey, slot: slot, ready: false, fx: null };
+      const entry = { key: dishKey, slot: slot, ready: false, fx: null, bottle: dishKey === 'drink' ? matKey : null };
       this.staged.push(entry);
       if (dishKey === 'icecream') Sound.machine();
       if (dishKey === 'drink') Sound.fizz();
@@ -1626,17 +1648,22 @@
       if (this.phase !== 'play') return 'busy';
       const c = this.customers[slot];
       if (!c || c.state !== 'wait') return 'busy';
-      if (c.want.key !== dishKey) {
-        c.state = 'sad'; c.t = 0;
-        Sound.wrong();
-        return 'wrong';
-      }
+      // 汽水还要看是哪一瓶：可乐 / 橙汁 / 雪碧 各是一杯，递错只是摇头
+      const wantBottle = c.want.bottle || null;
       let idx = -1;
       if (stagedIdx !== undefined && stagedIdx !== null && this.staged[stagedIdx]) idx = stagedIdx;
       else {
         for (let i = 0; i < this.staged.length; i++) {
-          if (this.staged[i].key === dishKey) { idx = i; break; }
+          if (this.staged[i].key !== dishKey) continue;
+          if ((this.staged[i].bottle || null) !== wantBottle) continue;
+          idx = i; break;
         }
+      }
+      const gotBottle = idx >= 0 ? (this.staged[idx].bottle || null) : wantBottle;
+      if (c.want.key !== dishKey || gotBottle !== wantBottle) {
+        c.state = 'sad'; c.t = 0;
+        Sound.wrong();
+        return 'wrong';
       }
       if (idx >= 0) this.removeStaged(idx);
       c.state = 'happy'; c.t = 0;
@@ -1648,6 +1675,21 @@
       this.spawnSparkle(this.L.slotXs[slot], this.L.groundY - c.h * 0.5);
       if (this.served >= ROUND_SIZE) this.endT = CARD_DELAY_SEC;
       return 'ok';
+    }
+
+    // 出餐垫满了：最旧的一份滑下桌沿（只是个温柔的腾地方动画）
+    sweepOldestStaged() {
+      const e = this.staged[0];
+      if (!e) return;
+      const p = this.L.matSlots[e.slot];
+      const g = this.add.graphics().setDepth(DEPTH.fx);
+      this.trackObj({
+        g: g, kind: 'dish', t: 0, dur: 0.34, key: e.key, r: 30, bottle: e.bottle || null,
+        x0: p.x, y0: p.y, x1: p.x + 26, y1: p.y + 104,
+      });
+      this.removeStaged(0);
+      Sound.drop();
+      this.showTip('这一份先收走啦～');
     }
 
     removeStaged(idx) {
@@ -1681,7 +1723,7 @@
         const ti = this.trayAt(p.x, p.y);
         if (ti < 0) return;
         const s = this.staged[ti];
-        this.drag = { kind: 'dish', key: s.key, from: ti, x: p.x, y: p.y };
+        this.drag = { kind: 'dish', key: s.key, from: ti, bottle: s.bottle || null, x: p.x, y: p.y };
       }
       this.dragId = p.id === undefined ? -1 : p.id;
       this.hoverSlot = this.slotAt(p.x, p.y);
@@ -1718,17 +1760,16 @@
           const home = this.materials[d.from];
           this.spawnMatFly(d.key, d.x, d.y - DRAG_LIFT, home.cx, home.cy, true);
           Sound.drop();
-          if (res === 'blocked') this.showTip('先把手上的送出去吧～');
-          // 顺序或位置不对时也不批评，只是轻轻说一句该放哪儿
+          // 顺序或位置不对时也不批评，只是把它轻轻送回桌上
         }
         return;
       }
 
       const slot = this.slotAt(d.x, d.y);
       const res = slot >= 0 ? this.serveTo(slot, d.key, d.from) : 'miss';
-      if (res === 'ok') this.flyTo(slot, d.key, d.x, d.y);
+      if (res === 'ok') this.flyTo(slot, d.key, d.x, d.y, d.bottle);
       else {
-        this.flyBack(d.from, d.key, d.x, d.y);
+        this.flyBack(d.from, d.key, d.x, d.y, d.bottle);
         Sound.drop();
       }
     }
@@ -1742,22 +1783,22 @@
       return o;
     }
 
-    flyTo(slot, key, x0, y0) {
+    flyTo(slot, key, x0, y0, bottle) {
       const c = this.customers[slot];
       const g = this.add.graphics().setDepth(DEPTH.fx);
       this.trackObj({
-        g: g, kind: 'fly', t: 0, dur: SERVE_FLY_SEC, key: key, r: 30,
+        g: g, kind: 'fly', t: 0, dur: SERVE_FLY_SEC, key: key, r: 30, bottle: bottle || null,
         x0: x0, y0: y0 - DRAG_LIFT,
         x1: this.L.slotXs[slot], y1: this.L.groundY - (c ? c.h * 0.42 : 60),
       });
     }
 
-    flyBack(stagedIdx, key, x0, y0) {
+    flyBack(stagedIdx, key, x0, y0, bottle) {
       const e = this.staged[stagedIdx];
       const p = e ? this.L.matSlots[e.slot] : this.L.matSlots[1];
       const g = this.add.graphics().setDepth(DEPTH.fx);
       this.trackObj({
-        g: g, kind: 'fly', t: 0, dur: GHOST_BACK_SEC, key: key, r: 30,
+        g: g, kind: 'fly', t: 0, dur: GHOST_BACK_SEC, key: key, r: 30, bottle: bottle || null,
         x0: x0, y0: y0 - DRAG_LIFT, x1: p.x, y1: p.y,
       });
     }
@@ -1775,6 +1816,7 @@
       const g = this.add.graphics().setDepth(DEPTH.fx);
       return this.trackObj({
         g: g, kind: 'make', t: 0, dur: MAKE_SEC, key: dishKey, r: 32,
+        bottle: entry && entry.bottle ? entry.bottle : null,
         x0: x0, y0: y0, x1: x1, y1: y1, entry: entry, done: false,
       });
     }
@@ -1803,12 +1845,17 @@
           const x = lerp(o.x0, o.x1, easeOut(k));
           const y = lerp(o.y0, o.y1, easeOut(k)) - Math.sin(k * Math.PI) * 18;
           o.g.setAlpha(k > 0.85 ? Math.max(0, 1 - (k - 0.85) / 0.15) : 1);
-          drawDish(o.g, o.key, x, y, o.r);
+          drawDish(o.g, o.key, x, y, o.r, o.bottle);
         } else if (o.kind === 'mat') {
           const x = lerp(o.x0, o.x1, easeOut(k));
           const y = lerp(o.y0, o.y1, easeOut(k)) - Math.sin(k * Math.PI) * 14;
           o.g.setAlpha(k > 0.88 ? Math.max(0, 1 - (k - 0.88) / 0.12) : 1);
           drawMaterial(o.g, o.key, x, y, o.r);
+        } else if (o.kind === 'dish') {
+          const x = lerp(o.x0, o.x1, easeOut(k));
+          const y = lerp(o.y0, o.y1, easeOut(k));
+          o.g.setAlpha(1 - k * 0.85);
+          drawDish(o.g, o.key, x, y, o.r, o.bottle);
         } else if (o.kind === 'make') {
           let x, y, r;
           if (k < 0.4) {
@@ -1822,7 +1869,7 @@
             y = lerp(o.y0 - 8, o.y1, easeOut(kk)) - Math.sin(kk * Math.PI) * 26;
             r = lerp(o.r * 1.05, o.r, easeOut(kk));
           }
-          drawDish(o.g, o.key, x, y, r);
+          drawDish(o.g, o.key, x, y, r, o.bottle);
         } else if (o.kind === 'sparkle') {
           o.g.setAlpha(1 - k);
           for (let p = 0; p < o.parts.length; p++) {
@@ -1890,11 +1937,11 @@
           const sc = k < 1 ? easeOutBack(k) : 1;
           c.bubbleG.setPosition(c.x, this.L.bubble.cy + bob * 0.6).setScale(Math.max(0.05, sc));
           c.bubbleG.setAlpha(c.state === 'out' ? Math.max(0, 1 - c.t / LEAVE_SEC) : 1);
-          const stamp = c.want.key + (hover ? '1' : '0');
+          const stamp = c.want.key + ':' + (c.want.bottle || '') + (hover ? '1' : '0');
           if (c.bubbleDrawn !== stamp) {
             c.bubbleG.clear();
             drawBubble(c.bubbleG, this.L, hover);
-            drawDish(c.bubbleG, c.want.key, 0, -8, this.L.bubble.r);
+            drawDish(c.bubbleG, c.want.key, 0, -8, this.L.bubble.r, c.want.bottle);
             c.bubbleDrawn = stamp;
           }
         }
@@ -1924,7 +1971,7 @@
         // 正被拖走的那一份先别画，免得和幻影重影
         if (this.drag && this.drag.kind === 'dish' && this.drag.from === i) continue;
         const p = this.L.matSlots[e.slot];
-        drawDish(this.stagedG, e.key, p.x, p.y, 28);
+        drawDish(this.stagedG, e.key, p.x, p.y, 28, e.bottle);
       }
 
       // 拖拽幻影
@@ -1932,11 +1979,11 @@
         this.ghostG.setVisible(true);
         this.ghostG.setScale(1.15);
         this.ghostG.setPosition(this.drag.x, this.drag.y - DRAG_LIFT);
-        const stamp = this.drag.kind + ':' + this.drag.key;
+        const stamp = this.drag.kind + ':' + this.drag.key + ':' + (this.drag.bottle || '');
         if (this.ghostKey !== stamp) {
           this.ghostG.clear();
           if (this.drag.kind === 'mat') drawMaterial(this.ghostG, this.drag.key, 0, 0, DRAG_R);
-          else drawDish(this.ghostG, this.drag.key, 0, 0, DRAG_R);
+          else drawDish(this.ghostG, this.drag.key, 0, 0, DRAG_R, this.drag.bottle);
           this.ghostKey = stamp;
         }
       } else if (this.ghostG.visible) {
@@ -1944,7 +1991,7 @@
         this.ghostKey = null;
       }
 
-      // 「先把手上的送出去吧～」
+      // 桌面上方的小提示气泡
       if (this.tipT > 0) {
         const t = this.L.tip;
         const a = clamp(this.tipT / 0.3, 0, 1);
