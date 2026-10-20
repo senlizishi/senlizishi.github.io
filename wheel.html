@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>彩虹转盘</title>
+  <link rel="icon" href="assets/jelly-mark.svg" type="image/svg+xml">
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden;
+      background: #1b0b3b; touch-action: none;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    body { position: fixed; inset: 0; }
+    /* 居中交给 Phaser 的 autoCenter 负责，这里不能再加 flex 居中，否则会双重偏移 */
+    #game-root { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+    canvas {
+      display: block; flex: none; max-width: 100%; max-height: 100%; touch-action: none;
+      -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
+    }
+    #home-link {
+      position: fixed; z-index: 60;
+      left: max(10px, env(safe-area-inset-left));
+      top: max(10px, env(safe-area-inset-top));
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.94); border: 2px solid rgba(119, 68, 190, 0.42);
+      color: #4d267c; font-size: 20px; line-height: 1; text-decoration: none;
+      box-shadow: 0 4px 14px rgba(20, 8, 50, 0.35);
+      -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background 0.12s ease;
+    }
+    #home-link:hover { background: #ffffff; }
+    #home-link:active { transform: scale(0.92); }
+
+    #wheel-setup {
+      position: fixed; z-index: 20; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: max(62px, calc(env(safe-area-inset-top) + 50px)) 14px max(18px, env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+    #wheel-setup[hidden] { display: none; }
+    .setup-panel {
+      position: relative; width: min(446px, calc(100vw - 28px));
+      max-height: calc(100dvh - 84px);
+      overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      pointer-events: auto; touch-action: pan-y;
+      padding: 20px 18px 16px; border-radius: 28px;
+      color: #30204f;
+      background:
+        radial-gradient(circle at 88% 6%, rgba(255, 221, 92, 0.34), transparent 31%),
+        radial-gradient(circle at 5% 42%, rgba(255, 111, 177, 0.16), transparent 34%),
+        linear-gradient(160deg, rgba(255, 253, 244, 0.97), rgba(255, 240, 214, 0.96));
+      border: 2px solid rgba(255, 255, 255, 0.74);
+      box-shadow: 0 22px 60px rgba(14, 5, 42, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      scrollbar-width: thin;
+    }
+    .setup-brand { text-align: center; margin: 0 0 16px; }
+    .setup-brand .eyebrow {
+      display: inline-block; padding: 4px 11px; border-radius: 999px;
+      background: #fff0a8; color: #784116; font-size: 11px; font-weight: 800;
+      letter-spacing: 0.2em; box-shadow: inset 0 0 0 1px rgba(207, 132, 38, 0.18);
+    }
+    .setup-brand h1 {
+      margin: 8px 0 3px; font-size: clamp(28px, 7vw, 36px); line-height: 1.08;
+      letter-spacing: 0.04em; color: #6d2bb7;
+      text-shadow: 0 2px 0 #ffffff, 0 5px 14px rgba(141, 62, 208, 0.2);
+    }
+    .setup-brand p { margin: 0; font-size: 13px; color: #806b91; }
+    #count-step h2, .step-head h2 { margin: 0; font-size: 17px; line-height: 1.3; color: #432668; }
+    .count-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 13px;
+    }
+    .count-chip {
+      appearance: none; border: 0; min-width: 0; height: 46px; border-radius: 15px;
+      font: inherit; font-size: 19px; font-weight: 800; color: #523371;
+      background: #ffffff; cursor: pointer; touch-action: manipulation;
+      box-shadow: 0 4px 0 rgba(117, 68, 157, 0.14), inset 0 0 0 2px rgba(143, 94, 190, 0.14);
+      transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+    .count-chip:hover { background: #fff9e8; }
+    .count-chip:active { transform: translateY(2px) scale(0.96); }
+    .count-chip.selected {
+      color: #ffffff; background: linear-gradient(160deg, #ff6bae, #9b5cff);
+      box-shadow: 0 5px 0 #5e2da2, 0 8px 18px rgba(125, 57, 210, 0.28);
+    }
+    .count-note { margin: 12px 0 2px; text-align: center; font-size: 12px; color: #9a86aa; }
+    #label-step[hidden] { display: none; }
+    .step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .step-head h2 span { color: #ff4f9a; }
+    #change-count {
+      appearance: none; border: 0; border-radius: 999px; padding: 8px 13px;
+      font: inherit; font-size: 12px; font-weight: 800; color: #6b35a0; background: #f3e6ff;
+      cursor: pointer; touch-action: manipulation;
+    }
+    #change-count:active { transform: scale(0.96); }
+    .label-note { margin: 5px 0 12px; font-size: 12px; color: #8d789b; }
+    .label-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .label-row {
+      display: grid; grid-template-columns: 26px 12px minmax(0, 1fr); align-items: center; gap: 8px;
+      padding: 5px 7px 5px 9px; border-radius: 15px; background: rgba(255, 255, 255, 0.74);
+      box-shadow: inset 0 0 0 1.5px rgba(135, 85, 180, 0.12);
+    }
+    .label-row .num { text-align: center; font-size: 12px; font-weight: 900; color: #8c70a2; }
+    .label-row .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(58, 28, 85, 0.18); }
+    .label-row input {
+      width: 100%; min-width: 0; height: 42px; padding: 0 11px; border: 2px solid transparent; border-radius: 11px;
+      outline: none; background: #ffffff; color: #33204f; font: inherit; font-size: 17px; line-height: 1;
+      -webkit-user-select: text; user-select: text; touch-action: manipulation;
+      box-shadow: inset 0 1px 3px rgba(65, 34, 96, 0.06); transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .label-row input::placeholder { color: #b9aac5; }
+    .label-row input:focus {
+      border-color: #b361ff; box-shadow: 0 0 0 3px rgba(179, 97, 255, 0.14);
+    }
+    .setup-action {
+      position: sticky; bottom: -16px; z-index: 2; margin: 14px -18px -16px;
+      padding: 12px 18px max(16px, env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(255, 244, 224, 0.99) 70%, rgba(255, 244, 224, 0));
+    }
+    #setup-hint { min-height: 18px; margin: 0 0 8px; text-align: center; font-size: 12px; color: #8d789b; }
+    #setup-hint.ready { color: #22875c; font-weight: 800; }
+    #start-wheel {
+      appearance: none; width: 100%; height: 58px; border: 0; border-radius: 19px;
+      font: inherit; font-size: 21px; font-weight: 900; letter-spacing: 0.08em;
+      color: #ffffff; background: linear-gradient(160deg, #ff6e55, #ef3f91 54%, #8d55ff);
+      box-shadow: 0 7px 0 #7d2e9b, 0 12px 26px rgba(179, 47, 138, 0.27);
+      cursor: pointer; touch-action: manipulation; transition: transform 0.12s ease, filter 0.12s ease;
+    }
+    #start-wheel:active:not(:disabled) { transform: translateY(3px) scale(0.99); box-shadow: 0 4px 0 #7d2e9b; }
+    #start-wheel:disabled { cursor: default; filter: grayscale(0.35); opacity: 0.46; box-shadow: 0 5px 0 #8f789d; }
+    @media (min-width: 430px) {
+      .label-list { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 370px) {
+      .count-grid { grid-template-columns: repeat(4, 1fr); }
+      .setup-panel { padding-left: 14px; padding-right: 14px; }
+      .setup-action { margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; }
+    }
+    @media (max-height: 620px) {
+      .setup-brand { margin-bottom: 10px; }
+      .setup-brand h1 { font-size: 26px; }
+      .setup-brand .eyebrow { display: none; }
+    }
+  </style>
+  <script src="./phaser.min.js"></script>
+  <script src="js/wheel-game.js?v=1"></script>
+</head>
+<body>
+<main id="game-root" aria-label="彩虹转盘"></main>
+<a id="home-link" href="./index.html" aria-label="返回首页">&#8592;</a>
+
+<div id="wheel-setup" role="dialog" aria-modal="true" aria-label="设置彩虹转盘">
+  <div class="setup-panel">
+    <header class="setup-brand">
+      <span class="eyebrow">彩虹嘉年华</span>
+      <h1>彩虹转盘</h1>
+      <p>先选几个格子，再填上想转的事情</p>
+    </header>
+
+    <section id="count-step">
+      <h2>1. 选几个格子？</h2>
+      <div id="count-grid" class="count-grid" aria-label="选择区间数量"></div>
+      <p class="count-note">2–12 格都可以</p>
+    </section>
+
+    <section id="label-step" hidden>
+      <div class="step-head">
+        <h2><span>2.</span> 给每一格写内容</h2>
+        <button id="change-count" type="button">改数量</button>
+      </div>
+      <p id="count-summary" class="label-note"></p>
+      <div id="label-list" class="label-list"></div>
+      <div class="setup-action">
+        <p id="setup-hint" aria-live="polite"></p>
+        <button id="start-wheel" type="button" disabled>开始转盘</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  // 只做竖屏：横屏时用 FIT 缩放居中显示，不需要重载
+  window.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game-root',
+    width: 540,
+    height: 960,
+    backgroundColor: '#1B0B3B',
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, expandParent: false },
+    scene: [window.WheelScene],
+  });
+})();
+</script>
+</body>
+</html>
