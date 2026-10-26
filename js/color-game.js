@@ -1,6 +1,6 @@
 /*
  * 颜色魔法屋：竖屏（540x960）的真实颜料调色小玩具。
- * 红、绿、蓝三瓶魔法颜料可以反复拖进锅里，锅里的颜色按减法混色缓慢变化；
+ * 红、黄、蓝三瓶魔法颜料可以反复拖进锅里，水滴落下后锅里的颜色缓慢变化；
  * 没有目标色、分数、计时和失败，只有右上角的「重置」。
  * 画面全部 Phaser.Graphics / Text 程序化绘制，音效 WebAudio 合成，不加载素材文件。
  */
@@ -13,27 +13,30 @@
   const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
   const TAU = Math.PI * 2;
 
-  const PRIMARY_KEYS = ['red', 'green', 'blue'];
+  const PRIMARY_KEYS = ['red', 'yellow', 'blue'];
   const PURE_COLORS = {
     red: 0xE84F61,
-    green: 0x49BD6B,
+    yellow: 0xF4C63D,
     blue: 0x5278DF,
   };
-  // 颜料透射率：红颜料主要反射红、吸收绿蓝，其余同理。
-  // 混色时对三个通道做加权几何平均，得到比发光 RGB 更接近颜料的暗一些的结果。
-  const PIGMENTS = {
-    red: [1.0, 0.16, 0.16],
-    green: [0.16, 1.0, 0.16],
-    blue: [0.16, 0.16, 1.0],
+  // 红黄蓝是颜料三原色。二色先在三角形的边上混出橙 / 绿 / 紫，
+  // 三色再向中心的棕褐色收拢，保证任意比例都能得到直觉上的颜料色。
+  const MIX_ANCHORS = {
+    red: 0xE84F61,
+    yellow: 0xF4C63D,
+    blue: 0x5278DF,
+    orange: 0xF39B43,
+    green: 0x61BE72,
+    purple: 0x9258B6,
+    brown: 0x846346,
   };
   const EMPTY_COLOR = 0x3C3B55;
   const MIX_SEC = 0.6;
-  const MIX_LIFT = 0.04;
-  const MIX_GAMMA = 0.72;
+  const POUR_FALL_SEC = 0.42;
 
   const BOTTLES = [
     { key: 'red', name: '红', x: 105, y: 798, rx: 55, ry: 78 },
-    { key: 'green', name: '绿', x: 270, y: 798, rx: 55, ry: 78 },
+    { key: 'yellow', name: '黄', x: 270, y: 798, rx: 55, ry: 78 },
     { key: 'blue', name: '蓝', x: 435, y: 798, rx: 55, ry: 78 },
   ];
   const POT = { x: 270, y: 404, rx: 168, ry: 58, hitRx: 196, hitRy: 112, bodyBottom: 606 };
@@ -41,7 +44,7 @@
 
   const DEPTH = {
     room: 0, window: 1, shelf: 2, pot: 4, liquid: 5,
-    bottles: 8, ghost: 14, fx: 16, ui: 20, banner: 24,
+    bottles: 8, ghost: 14, drop: 15, fx: 16, ui: 20, banner: 24,
   };
 
   const C = {
@@ -121,74 +124,100 @@
   }
 
   // ---------------------------------------------------------------- 混色
-  function mixTarget(parts) {
-    const counts = PRIMARY_KEYS.map(function (key) {
-      const v = Number(parts && parts[key]);
-      return isFinite(v) && v > 0 ? v : 0;
-    });
-    const total = counts.reduce(function (a, b) { return a + b; }, 0);
-    if (total <= 0) return EMPTY_COLOR;
-
-    const active = [];
-    for (let i = 0; i < counts.length; i++) if (counts[i] > 0) active.push(i);
-    if (active.length === 1) return PURE_COLORS[PRIMARY_KEYS[active[0]]];
-
-    const logs = [0, 0, 0];
-    for (let i = 0; i < counts.length; i++) {
-      if (counts[i] <= 0) continue;
-      const w = counts[i] / total;
-      const p = PIGMENTS[PRIMARY_KEYS[i]];
-      for (let c = 0; c < 3; c++) logs[c] += w * Math.log(p[c]);
+  function totalParts(parts) {
+    let total = 0;
+    for (let i = 0; i < PRIMARY_KEYS.length; i++) {
+      const n = Number(parts && parts[PRIMARY_KEYS[i]]);
+      if (isFinite(n) && n > 0) total += n;
     }
-    const out = logs.map(function (v) {
-      return clamp(255 * (MIX_LIFT + (1 - MIX_LIFT) * Math.pow(Math.exp(v), MIX_GAMMA)), 0, 255);
-    });
-    return rgbToHex(out[0], out[1], out[2]);
+    return total;
   }
 
-  function rgbToHsl(hex) {
-    const c = hexToRgb(hex);
-    const r = c.r / 255, g = c.g / 255, b = c.b / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    const d = max - min;
-    let h = 0, s = 0;
-    if (d > 0.0001) {
-      s = d / (1 - Math.abs(2 * l - 1));
-      if (max === r) h = ((g - b) / d) % 6;
-      else if (max === g) h = (b - r) / d + 2;
-      else h = (r - g) / d + 4;
-      h *= 60;
-      if (h < 0) h += 360;
+  function pairMix(aKey, bKey, anchorKey, aWeight, bWeight) {
+    const balanceA = aWeight / (aWeight + bWeight);
+    if (balanceA <= 0.5) {
+      return blend(PURE_COLORS[bKey], MIX_ANCHORS[anchorKey], balanceA * 2);
     }
-    return { h: h, s: s, l: l };
+    return blend(MIX_ANCHORS[anchorKey], PURE_COLORS[aKey], (balanceA - 0.5) * 2);
+  }
+
+  function mixTarget(parts) {
+    const active = [];
+    for (let i = 0; i < PRIMARY_KEYS.length; i++) {
+      const key = PRIMARY_KEYS[i];
+      const value = Number(parts && parts[key]);
+      if (isFinite(value) && value > 0) active.push({ key: key, value: value });
+    }
+    if (!active.length) return EMPTY_COLOR;
+    if (active.length === 1) return PURE_COLORS[active[0].key];
+
+    const total = active.reduce(function (sum, item) { return sum + item.value; }, 0);
+    if (active.length === 2) {
+      const a = active[0], b = active[1];
+      if (a.key === 'red' && b.key === 'yellow') return pairMix('red', 'yellow', 'orange', a.value, b.value);
+      if (a.key === 'yellow' && b.key === 'blue') return pairMix('yellow', 'blue', 'green', a.value, b.value);
+      return pairMix('red', 'blue', 'purple', a.value, b.value);
+    }
+
+    let minWeight = 1;
+    const weights = active.map(function (item) { return item.value / total; });
+    for (let i = 0; i < weights.length; i++) minWeight = Math.min(minWeight, weights[i]);
+    if (minWeight >= 0.3332) return MIX_ANCHORS.brown;
+
+    const remaining = weights.map(function (w) { return Math.max(0, w - minWeight); });
+    const remainingSum = remaining.reduce(function (sum, w) { return sum + w; }, 0);
+    let edge;
+    if (remainingSum <= 0.000001) {
+      edge = MIX_ANCHORS.brown;
+    } else {
+      const pair = [];
+      for (let i = 0; i < active.length; i++) {
+        if (remaining[i] > 0.000001) pair.push({ key: active[i].key, value: remaining[i] });
+      }
+      if (pair.length === 1) {
+        edge = PURE_COLORS[pair[0].key];
+      } else if (pair[0].key === 'red' && pair[1].key === 'yellow') {
+        edge = pairMix('red', 'yellow', 'orange', pair[0].value, pair[1].value);
+      } else if (pair[0].key === 'yellow' && pair[1].key === 'blue') {
+        edge = pairMix('yellow', 'blue', 'green', pair[0].value, pair[1].value);
+      } else {
+        edge = pairMix('red', 'blue', 'purple', pair[0].value, pair[1].value);
+      }
+    }
+    const edgeAmount = clamp(1 - minWeight * 3, 0, 1);
+    return blend(MIX_ANCHORS.brown, edge, edgeAmount);
   }
 
   function colorName(hex, parts) {
-    let total = 0, active = 0;
+    const active = [];
     if (parts) {
       for (let i = 0; i < PRIMARY_KEYS.length; i++) {
-        if (Number(parts[PRIMARY_KEYS[i]]) > 0) { total += Number(parts[PRIMARY_KEYS[i]]); active += 1; }
+        const n = Number(parts[PRIMARY_KEYS[i]]);
+        if (isFinite(n) && n > 0) active.push(PRIMARY_KEYS[i]);
       }
     }
-    if (total <= 0) return '空空的魔法锅';
-    if (active === 1) {
-      if (parts.red > 0) return '红魔法';
-      if (parts.green > 0) return '绿魔法';
+    if (!active.length) return '空空的魔法锅';
+    if (active.length === 1) {
+      if (active[0] === 'red') return '红魔法';
+      if (active[0] === 'yellow') return '黄魔法';
       return '蓝魔法';
     }
-    const hsl = rgbToHsl(hex);
-    if (hsl.s < 0.12) return '泥浆灰';
-    const h = hsl.h;
-    if (h < 15 || h >= 345) return '暖红色';
-    if (h < 45) return '橙褐色';
-    if (h < 75) return '橄榄黄';
-    if (h < 160) return '草绿色';
-    if (h < 200) return '湖水青';
-    if (h < 255) return '靛蓝色';
-    if (h < 290) return '蓝紫色';
-    if (h < 345) return '葡萄紫';
-    return '奇妙的颜色';
+    const has = { red: active.indexOf('red') >= 0, yellow: active.indexOf('yellow') >= 0, blue: active.indexOf('blue') >= 0 };
+    if (active.length === 2) {
+      if (has.red && has.yellow) return '橙色';
+      if (has.yellow && has.blue) return '绿色';
+      return '紫色';
+    }
+    return '棕褐色';
+  }
+
+  function drawDroplet(g, x, y, r, color, alpha) {
+    const a = alpha == null ? 1 : alpha;
+    g.fillStyle(darken(color, 0.22), 0.28 * a).fillEllipse(x + 1, y + r * 0.55, r * 1.65, r * 1.05);
+    g.fillStyle(color, a).fillTriangle(x - r * 0.72, y - r * 0.12, x + r * 0.72, y - r * 0.12, x, y - r * 2.05);
+    g.fillStyle(color, a).fillCircle(x, y, r);
+    g.fillStyle(lighten(color, 0.55), 0.58 * a).fillCircle(x - r * 0.3, y - r * 0.3, r * 0.28);
+    g.fillStyle(0xFFFFFF, 0.52 * a).fillCircle(x - r * 0.12, y - r * 1.35, r * 0.17);
   }
 
   // ---------------------------------------------------------------- 房间背景
@@ -273,7 +302,7 @@
       g.fillStyle(darken(color, 0.18), 1).fillEllipse(0, 36, 56, 19);
       g.fillStyle(lighten(color, 0.22), 0.65).fillEllipse(-11, 2, 21, 14);
       g.lineStyle(3, 0xF4EFFF, 0.62).strokeCircle(0, 14, 45);
-    } else if (key === 'green') {
+    } else if (key === 'yellow') {
       g.fillStyle(0xBCB5F0, 0.18).fillRoundedRect(-36, -38, 72, 103, 20);
       g.fillStyle(0xEDE9FF, 0.27).fillRoundedRect(-13, -71, 26, 43, 8);
       g.fillStyle(color, 1).fillRoundedRect(-28, -23, 56, 80, 15);
@@ -394,7 +423,7 @@
       resume: resume,
       pick: function () { tone(720, 0.06, 0.028, 0, 'triangle'); },
       pour: function (key) {
-        const base = key === 'red' ? 392 : key === 'green' ? 494 : 587;
+        const base = key === 'red' ? 392 : key === 'yellow' ? 494 : 587;
         tone(base, 0.16, 0.035, 0, 'sine');
         tone(base * 1.26, 0.22, 0.024, 0.06, 'triangle');
       },
@@ -403,6 +432,7 @@
         tone(659.25, 0.35, 0.019, 0.04, 'sine');
         tone(783.99, 0.38, 0.016, 0.08, 'sine');
       },
+      drip: function () { tone(880, 0.045, 0.016, 0, 'sine'); tone(620, 0.09, 0.012, 0.045, 'triangle'); },
       reset: function () { sweep(520, 130, 0.42, 0.034, 'triangle'); },
     };
   })();
@@ -419,23 +449,23 @@
         WIDTH: WIDTH,
         HEIGHT: HEIGHT,
         PRIMARY_KEYS: PRIMARY_KEYS.slice(),
-        PIGMENTS: {
-          red: PIGMENTS.red.slice(), green: PIGMENTS.green.slice(), blue: PIGMENTS.blue.slice(),
-        },
+        MIX_ANCHORS: Object.assign({}, MIX_ANCHORS),
         PURE_COLORS: Object.assign({}, PURE_COLORS),
         POT: Object.assign({}, POT),
         BOTTLES: BOTTLES.map(function (b) { return Object.assign({}, b); }),
         RESET: Object.assign({}, this.L.reset),
         EMPTY_COLOR: EMPTY_COLOR,
         MIX_SEC: MIX_SEC,
+        POUR_FALL_SEC: POUR_FALL_SEC,
         DEPTH: Object.assign({}, DEPTH),
       };
-      this.parts = { red: 0, green: 0, blue: 0 };
+      this.parts = { red: 0, yellow: 0, blue: 0 };
       this.potColor = EMPTY_COLOR;
       this.targetColor = EMPTY_COLOR;
       this.potRgb = hexToRgb(EMPTY_COLOR);
       this.drag = null;
       this.flyBack = null;
+      this.pendingPour = null;
       this.activePointerId = null;
       this.liveProps = [];
       this.clock = 0;
@@ -457,6 +487,7 @@
       this.liquidG = this.add.graphics().setDepth(DEPTH.liquid);
       this.fxG = this.add.graphics().setDepth(DEPTH.fx);
       this.ghostG = this.add.graphics().setDepth(DEPTH.ghost);
+      this.dropG = this.add.graphics().setDepth(DEPTH.drop);
 
       this.buildUi();
       this.buildBottles();
@@ -549,6 +580,8 @@
 
     addColor(key) {
       if (PRIMARY_KEYS.indexOf(key) < 0) return false;
+      this.pendingPour = null;
+      if (this.dropG) this.dropG.clear();
       this.parts[key] += 1;
       this.targetColor = mixTarget(this.parts);
       this.nameText.setText(colorName(this.targetColor, this.parts));
@@ -558,15 +591,66 @@
       return true;
     }
 
+    beginPour(key) {
+      if (PRIMARY_KEYS.indexOf(key) < 0) return false;
+      if (this.pendingPour) this.settlePendingPour();
+      this.ghostG.clear();
+      this.pendingPour = {
+        key: key,
+        color: PURE_COLORS[key],
+        t: 0,
+        dur: POUR_FALL_SEC,
+        fromY: POT.y - 142,
+        toY: POT.y + 7,
+        drops: [
+          { startX: POT.x + 10, endX: POT.x + 3, dy: 0, delay: 0, r: 9.2 },
+          { startX: POT.x - 25, endX: POT.x - 10, dy: -26, delay: 0.065, r: 5.2 },
+          { startX: POT.x + 27, endX: POT.x + 13, dy: -49, delay: 0.115, r: 4.3 },
+        ],
+      };
+      this.nameText.setText('滴答…');
+      Sound.drip();
+      this.drawPourDrops();
+      return true;
+    }
+
+    settlePendingPour() {
+      if (!this.pendingPour) return false;
+      const key = this.pendingPour.key;
+      this.pendingPour = null;
+      if (this.dropG) this.dropG.clear();
+      return this.addColor(key);
+    }
+
+    drawPourDrops() {
+      if (!this.dropG) return;
+      this.dropG.clear();
+      const pour = this.pendingPour;
+      if (!pour) return;
+      for (let i = 0; i < pour.drops.length; i++) {
+        const drop = pour.drops[i];
+        if (pour.t < drop.delay) continue;
+        const fallDur = pour.dur - drop.delay;
+        const q = clamp((pour.t - drop.delay) / fallDur, 0, 1);
+        const fall = q * q;
+        const x = lerp(drop.startX, drop.endX, q);
+        const y = lerp(pour.fromY + drop.dy, pour.toY, fall);
+        const alpha = q > 0.9 ? clamp((1 - q) / 0.1, 0, 1) : 1;
+        drawDroplet(this.dropG, x, y, drop.r * (1 - q * 0.12), pour.color, alpha);
+      }
+    }
+
     resetPot() {
-      const had = this.parts.red + this.parts.green + this.parts.blue > 0 || !!this.drag;
+      const had = totalParts(this.parts) > 0 || !!this.drag || !!this.pendingPour;
       if (this.activePointerId != null) this.restoreBottle(this.drag && this.drag.key);
-      this.parts = { red: 0, green: 0, blue: 0 };
+      this.parts = { red: 0, yellow: 0, blue: 0 };
       this.targetColor = EMPTY_COLOR;
       this.drag = null;
       this.flyBack = null;
+      this.pendingPour = null;
       this.activePointerId = null;
       this.ghostG.clear();
+      if (this.dropG) this.dropG.clear();
       this.potGlowG.setVisible(false);
       this.nameText.setText('空空的魔法锅');
       this.liveProps.length = 0;
@@ -599,7 +683,7 @@
       g.lineStyle(2, lighten(col, 0.5), 0.42).strokeEllipse(POT.x, POT.y + 4, 278, 50);
 
       // 只有混入颜色后，液面才浮出三种颜料的细丝。
-      const total = this.parts.red + this.parts.green + this.parts.blue;
+      const total = totalParts(this.parts);
       if (total > 0) {
         let offset = 0;
         for (let i = 0; i < PRIMARY_KEYS.length; i++) {
@@ -695,6 +779,7 @@
       }
       const key = this.bottleAt(x, y);
       if (!key) return false;
+      if (this.pendingPour) this.settlePendingPour();
       this.activePointerId = pointer.id == null ? 1 : pointer.id;
       this.drag = { key: key, x: x, y: y, ox: 0, oy: 0 };
       for (let i = 0; i < BOTTLES.length; i++) {
@@ -728,8 +813,7 @@
       this.potGlowG.setVisible(false);
       this.restoreBottle(d.key);
       if (this.potContains(x, y)) {
-        this.addColor(d.key);
-        this.ghostG.clear();
+        this.beginPour(d.key);
       } else {
         this.flyBack = { key: d.key, x: d.x, y: d.y, ox: d.ox, oy: d.oy, t: 0, dur: 0.24 };
         this.nameText.setText(colorName(this.targetColor, this.parts));
@@ -743,16 +827,6 @@
         const over = this.potContains(d.x, d.y);
         this.potGlowG.setVisible(over);
         this.lastHover = over;
-        if (over) {
-          const fromX = d.x + 26;
-          const fromY = d.y - 84;
-          this.ghostG.lineStyle(5, PURE_COLORS[d.key], 0.7);
-          this.ghostG.beginPath();
-          this.ghostG.moveTo(fromX, fromY);
-          this.ghostG.lineTo(POT.x, POT.y - 4);
-          this.ghostG.strokePath();
-          this.ghostG.lineStyle(2, 0xFFFFFF, 0.34).lineBetween(fromX, fromY + 2, POT.x - 8, POT.y - 3);
-        }
         drawBottleShape(this.ghostG, d.key, d.x, d.y - 48, 1.06, over ? 0.92 : -0.12);
       } else if (this.flyBack) {
         const f = this.flyBack;
@@ -773,6 +847,12 @@
         this.flyBack.t += dt;
         if (this.flyBack.t >= this.flyBack.dur) this.flyBack = null;
         this.renderGhost();
+      }
+
+      if (this.pendingPour) {
+        this.pendingPour.t += dt;
+        if (this.pendingPour.t >= this.pendingPour.dur) this.settlePendingPour();
+        else this.drawPourDrops();
       }
 
       const target = hexToRgb(this.targetColor);
