@@ -1,7 +1,7 @@
 /*
  * 颜色魔法屋：竖屏（540x960）的真实颜料调色小玩具。
  * 红、黄、蓝三瓶魔法颜料可以反复拖进锅里，水滴落下后锅里的颜色缓慢变化；
- * 没有目标色、分数、计时和失败，只有右上角的「重置」。
+ * 自由调色之外，还可以接一个不扣分、不计时、随时退出的精灵颜色任务。
  * 画面全部 Phaser.Graphics / Text 程序化绘制，音效 WebAudio 合成，不加载素材文件。
  */
 (function () {
@@ -33,6 +33,19 @@
   const EMPTY_COLOR = 0x3C3B55;
   const MIX_SEC = 0.6;
   const POUR_FALL_SEC = 0.42;
+  const TASK_TOLERANCE = 52;
+  const TASK_CHECK_SEC = 0.55;
+  const TASK_TARGETS = [
+    { key: 'orange', name: '橙色', color: MIX_ANCHORS.orange, hints: ['red', 'yellow'], required: 2 },
+    { key: 'green', name: '绿色', color: MIX_ANCHORS.green, hints: ['yellow', 'blue'], required: 2 },
+    { key: 'purple', name: '紫色', color: MIX_ANCHORS.purple, hints: ['red', 'blue'], required: 2 },
+    { key: 'brown', name: '棕色', color: MIX_ANCHORS.brown, hints: ['red', 'yellow', 'blue'], required: 3 },
+  ];
+  const TASK_BUTTON = { x: 338, y: 68, w: 92, h: 42 };
+  const TASK_PANEL = { x: 24, y: 118, w: 492, h: 112 };
+  const TASK_SWATCH = { x: 402, y: 159, w: 74, h: 62 };
+  const TASK_EXIT = { x: 482, y: 132, w: 52, h: 28 };
+  const TASK_NEXT = { x: 402, y: 209, w: 92, h: 28 };
 
   const BOTTLES = [
     { key: 'red', name: '红', x: 105, y: 798, rx: 55, ry: 78 },
@@ -61,6 +74,11 @@
       title: { x: 190, y: 66 },
       subtitle: { x: 190, y: 100 },
       reset: { x: 454, y: 68, w: 108, h: 44 },
+      taskButton: Object.assign({}, TASK_BUTTON),
+      taskPanel: Object.assign({}, TASK_PANEL),
+      taskSwatch: Object.assign({}, TASK_SWATCH),
+      taskExit: Object.assign({}, TASK_EXIT),
+      taskNext: Object.assign({}, TASK_NEXT),
       pot: POT,
       name: { x: WIDTH / 2, y: 656 },
       hint: { x: WIDTH / 2, y: 934 },
@@ -131,6 +149,21 @@
       if (isFinite(n) && n > 0) total += n;
     }
     return total;
+  }
+
+  function activeParts(parts) {
+    let total = 0;
+    for (let i = 0; i < PRIMARY_KEYS.length; i++) {
+      const n = Number(parts && parts[PRIMARY_KEYS[i]]);
+      if (isFinite(n) && n > 0) total += 1;
+    }
+    return total;
+  }
+
+  function colorDistance(a, b) {
+    const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+    const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+    return Math.sqrt((ar - br) * (ar - br) + (ag - bg) * (ag - bg) + (ab - bb) * (ab - bb));
   }
 
   function pairMix(aKey, bKey, anchorKey, aWeight, bWeight) {
@@ -366,6 +399,53 @@
     g.lineStyle(3, 0x6C3F0E, 0.55).strokeEllipse(p.x, p.y, 368, 102);
   }
 
+  function drawTaskElf(g, x, y, scale) {
+    const s = scale || 1;
+    g.save();
+    g.translateCanvas(x, y);
+    g.scaleCanvas(s, s);
+
+    g.fillStyle(0xFFE59A, 0.11).fillCircle(0, -12, 49);
+    g.fillStyle(0x9FE8D1, 0.27).fillEllipse(-28, 2, 28, 45);
+    g.fillStyle(0x9FE8D1, 0.27).fillEllipse(28, 2, 28, 45);
+    g.lineStyle(2, 0xBFF7E3, 0.4);
+    g.strokeEllipse(-28, 2, 28, 45);
+    g.strokeEllipse(28, 2, 28, 45);
+
+    g.fillStyle(0x2F5F50, 1).fillEllipse(-10, 36, 17, 8);
+    g.fillStyle(0x2F5F50, 1).fillEllipse(10, 36, 17, 8);
+    g.fillStyle(0x3C7D67, 1).fillRoundedRect(-18, -12, 36, 46, 16);
+    g.fillStyle(0x72C9A8, 1).fillEllipse(0, 7, 28, 28);
+    g.fillStyle(0xFFD9A9, 1).fillCircle(-19, 2, 7);
+    g.fillStyle(0xFFD9A9, 1).fillCircle(19, 2, 7);
+
+    g.fillStyle(0xFFD9A9, 1).fillTriangle(-21, -36, -35, -47, -19, -51);
+    g.fillStyle(0xFFD9A9, 1).fillTriangle(21, -36, 35, -47, 19, -51);
+    g.fillStyle(0xFFD9A9, 1).fillCircle(0, -33, 23);
+    g.fillStyle(0xF3B97E, 0.65).fillEllipse(0, -20, 20, 10);
+
+    g.fillStyle(0x68B895, 1).fillTriangle(-24, -48, 24, -48, 0, -77);
+    g.fillStyle(0x8ED9B5, 1).fillRoundedRect(-27, -51, 54, 9, 4);
+    g.fillStyle(C.gold, 1).fillCircle(0, -75, 4);
+
+    g.fillStyle(0x39263F, 1).fillCircle(-8, -34, 2.7);
+    g.fillStyle(0x39263F, 1).fillCircle(8, -34, 2.7);
+    g.fillStyle(0xFFFFFF, 0.8).fillCircle(-7, -35, 0.9);
+    g.fillStyle(0xFFFFFF, 0.8).fillCircle(9, -35, 0.9);
+    g.fillStyle(0xF39BA9, 0.42).fillCircle(-14, -26, 3.5);
+    g.fillStyle(0xF39BA9, 0.42).fillCircle(14, -26, 3.5);
+    g.lineStyle(2, 0x7A4D43, 0.9);
+    g.beginPath();
+    g.arc(0, -24, 6, Math.PI * 0.18, Math.PI * 0.82, false);
+    g.strokePath();
+
+    g.lineStyle(3, 0xCFA23B, 1).lineBetween(23, -5, 38, -28);
+    drawStar(g, 40, -31, 7, C.gold, 1, 5);
+    g.fillStyle(0xFFFFFF, 0.75).fillCircle(-11, -47, 2.2);
+    g.fillStyle(0xFFE59A, 0.65).fillCircle(29, -58, 2.4);
+    g.restore();
+  }
+
   // ---------------------------------------------------------------- 音效
   const Sound = (function () {
     let ctx = null;
@@ -433,6 +513,13 @@
         tone(783.99, 0.38, 0.016, 0.08, 'sine');
       },
       drip: function () { tone(880, 0.045, 0.016, 0, 'sine'); tone(620, 0.09, 0.012, 0.045, 'triangle'); },
+      taskStart: function () { tone(659.25, 0.14, 0.024, 0, 'triangle'); tone(880, 0.2, 0.018, 0.08, 'sine'); },
+      taskWin: function () {
+        tone(523.25, 0.28, 0.024, 0, 'sine');
+        tone(659.25, 0.3, 0.021, 0.06, 'sine');
+        tone(783.99, 0.34, 0.018, 0.12, 'sine');
+        tone(1046.5, 0.38, 0.014, 0.18, 'triangle');
+      },
       reset: function () { sweep(520, 130, 0.42, 0.034, 'triangle'); },
     };
   })();
@@ -457,6 +544,9 @@
         EMPTY_COLOR: EMPTY_COLOR,
         MIX_SEC: MIX_SEC,
         POUR_FALL_SEC: POUR_FALL_SEC,
+        TASK_TARGETS: TASK_TARGETS.map(function (t) { return Object.assign({}, t, { hints: t.hints.slice() }); }),
+        TASK_TOLERANCE: TASK_TOLERANCE,
+        TASK_CHECK_SEC: TASK_CHECK_SEC,
         DEPTH: Object.assign({}, DEPTH),
       };
       this.parts = { red: 0, yellow: 0, blue: 0 };
@@ -472,6 +562,8 @@
       this.potDirty = true;
       this.bottleConts = [];
       this.lastHover = false;
+      this.task = null;
+      this.taskCheckIn = 0;
 
       Sound.resume();
 
@@ -525,6 +617,133 @@
       this.hintText = this.add.text(L.hint.x, L.hint.y, '每次拖一瓶，松手就倒进去一份', {
         fontFamily: FONT, fontSize: '13px', color: '#AE9ED6',
       }).setOrigin(0.5).setDepth(DEPTH.ui);
+      this.buildTaskUi();
+    }
+
+    buildTaskUi() {
+      const L = this.L;
+      this.taskButtonG = this.add.graphics().setDepth(DEPTH.ui);
+      this.drawTaskButton();
+      this.taskButtonText = this.add.text(L.taskButton.x + 6, L.taskButton.y + 1, '小任务', {
+        fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: '#3A2142',
+      }).setOrigin(0.5).setDepth(DEPTH.ui + 1);
+
+      this.taskPanelG = this.add.graphics().setDepth(DEPTH.ui + 2).setVisible(false);
+      this.taskElfG = this.add.graphics().setDepth(DEPTH.ui + 3).setVisible(false);
+      drawTaskElf(this.taskElfG, 68, 180, 0.75);
+      this.taskTitleText = this.add.text(112, 141, '', {
+        fontFamily: FONT, fontSize: '19px', fontStyle: 'bold', color: '#FFF3D2',
+        stroke: '#24133F', strokeThickness: 3,
+      }).setOrigin(0, 0.5).setDepth(DEPTH.ui + 4).setVisible(false);
+      this.taskSubText = this.add.text(112, 168, '', {
+        fontFamily: FONT, fontSize: '13px', color: '#CBBFF0',
+      }).setOrigin(0, 0.5).setDepth(DEPTH.ui + 4).setVisible(false);
+      this.taskHintText = this.add.text(112, 200, '', {
+        fontFamily: FONT, fontSize: '12px', color: '#F3D98C',
+      }).setOrigin(0, 0.5).setDepth(DEPTH.ui + 4).setVisible(false);
+      this.taskExitText = this.add.text(L.taskExit.x, L.taskExit.y, '退出', {
+        fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#EADFFF',
+      }).setOrigin(0.5).setDepth(DEPTH.ui + 4).setVisible(false);
+      this.taskNextText = this.add.text(L.taskNext.x, L.taskNext.y + 1, '再来一个', {
+        fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#3A2142',
+      }).setOrigin(0.5).setDepth(DEPTH.ui + 4).setVisible(false);
+      this.updateTaskUi();
+    }
+
+    drawTaskButton() {
+      const b = this.L.taskButton;
+      const g = this.taskButtonG;
+      g.clear();
+      g.fillStyle(0x09041A, 0.42).fillRoundedRect(b.x - b.w / 2, b.y - b.h / 2 + 4, b.w, b.h, b.h / 2);
+      g.fillStyle(C.gold, 1).fillRoundedRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.h / 2);
+      g.fillStyle(0xFFF0A6, 0.56).fillRoundedRect(b.x - b.w / 2 + 6, b.y - b.h / 2 + 5, b.w - 12, 13, 7);
+      g.lineStyle(2, 0xFFF3BE, 0.55).strokeRoundedRect(b.x - b.w / 2 + 1, b.y - b.h / 2 + 1, b.w - 2, b.h - 2, b.h / 2 - 1);
+      drawStar(g, b.x - b.w / 2 + 16, b.y, 7, 0x6E431F, 0.9, 5);
+    }
+
+    drawTaskPanel() {
+      const g = this.taskPanelG;
+      const L = this.L;
+      const task = this.task;
+      g.clear();
+      if (!task) {
+        g.setVisible(false);
+        return;
+      }
+      g.setVisible(true);
+      const p = L.taskPanel;
+      const sw = L.taskSwatch;
+      const ex = L.taskExit;
+      const nx = L.taskNext;
+
+      g.fillStyle(0x07030F, 0.52).fillRoundedRect(p.x + 1, p.y + 6, p.w, p.h, 24);
+      g.fillStyle(0x211641, 0.94).fillRoundedRect(p.x, p.y, p.w, p.h, 24);
+      g.lineStyle(2, 0xC49A47, 0.72).strokeRoundedRect(p.x, p.y, p.w, p.h, 24);
+      g.lineStyle(1, 0xFFF1C6, 0.18).strokeRoundedRect(p.x + 5, p.y + 5, p.w - 10, p.h - 10, 19);
+
+      g.fillStyle(0x07030F, 0.36).fillRoundedRect(sw.x - sw.w / 2 + 2, sw.y - sw.h / 2 + 5, sw.w, sw.h, 13);
+      g.fillStyle(0xFFF9EC, 1).fillRoundedRect(sw.x - sw.w / 2, sw.y - sw.h / 2, sw.w, sw.h, 13);
+      g.fillStyle(task.color, 1).fillRoundedRect(sw.x - sw.w / 2 + 6, sw.y - sw.h / 2 + 6, sw.w - 12, sw.h - 12, 9);
+      g.fillStyle(0xFFFFFF, 0.3).fillRoundedRect(sw.x - sw.w / 2 + 11, sw.y - sw.h / 2 + 9, sw.w - 22, 9, 5);
+      g.lineStyle(2, 0xD8B562, 0.7).strokeRoundedRect(sw.x - sw.w / 2 + 1, sw.y - sw.h / 2 + 1, sw.w - 2, sw.h - 2, 12);
+
+      g.fillStyle(0x0B0620, 0.68).fillRoundedRect(ex.x - ex.w / 2, ex.y - ex.h / 2, ex.w, ex.h, 14);
+      g.lineStyle(1.5, 0xBFA7E6, 0.42).strokeRoundedRect(ex.x - ex.w / 2, ex.y - ex.h / 2, ex.w, ex.h, 14);
+
+      if (task.success) {
+        g.fillStyle(C.gold, 1).fillRoundedRect(nx.x - nx.w / 2, nx.y - nx.h / 2, nx.w, nx.h, 14);
+        g.fillStyle(0xFFF0A6, 0.58).fillRoundedRect(nx.x - nx.w / 2 + 5, nx.y - nx.h / 2 + 4, nx.w - 10, 8, 4);
+        g.fillStyle(0x55BE83, 1).fillCircle(sw.x + sw.w / 2 - 2, sw.y - sw.h / 2 + 2, 14);
+        g.lineStyle(3.5, 0xFFFFFF, 1);
+        g.beginPath();
+        g.moveTo(sw.x + sw.w / 2 - 9, sw.y - sw.h / 2 + 2);
+        g.lineTo(sw.x + sw.w / 2 - 3, sw.y - sw.h / 2 + 8);
+        g.lineTo(sw.x + sw.w / 2 + 7, sw.y - sw.h / 2 - 5);
+        g.strokePath();
+        drawStar(g, sw.x - sw.w / 2 - 7, sw.y - 22, 5, C.gold, 0.9, 5);
+        drawStar(g, sw.x + sw.w / 2 + 7, sw.y + 17, 4, 0xFFF2B7, 0.85, 5);
+      } else if (task.hintLevel > 0) {
+        const shown = task.hintLevel >= 2 ? task.hints.length : 1;
+        for (let i = 0; i < shown; i++) {
+          const key = task.hints[i];
+          const x = 168 + i * 24;
+          const y = 200;
+          g.fillStyle(PURE_COLORS[key], 1).fillCircle(x, y, 9);
+          g.lineStyle(2, 0xFFFFFF, 0.45).strokeCircle(x, y, 9);
+          g.fillStyle(0xFFFFFF, 0.55).fillCircle(x - 2.5, y - 2.5, 2.2);
+        }
+      }
+    }
+
+    updateTaskUi() {
+      if (!this.taskButtonG) return;
+      const hasTask = !!this.task;
+      this.taskButtonG.setVisible(!hasTask);
+      this.taskButtonText.setVisible(!hasTask);
+      this.taskPanelG.setVisible(hasTask);
+      this.taskElfG.setVisible(hasTask);
+      this.taskTitleText.setVisible(hasTask);
+      this.taskSubText.setVisible(hasTask);
+      this.taskExitText.setVisible(hasTask);
+      const success = hasTask && this.task.success;
+      this.taskNextText.setVisible(success);
+      this.taskHintText.setVisible(false);
+      if (!hasTask) {
+        this.drawTaskPanel();
+        return;
+      }
+
+      this.taskTitleText.setText(success ? '调出来啦，太棒了！' : '小精灵想要' + this.task.name);
+      this.taskTitleText.setColor(success ? '#FFE7A3' : '#FFF3D2');
+      this.taskSubText.setText(success ? '小精灵开心地转圈' : '把锅里的颜色调成一样');
+      if (!success) {
+        if (this.task.hintLevel > 0) {
+          this.taskHintText.setText('小提示').setColor('#F3D98C').setVisible(true);
+        } else {
+          this.taskHintText.setText('慢慢试，不着急').setColor('#AE9ED6').setVisible(true);
+        }
+      }
+      this.drawTaskPanel();
     }
 
     drawResetButton() {
@@ -588,7 +807,119 @@
       this.spawnPourFx(key);
       Sound.pour(key);
       Sound.mix();
+      if (this.task && !this.task.success) this.taskCheckIn = TASK_CHECK_SEC;
       return true;
+    }
+
+    startTask(key) {
+      let target = null;
+      if (key) {
+        for (let i = 0; i < TASK_TARGETS.length; i++) {
+          if (TASK_TARGETS[i].key === key) { target = TASK_TARGETS[i]; break; }
+        }
+      } else {
+        target = TASK_TARGETS[Math.floor(Math.random() * TASK_TARGETS.length)];
+      }
+      if (!target) return false;
+
+      this.task = null;
+      this.resetPot();
+      this.task = {
+        key: target.key,
+        name: target.name,
+        color: target.color,
+        hints: target.hints.slice(),
+        required: target.required,
+        tries: 0,
+        noProgress: 0,
+        best: 999,
+        lastDistance: 999,
+        hintLevel: 0,
+        success: false,
+      };
+      this.taskCheckIn = 0;
+      this.updateTaskUi();
+      Sound.taskStart();
+      return true;
+    }
+
+    nextTask() {
+      const current = this.task && this.task.key;
+      const pool = TASK_TARGETS.filter(function (t) { return t.key !== current; });
+      const target = pool[Math.floor(Math.random() * pool.length)] || TASK_TARGETS[0];
+      return this.startTask(target.key);
+    }
+
+    exitTask() {
+      this.task = null;
+      this.taskCheckIn = 0;
+      this.updateTaskUi();
+      return true;
+    }
+
+    resetTaskProgress() {
+      if (!this.task) return;
+      this.task.tries = 0;
+      this.task.noProgress = 0;
+      this.task.best = 999;
+      this.task.lastDistance = 999;
+      this.task.hintLevel = 0;
+      this.task.success = false;
+      this.taskCheckIn = 0;
+      this.updateTaskUi();
+    }
+
+    evaluateTask() {
+      if (!this.task || this.task.success) return false;
+      this.taskCheckIn = 0;
+      const distance = colorDistance(this.targetColor, this.task.color);
+      this.task.lastDistance = distance;
+      this.task.tries += 1;
+
+      if (activeParts(this.parts) >= this.task.required && distance <= TASK_TOLERANCE) {
+        this.task.success = true;
+        this.task.hintLevel = 0;
+        this.taskCheckIn = 0;
+        this.updateTaskUi();
+        this.spawnTaskSuccessFx();
+        Sound.taskWin();
+        return true;
+      }
+
+      if (distance < this.task.best - 2) {
+        this.task.best = distance;
+        this.task.noProgress = 0;
+      } else {
+        this.task.best = Math.min(this.task.best, distance);
+        this.task.noProgress += 1;
+      }
+
+      let hintLevel = 0;
+      if (this.task.tries >= 3 && this.task.noProgress >= 2) hintLevel = 1;
+      if (this.task.tries >= 6 && this.task.noProgress >= 3) hintLevel = 2;
+      if (hintLevel > this.task.hintLevel) this.task.hintLevel = hintLevel;
+      this.updateTaskUi();
+      return false;
+    }
+
+    spawnTaskSuccessFx() {
+      if (!this.task) return;
+      const base = this.task.color;
+      for (let i = 0; i < 16; i++) {
+        this.liveProps.push({
+          kind: 'star',
+          x: POT.x + (Math.random() * 2 - 1) * 135,
+          y: POT.y - 36 - Math.random() * 62,
+          vx: (Math.random() * 2 - 1) * 50,
+          vy: -48 - Math.random() * 55,
+          r: 3 + Math.random() * 4,
+          rot: Math.random() * TAU,
+          vr: (Math.random() * 2 - 1) * 5,
+          life: 0.9 + Math.random() * 0.8,
+          maxLife: 1.7,
+          color: i % 3 === 0 ? 0xFFF0B0 : base,
+        });
+      }
     }
 
     beginPour(key) {
@@ -656,6 +987,7 @@
       this.liveProps.length = 0;
       this.fxG.clear();
       if (had) Sound.reset();
+      if (this.task) this.resetTaskProgress();
       return true;
     }
 
@@ -773,6 +1105,18 @@
       if (this.activePointerId != null) return false;
       Sound.resume();
       const x = pointer.x, y = pointer.y;
+      if (this.task && containsRect(this.L.taskExit, x, y)) {
+        this.exitTask();
+        return true;
+      }
+      if (this.task && this.task.success && containsRect(this.L.taskNext, x, y)) {
+        this.nextTask();
+        return true;
+      }
+      if (!this.task && containsRect(this.L.taskButton, x, y)) {
+        this.startTask();
+        return true;
+      }
       if (containsRect(this.L.reset, x, y)) {
         this.resetPot();
         return true;
@@ -853,6 +1197,16 @@
         this.pendingPour.t += dt;
         if (this.pendingPour.t >= this.pendingPour.dur) this.settlePendingPour();
         else this.drawPourDrops();
+      }
+
+      if (this.task && !this.task.success && this.taskCheckIn > 0) {
+        this.taskCheckIn -= dt;
+        if (this.taskCheckIn <= 0) this.evaluateTask();
+      }
+
+      if (this.taskElfG) {
+        const bob = this.task ? (this.task.success ? 5.5 : 2.4) : 0;
+        this.taskElfG.y = Math.sin(this.clock * (this.task && this.task.success ? 6 : 2.8)) * bob;
       }
 
       const target = hexToRgb(this.targetColor);
