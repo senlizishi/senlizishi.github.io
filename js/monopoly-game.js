@@ -14,7 +14,8 @@
   const COLS = 6;
   const ROWS = 5;
   const TILE_COUNT = 18;
-  const FINISH_PROGRESS = 18;
+  const LAP_COUNT = 2;
+  const FINISH_PROGRESS = TILE_COUNT * LAP_COUNT;
   const DIE_MIN = 1;
   const DIE_MAX = 6;
   const ROLL_SEC = 0.65;
@@ -97,6 +98,15 @@
   };
 
   const CONFETTI_COLORS = [0xFF6B86, 0xFFC43D, 0x69C9F0, 0x67C987, 0xA88CF0, 0xFF8CCB, 0xFFF4C7];
+
+
+  function progressParts(progress) {
+    const total = Math.max(0, Math.min(FINISH_PROGRESS, Math.round(Number(progress) || 0)));
+    return {
+      lap: Math.min(LAP_COUNT, Math.floor(total / TILE_COUNT) + 1),
+      step: total >= FINISH_PROGRESS ? TILE_COUNT : total % TILE_COUNT,
+    };
+  }
 
   // ---------------------------------------------------------------- 布局
   function computeLayout() {
@@ -760,7 +770,7 @@
       this.L = computeLayout();
       this.CONST = {
         WIDTH: WIDTH, HEIGHT: HEIGHT,
-        COLS: COLS, ROWS: ROWS, TILE_COUNT: TILE_COUNT, FINISH_PROGRESS: FINISH_PROGRESS,
+        COLS: COLS, ROWS: ROWS, TILE_COUNT: TILE_COUNT, LAP_COUNT: LAP_COUNT, FINISH_PROGRESS: FINISH_PROGRESS,
         DIE_MIN: DIE_MIN, DIE_MAX: DIE_MAX,
         SPECIALS: SPECIALS.map(function (s) { return Object.assign({}, s); }),
         PATH: PATH.map(function (p) { return { index: p.index, col: p.col, row: p.row, x: p.x, y: p.y }; }),
@@ -800,7 +810,7 @@
         stroke: '#FFF7D6', strokeThickness: 7,
       }).setOrigin(0.5).setDepth(DEPTH.ui);
 
-      this.subtitleText = this.add.text(this.L.subtitle.x, this.L.subtitle.y, '绕森林一圈 · 回到彩旗终点', {
+      this.subtitleText = this.add.text(this.L.subtitle.x, this.L.subtitle.y, '绕森林两圈 · 回到彩旗终点', {
         fontFamily: FONT, fontSize: '15px', color: '#77715C',
       }).setOrigin(0.5).setDepth(DEPTH.ui);
 
@@ -826,8 +836,8 @@
         fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#4A3A2E',
       }).setOrigin(0.5).setDepth(DEPTH.panel + 5);
 
-      this.progressText = this.add.text(this.L.progress.x, this.L.progress.y, '小蓝熊 0 / 18   ·   小狐狸 0 / 18', {
-        fontFamily: FONT, fontSize: '13px', color: '#816C54',
+      this.progressText = this.add.text(this.L.progress.x, this.L.progress.y, '小蓝熊 第1圈 0/18   ·   小狐狸 第1圈 0/18', {
+        fontFamily: FONT, fontSize: '12.5px', color: '#816C54',
       }).setOrigin(0.5).setDepth(DEPTH.panel + 5);
 
       this.effectText = this.add.text(this.L.effect.x, this.L.effect.y, '', {
@@ -852,7 +862,7 @@
         stroke: '#3C7599', strokeThickness: 3,
       }).setOrigin(0.5).setDepth(DEPTH.control + 3);
 
-      this.hintText = this.add.text(this.L.hint.x, this.L.hint.y, '轮流摇骰子，先绕回彩旗终点就赢啦', {
+      this.hintText = this.add.text(this.L.hint.x, this.L.hint.y, '轮流摇骰子，先绕森林两圈回彩旗就赢啦', {
         fontFamily: FONT, fontSize: '14px', color: '#876A4D',
       }).setOrigin(0.5).setDepth(DEPTH.control + 2);
       this.hint2Text = this.add.text(this.L.hint2.x, this.L.hint2.y, '踩到 +1、-1 或暂停格，会有小惊喜', {
@@ -924,7 +934,7 @@
 
     progressCenter(progress) {
       const p = clamp(progress, 0, FINISH_PROGRESS);
-      return p >= FINISH_PROGRESS ? this.tileCenter(0) : this.tileCenter(p);
+      return this.tileCenter(p);
     }
     // -------------------------------------------------- 输入与重置
     onPointerDown(p) {
@@ -1040,6 +1050,7 @@
         i: 0,
         t: 0,
         mode: mode || 'main',
+        startProgress: from,
       };
       return true;
     }
@@ -1068,18 +1079,20 @@
         this.endGame(actor);
         return;
       }
+      const crossedLap = m.startProgress < TILE_COUNT && this.positions[actor] >= TILE_COUNT;
       if (m.mode === 'main') {
-        this.applyLanding(actor, this.positions[actor]);
+        this.applyLanding(actor, this.positions[actor], crossedLap);
         return;
       }
       this.phase = 'effect';
       this.effect = {
-        kind: 'plain', actor: actor, text: '',
-        t: 0, dur: PLAIN_SEC, action: 'finish',
+        kind: 'plain', actor: actor,
+        text: crossedLap ? (actor === 'player' ? '小蓝熊冲过起点，进入第2圈！' : '小狐狸冲过起点，进入第2圈！') : '',
+        t: 0, dur: crossedLap ? 0.68 : PLAIN_SEC, action: 'finish',
       };
     }
 
-    applyLanding(actor, tileIndex) {
+    applyLanding(actor, tileIndex, crossedLap) {
       if (this.winner) return 'over';
       if (actor !== 'player' && actor !== 'ai') return 'invalid';
       const index = Math.round(Number(tileIndex));
@@ -1093,8 +1106,9 @@
       this.phase = 'effect';
       if (!sp) {
         this.effect = {
-          kind: 'plain', actor: actor, text: '走到第 ' + at + ' 格啦',
-          t: 0, dur: PLAIN_SEC, action: 'finish',
+          kind: 'plain', actor: actor,
+          text: crossedLap ? who + '冲过起点，进入第2圈！' : '走到第 ' + at + ' 格啦',
+          t: 0, dur: crossedLap ? 0.68 : PLAIN_SEC, action: 'finish',
         };
         return 'plain';
       }
@@ -1161,7 +1175,7 @@
       const player = actor === 'player';
       this.resultTitle.setText(player ? '小蓝熊赢啦！' : '小狐狸先到啦！');
       this.resultTitle.setColor(player ? '#4D3928' : '#5A4A3B');
-      this.resultSub.setText(player ? '绕森林一整圈，回到了彩旗终点！' : '这次差一点点，再走一圈吧～');
+      this.resultSub.setText(player ? '绕森林两圈，回到了彩旗终点！' : '这次差一点点，再来一次吧～');
       this.resultAvatarG.clear();
       drawCharacter(this.resultAvatarG, player ? 'player' : 'ai', WIDTH / 2, 456, 1.48, false, 0);
       if (player) {
@@ -1355,7 +1369,7 @@
     renderTokens() {
       const g = this.tokensG;
       g.clear();
-      const sameTile = this.positions.player === this.positions.ai && !this.winner;
+      const sameTile = this.positions.player % TILE_COUNT === this.positions.ai % TILE_COUNT && !this.winner;
       const pvp = this.visualPoint('player');
       const avp = this.visualPoint('ai');
       const activeActor = this.phase === 'over' ? null : this.turn;
@@ -1363,8 +1377,8 @@
         pvp.x -= 19;
         avp.x += 19;
       } else if (!this.move) {
-        if (specialAt(this.positions.player)) pvp.x -= 14;
-        if (specialAt(this.positions.ai)) avp.x -= 14;
+        if (specialAt(this.positions.player % TILE_COUNT)) pvp.x -= 14;
+        if (specialAt(this.positions.ai % TILE_COUNT)) avp.x -= 14;
       }
       drawCharacter(g, 'player', pvp.x, pvp.y + 26, 0.55, activeActor === 'player', this.clock);
       drawCharacter(g, 'ai', avp.x, avp.y + 26, 0.55, activeActor === 'ai', this.clock);
@@ -1396,10 +1410,10 @@
       } else {
         this.turnText.setText(this.phase === 'rolling' ? '小蓝熊摇骰子…' : this.phase === 'moving' ? '小蓝熊在走…' : '轮到小蓝熊啦');
       }
-      const pp = this.positions.player;
-      const ap = this.positions.ai;
+      const pp = progressParts(this.positions.player);
+      const ap = progressParts(this.positions.ai);
       this.progressText.setText(
-        '小蓝熊 ' + Math.min(pp, FINISH_PROGRESS) + ' / 18    ·    小狐狸 ' + Math.min(ap, FINISH_PROGRESS) + ' / 18'
+        '小蓝熊 第' + pp.lap + '圈 ' + pp.step + '/18   ·   小狐狸 第' + ap.lap + '圈 ' + ap.step + '/18'
       );
     }
 
@@ -1447,8 +1461,10 @@
 
       this.playerNameText.setText('小蓝熊（你）');
       this.aiNameText.setText('小狐狸');
-      this.playerProgressText.setText(this.positions.player >= FINISH_PROGRESS ? '到终点啦！' : '第 ' + this.positions.player + ' 格');
-      this.aiProgressText.setText(this.positions.ai >= FINISH_PROGRESS ? '到终点啦！' : '第 ' + this.positions.ai + ' 格');
+      const pp = progressParts(this.positions.player);
+      const ap = progressParts(this.positions.ai);
+      this.playerProgressText.setText(this.positions.player >= FINISH_PROGRESS ? '两圈完成啦！' : '第' + pp.lap + '圈 · ' + pp.step + '/18');
+      this.aiProgressText.setText(this.positions.ai >= FINISH_PROGRESS ? '两圈完成啦！' : '第' + ap.lap + '圈 · ' + ap.step + '/18');
       if (this.skip.player > 0 && this.turn === 'player') this.playerProgressText.setText('下一回合休息');
       if (this.skip.ai > 0 && this.turn === 'ai') this.aiProgressText.setText('下一回合休息');
 
