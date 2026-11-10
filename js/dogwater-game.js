@@ -1,6 +1,6 @@
 /*
  * 小狗浇花：540x960 竖屏低龄向浇花小游戏。
- * 按住拖动水管，让 8 朵花从干土、花苞到盛开；无计时、无分数、无失败。
+ * 按住拖动水管，让 8 朵花从种子、幼芽、花骨朵到盛开；开花时揭晓普通或稀有花，无计时、无分数、无失败。
  * 全部画面由 Phaser.Graphics 程序化绘制，音效由 WebAudio 合成，不加载素材文件。
  */
 (function () {
@@ -12,8 +12,13 @@
   const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif';
   const TITLE_FONT = '"STKaiti", "KaiTi", "Kaiti SC", "Songti SC", "Microsoft YaHei", serif';
   const FLOWER_COUNT = 8;
-  const WATER_TO_BUD = 0.45;
+  const WATER_TO_SPROUT = 0.28;
+  const WATER_TO_BUD = 0.62;
   const WATER_TO_BLOOM = 1.0;
+  const RARE_CHANCE = 0.1;
+  const REVEAL_CHIP_SEC = 1.5;
+  const RARE_BANNER_SEC = 1.4;
+  const RARE_BURST_SEC = 0.9;
   const WATER_MAX = 1.2;
   const WATER_RATE = 0.62;
   const SPRAY_RADIUS = 52;
@@ -31,6 +36,7 @@
     dog: 9,
     water: 11,
     fx: 14,
+    reveal: 18,
     ui: 20,
     overlay: 40,
     card: 41,
@@ -45,6 +51,8 @@
     soilDry: 0xBE8B5E,
     soilWet: 0x8A5838,
     soilDark: 0x6A4029,
+    seed: 0x8E5C3A,
+    seedLight: 0xD3A16C,
     leaf: 0x75B95F,
     leafDark: 0x4E8C46,
     stem: 0x5E9B50,
@@ -68,15 +76,57 @@
     greenDark: 0x3F7C4D,
     red: 0xDB7A72,
     white: 0xFFFFFF,
+    gold: 0xE7B84C,
+    goldLight: 0xFFF1B8,
+    rarePink: 0xF3A7D4,
+    rareBlue: 0x8FB8F6,
+    rarePurple: 0xBFA7F0,
   };
 
   const FLOWER_SPECIES = [
-    { key: 'daisy', name: '雏菊', petals: [0xFFF6F8, 0xFFDCE8, 0xFFF0C7], center: 0xFFD44E, count: 8, radius: 21, petalR: 12 },
-    { key: 'tulip', name: '郁金香', petals: [0xFF8FA3, 0xF7A8C4, 0xC7A4F0], center: 0xFFD9A6, count: 3, radius: 17, petalR: 16 },
-    { key: 'sunflower', name: '向日葵', petals: [0xFFC93C, 0xFFB13C, 0xFFE06A], center: 0x8A4F2A, count: 12, radius: 23, petalR: 9 },
-    { key: 'bluebell', name: '蓝铃花', petals: [0x8FB8F6, 0xA8D7FF, 0xB9A7F0], center: 0xFFF3A8, count: 5, radius: 19, petalR: 13 },
-    { key: 'rose', name: '玫瑰', petals: [0xEF7FA8, 0xE86E83, 0xF3A1C0], center: 0xB84A6B, count: 5, radius: 17, petalR: 15 },
+    { key: 'daisy', name: '雏菊', rarity: 'common', petals: [0xFFF6F8, 0xFFDCE8, 0xFFF0C7], center: 0xFFD44E, count: 8, radius: 21, petalR: 12 },
+    { key: 'tulip', name: '郁金香', rarity: 'common', petals: [0xFF8FA3, 0xF7A8C4, 0xC7A4F0], center: 0xFFD9A6, count: 3, radius: 17, petalR: 16 },
+    { key: 'sunflower', name: '向日葵', rarity: 'common', petals: [0xFFC93C, 0xFFB13C, 0xFFE06A], center: 0x8A4F2A, count: 12, radius: 23, petalR: 9 },
+    { key: 'bluebell', name: '蓝铃花', rarity: 'common', petals: [0x8FB8F6, 0xA8D7FF, 0xB9A7F0], center: 0xFFF3A8, count: 5, radius: 19, petalR: 13 },
+    { key: 'rose', name: '玫瑰', rarity: 'common', petals: [0xEF7FA8, 0xE86E83, 0xF3A1C0], center: 0xB84A6B, count: 5, radius: 17, petalR: 15 },
+    { key: 'hydrangea', name: '绣球花', rarity: 'common', petals: [0x78A8EC, 0x9C8EE8, 0xB8D8FF], center: 0xFFF2B0, count: 9, radius: 18, petalR: 8 },
+    { key: 'lotus', name: '荷花', rarity: 'common', petals: [0xFFA8C1, 0xFFC5D6, 0xFFE0B8], center: 0xFFD65E, count: 8, radius: 22, petalR: 11 },
+    { key: 'rainbow', name: '彩虹花', rarity: 'rare', petals: [0xFF7088, 0xFFB84D, 0xFFE45C, 0x73D68E, 0x63BCEE, 0xA48BEA], center: 0xFFE27A, count: 10, radius: 24, petalR: 11, rainbow: true },
+    { key: 'moonflower', name: '月光花', rarity: 'rare', petals: [0xEAF7FF, 0xC7E6FF, 0xB5D2FF], center: 0xFFF4B3, count: 8, radius: 27, petalR: 10.5, moon: true },
+    { key: 'crystal', name: '水晶花', rarity: 'rare', petals: [0xBFF4FF, 0xD9C8FF, 0xA9E7D8], center: 0xFFFFFF, count: 8, radius: 27, petalR: 12, crystal: true },
   ];
+
+  const RARITY_TIERS = {
+    common: { key: 'common', label: '普通', color: 0x5D7B50, badge: 0xEAF4DE, star: 0x9CC77E, stars: 1 },
+    rare: { key: 'rare', label: '稀有', color: 0x8A4E93, badge: 0xFFE2F4, star: 0xF3A7D4, stars: 2 },
+  };
+
+  const SPECIES_BY_RARITY = { common: [], rare: [] };
+  for (let i = 0; i < FLOWER_SPECIES.length; i++) {
+    SPECIES_BY_RARITY[FLOWER_SPECIES[i].rarity].push(FLOWER_SPECIES[i]);
+  }
+
+  function shuffleWith(list, rng) {
+    const random = typeof rng === 'function' ? rng : Math.random;
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      const t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
+
+  function emptyRevealFx() {
+    return { flash: 0, banner: 0, burst: 0, rarity: null, speciesName: '', jump: 0, x: 0, y: 0, colors: [] };
+  }
+
+  function flowerHeadPoint(f) {
+    const stage = clamp(f.stage || 0, 0, 3);
+    const growth = [0, 0.34, 0.62, 1][stage];
+    return { x: f.x, y: lerp(f.baseY - 6, f.y, growth) };
+  }
 
   function computeLayout() {
     const cols = [95, 215, 335, 455];
@@ -99,6 +149,7 @@
       flowerSpots: spots,
       dog: { x: 270, y: DOG_Y, minX: DOG_MIN_X, maxX: DOG_MAX_X },
       hint: { x: 270, y: 895, w: 390, h: 38 },
+      rareBanner: { x: 270, y: 250, w: 340, h: 92 },
       card: { x: 270, y: 480, w: 430, h: 380 },
     };
   }
@@ -265,16 +316,83 @@
     }
   }
 
+  function drawStemAndLeaves(g, f, headX, headY, lean, stage) {
+    const stemTopY = headY + (stage === 1 ? 8 : 12);
+    const stemMidY = lerp(f.baseY - 6, stemTopY, 0.5);
+    const width = stage === 1 ? 3.5 : 5;
+    g.lineStyle(width, C.stem, 1);
+    g.beginPath();
+    g.moveTo(f.x, f.baseY - 3);
+    g.lineTo(f.x - lean * 0.04, stemMidY);
+    g.lineTo(headX, stemTopY);
+    g.strokePath();
+    g.lineStyle(stage === 1 ? 1.4 : 2, lighten(C.stem, 0.25), 0.72);
+    g.lineBetween(f.x + 1, f.baseY - 5, headX + 1, stemTopY);
+
+    if (stage === 1) {
+      g.fillStyle(C.leaf, 1);
+      g.fillEllipse(f.x - 11, stemMidY + 1, 23, 12);
+      g.fillEllipse(f.x + 12, stemMidY + 7, 22, 11);
+      g.fillStyle(C.leafDark, 0.9);
+      g.strokeEllipse(f.x - 11, stemMidY + 1, 23, 12);
+      g.strokeEllipse(f.x + 12, stemMidY + 7, 22, 11);
+      g.fillStyle(C.leaf, 1);
+      g.fillEllipse(headX - 7, headY + 2, 14, 21);
+      g.fillEllipse(headX + 7, headY + 3, 14, 21);
+      g.fillStyle(C.leafDark, 0.92);
+      g.fillEllipse(headX, headY, 7, 15);
+      g.fillStyle(lighten(C.leaf, 0.18), 0.9);
+      g.fillCircle(headX, headY + 3, 2.4);
+      return;
+    }
+
+    g.fillStyle(C.leaf, 0.95);
+    g.fillEllipse(f.x - 16, stemMidY, 27, 11);
+    g.fillStyle(C.leafDark, 0.58);
+    g.fillEllipse(f.x - 23, stemMidY + 1, 10, 4);
+    g.fillStyle(C.leaf, 0.95);
+    g.fillEllipse(f.x + 17, stemMidY + 11, 25, 10);
+    g.fillStyle(C.leafDark, 0.58);
+    g.fillEllipse(f.x + 24, stemMidY + 12, 9, 3.5);
+    g.fillStyle(0x4E8C46, 0.42);
+    g.fillTriangle(f.x - 2, stemMidY + 2, f.x + 11, stemMidY + 2, f.x + 4, stemMidY + 15);
+  }
+
+  function drawRarityAura(g, f, x, y, clock) {
+    if (!f.revealed || f.rarity !== 'rare') return;
+    const colors = f.species.petals;
+    const pulse = 0.55 + Math.sin(clock * 2.6 + f.phase) * 0.14;
+    g.fillStyle(0xFFF4D2, 0.16);
+    g.fillCircle(x, y, 54);
+    g.fillStyle(0xFFFFFF, 0.08);
+    g.fillCircle(x, y, 44);
+    for (let i = 0; i < 12; i++) {
+      const a = clock * 0.55 + i * TAU / 12;
+      const inner = 27 + Math.sin(clock * 3 + i) * 2;
+      const outer = 49 + Math.sin(clock * 2.4 + i * 1.3) * 4;
+      g.lineStyle(i % 3 === 0 ? 3.4 : 1.8, colors[i % colors.length], (i % 3 === 0 ? 0.36 : 0.22) * pulse + 0.08);
+      g.lineBetween(x + Math.cos(a) * inner, y + Math.sin(a) * inner * 0.9, x + Math.cos(a) * outer, y + Math.sin(a) * outer * 0.9);
+    }
+    g.lineStyle(2, C.gold, 0.45 + Math.sin(clock * 2.2) * 0.1);
+    g.strokeCircle(x, y, 41 + Math.sin(clock * 1.9 + f.phase) * 2.5);
+    g.lineStyle(1.2, C.rarePink, 0.4);
+    g.strokeCircle(x, y, 47 + Math.sin(clock * 1.4 + f.phase) * 2);
+    for (let i = 0; i < 5; i++) {
+      const a = -clock * 0.75 + i * TAU / 5;
+      drawStar(g, x + Math.cos(a) * 47, y + Math.sin(a) * 42, 3.4 + Math.sin(clock * 4 + i) * 0.8, colors[(i + 1) % colors.length], 0.82);
+    }
+  }
+
   function drawFlower(g, f, clock, index) {
     const wet = clamp(f.water / WATER_TO_BLOOM, 0, 1);
     const soil = blend(C.soilDry, C.soilWet, wet);
+    const stage = clamp(f.stage || 0, 0, 3);
     const wobble = f.wobble > 0 ? Math.sin(clock * 22 + f.phase) * 8 * f.wobble : 0;
-    const lean = Math.sin(clock * 1.5 + f.phase) * 1.7 + wobble;
-    const droop = f.stage === 0 ? 10 : 0;
+    const growth = [0, 0.34, 0.62, 1][stage];
+    const lean = Math.sin(clock * 1.5 + f.phase) * 1.7 + wobble * growth;
     const headX = f.x + lean;
-    const headY = f.y + droop;
+    const headY = lerp(f.baseY - 6, f.y, growth);
 
-    // 小水洼
     if (f.puddle > 0) {
       g.fillStyle(0x6FC9EA, 0.22 * clamp(f.puddle, 0, 1));
       g.fillEllipse(f.x, f.baseY + 4, 92, 29);
@@ -282,7 +400,6 @@
       g.strokeEllipse(f.x, f.baseY + 4, 62, 17);
     }
 
-    // 土堆：越湿颜色越深
     g.fillStyle(0x4E6F3D, 0.18);
     g.fillEllipse(f.x + 3, f.baseY + 6, 86, 26);
     g.fillStyle(soil, 1);
@@ -294,77 +411,57 @@
     g.fillCircle(f.x + 17, f.baseY - 2, 1.8);
     g.fillCircle(f.x + 26, f.baseY + 7, 1.5);
 
-    // 茎
-    const stemTopY = headY + 12;
-    const stemMidY = lerp(f.baseY - 6, stemTopY, 0.5);
-    const stemMidX = f.x + lean * 0.32;
-    g.lineStyle(5, C.stem, 1);
-    g.beginPath();
-    g.moveTo(f.x, f.baseY - 3);
-    g.lineTo(f.x - lean * 0.04, stemMidY);
-    g.lineTo(headX, stemTopY);
-    g.strokePath();
-    g.lineStyle(2, lighten(C.stem, 0.25), 0.72);
-    g.lineBetween(f.x + 1, f.baseY - 5, headX + 1, stemTopY);
+    if (stage === 0) {
+      g.lineStyle(1.1, darken(soil, 0.2), 0.55);
+      g.lineBetween(f.x - 25, f.baseY - 1, f.x - 12, f.baseY + 2);
+      g.lineBetween(f.x + 15, f.baseY + 1, f.x + 26, f.baseY - 2);
+      g.fillStyle(0x4E6F3D, 0.18);
+      g.fillEllipse(f.x + 1, f.baseY - 7, 25, 11);
+      g.fillStyle(C.seed, 1);
+      g.fillEllipse(f.x - 2, f.baseY - 6, 18, 11);
+      g.fillStyle(C.seedLight, 0.9);
+      g.fillEllipse(f.x - 5, f.baseY - 8, 9, 4);
+      g.lineStyle(1.2, darken(C.seed, 0.25), 0.72);
+      g.lineBetween(f.x + 1, f.baseY - 11, f.x + 5, f.baseY - 4);
+      if (stage === 0 && f.sparkle > 0) {
+        drawStar(g, f.x - 18, f.baseY - 12, 3.2, C.waterLight, clamp(f.sparkle, 0, 1));
+      }
+      return;
+    }
 
-    // 叶片
-    const leafLift = f.stage === 0 ? 5 : 0;
-    g.fillStyle(C.leaf, 0.95);
-    g.fillEllipse(f.x - 16, stemMidY + leafLift, 27, 11);
-    g.fillStyle(C.leafDark, 0.58);
-    g.fillEllipse(f.x - 23, stemMidY + leafLift + 1, 10, 4);
-    g.fillStyle(C.leaf, 0.95);
-    g.fillEllipse(f.x + 17, stemMidY + 11 - leafLift * 0.4, 25, 10);
-    g.fillStyle(C.leafDark, 0.58);
-    g.fillEllipse(f.x + 24, stemMidY + 12 - leafLift * 0.4, 9, 3.5);
-    g.fillStyle(0x4E8C46, 0.42);
-    g.fillTriangle(f.x - 2, stemMidY + 2, f.x + 11, stemMidY + 2, f.x + 4, stemMidY + 15);
+    drawRarityAura(g, f, headX, headY, clock);
+    drawStemAndLeaves(g, f, headX, headY, lean, stage);
 
-    // 花萼
-    g.fillStyle(C.leafDark, 0.95);
-    g.fillTriangle(headX - 11, headY + 15, headX + 11, headY + 15, headX, headY - 1);
-    g.fillStyle(lighten(C.leaf, 0.12), 0.95);
-    g.fillTriangle(headX - 7, headY + 14, headX, headY + 2, headX - 2, headY + 16);
-    g.fillTriangle(headX + 7, headY + 14, headX, headY + 2, headX + 2, headY + 16);
-
-    const species = f.species;
-    const petal = f.petalColor;
-
-    if (f.stage === 0) {
-      const budColor = blend(petal, C.leaf, 0.2);
+    if (stage === 1) {
+      g.fillStyle(lighten(C.leaf, 0.12), 0.75);
+      g.fillCircle(headX, headY + 4, 3.2);
+    } else if (stage === 2) {
+      const budColor = 0x74A95B;
       g.fillStyle(budColor, 1);
-      g.fillEllipse(headX - 4, headY + 2, 18, 28);
-      g.fillStyle(lighten(budColor, 0.18), 0.9);
-      g.fillEllipse(headX + 5, headY - 2, 15, 25);
-      g.lineStyle(1.5, darken(budColor, 0.18), 0.75);
-      g.strokeEllipse(headX - 4, headY + 2, 18, 28);
-      g.fillStyle(C.leafDark, 0.95);
-      g.fillTriangle(headX - 10, headY + 17, headX + 10, headY + 17, headX, headY + 6);
-    } else if (f.stage === 1) {
-      g.fillStyle(blend(petal, C.white, 0.12), 1);
-      g.fillCircle(headX - 9, headY - 3, 10);
-      g.fillCircle(headX + 9, headY - 3, 10);
-      g.fillCircle(headX, headY - 13, 11);
-      g.fillCircle(headX, headY + 5, 9);
-      g.fillStyle(lighten(petal, 0.34), 0.95);
-      g.fillCircle(headX - 2, headY - 10, 6);
-      g.fillStyle(species.center, 1);
-      g.fillCircle(headX, headY - 1, 6);
-      g.fillStyle(0xFFFFFF, 0.45);
-      g.fillCircle(headX - 2, headY - 3, 2);
+      g.fillEllipse(headX - 3, headY + 2, 18, 28);
+      g.fillStyle(lighten(budColor, 0.2), 0.95);
+      g.fillEllipse(headX + 5, headY - 1, 14, 25);
+      g.lineStyle(1.4, darken(budColor, 0.2), 0.75);
+      g.strokeEllipse(headX - 3, headY + 2, 18, 28);
+      g.fillStyle(C.leafDark, 0.98);
+      g.fillTriangle(headX - 11, headY + 17, headX + 11, headY + 17, headX, headY + 5);
+      g.fillTriangle(headX - 9, headY + 4, headX + 9, headY + 4, headX, headY + 16);
+      g.lineStyle(1.2, lighten(C.leaf, 0.3), 0.65);
+      g.lineBetween(headX - 4, headY - 7, headX + 2, headY - 16);
     } else {
-      drawBloom(g, headX, headY, f, species, petal);
+      drawBloom(g, headX, headY, f, f.species, f.petalColor, clock);
     }
 
     if (f.sparkle > 0) {
       const a = clamp(f.sparkle, 0, 1);
-      drawStar(g, headX - 35, headY - 18, 5 + a * 3, 0xFFF6C9, a);
-      drawStar(g, headX + 36, headY - 26, 4 + a * 2, 0xFFFFFF, a * 0.9);
-      drawStar(g, headX + 25, headY + 28, 3 + a * 2, 0xFFE7A3, a * 0.8);
+      const boost = f.rarity === 'rare' ? 1.55 : 1;
+      drawStar(g, headX - 35, headY - 18, (5 + a * 3) * boost, 0xFFF6C9, a);
+      drawStar(g, headX + 36, headY - 26, (4 + a * 2) * boost, 0xFFFFFF, a * 0.9);
+      drawStar(g, headX + 25, headY + 28, (3 + a * 2) * boost, 0xFFE7A3, a * 0.8);
     }
   }
 
-  function drawBloom(g, x, y, f, species, petal) {
+  function drawBloom(g, x, y, f, species, petal, clock) {
     if (species.key === 'tulip') {
       g.fillStyle(petal, 1);
       g.fillEllipse(x - 15, y - 2, 23, 31);
@@ -388,7 +485,134 @@
       g.fillCircle(x + 2, y + 2, 7);
       return;
     }
-
+    if (species.key === 'hydrangea') {
+      const florets = [[0,-12],[-10,-5],[10,-5],[-7,7],[7,7],[0,1],[-15,7],[15,7],[0,-22]];
+      for (let i = 0; i < florets.length; i++) {
+        const fx = x + florets[i][0];
+        const fy = y + florets[i][1];
+        const col = species.petals[i % species.petals.length];
+        g.fillStyle(col, 1);
+        g.fillCircle(fx - 3, fy, 4.3);
+        g.fillCircle(fx + 3, fy, 4.3);
+        g.fillCircle(fx, fy - 4, 4.3);
+        g.fillCircle(fx, fy + 4, 4.3);
+        g.fillStyle(lighten(col, 0.38), 0.9);
+        g.fillCircle(fx, fy, 2.2);
+      }
+      return;
+    }
+    if (species.key === 'lotus') {
+      for (let layer = 0; layer < 2; layer++) {
+        const petals = 8;
+        const radius = layer === 0 ? 27 : 17;
+        for (let i = 0; i < petals; i++) {
+          const a = i * TAU / petals + layer * 0.2;
+          const tipX = x + Math.cos(a) * radius;
+          const tipY = y + Math.sin(a) * radius * 0.8;
+          const nx = -Math.sin(a) * (layer ? 5 : 7);
+          const ny = Math.cos(a) * (layer ? 5 : 7);
+          g.fillStyle(layer ? lighten(petal, 0.2) : (i % 2 ? lighten(petal, 0.08) : petal), 1);
+          g.fillTriangle(x + nx, y + ny, x - nx, y - ny, tipX, tipY);
+        }
+      }
+      g.fillStyle(species.center, 1);
+      g.fillCircle(x, y, 8);
+      g.fillStyle(0xFFF5C8, 0.8);
+      g.fillCircle(x - 2, y - 2, 3);
+      return;
+    }
+    if (species.key === 'rainbow') {
+      const rot = clock * 0.5;
+      g.fillStyle(0xFFF7D8, 0.16);
+      g.fillCircle(x, y, 42);
+      for (let i = 0; i < 12; i++) {
+        const a = rot + i * TAU / 12;
+        const nx = -Math.sin(a) * 7.4;
+        const ny = Math.cos(a) * 7.4;
+        const tipX = x + Math.cos(a) * (species.radius + 9);
+        const tipY = y + Math.sin(a) * (species.radius + 9) * 0.92;
+        const color = species.petals[i % species.petals.length];
+        g.fillStyle(color, 1);
+        g.fillTriangle(x + nx, y + ny, x - nx, y - ny, tipX, tipY);
+        g.fillStyle(lighten(color, 0.38), 0.9);
+        g.fillCircle(x + Math.cos(a) * 13, y + Math.sin(a) * 13, 3.1);
+      }
+      g.fillStyle(0xFFF7CF, 1);
+      g.fillCircle(x, y, 13);
+      g.fillStyle(0xFFD95E, 0.92);
+      g.fillCircle(x, y, 8);
+      drawStar(g, x, y, 7, 0xFFFFFF, 0.95);
+      for (let i = 0; i < 3; i++) {
+        const a = -clock * 0.8 + i * TAU / 3;
+        drawStar(g, x + Math.cos(a) * 45, y + Math.sin(a) * 38, 3.6, 0xFFFFFF, 0.78);
+      }
+      return;
+    }
+    if (species.key === 'moonflower') {
+      const rot = -clock * 0.24;
+      g.fillStyle(0xBFE8FF, 0.22);
+      g.fillCircle(x, y, 45);
+      for (let i = 0; i < 6; i++) {
+        const a = rot + i * TAU / 6;
+        const baseX = x + Math.cos(a) * 17;
+        const baseY = y + Math.sin(a) * 16;
+        const nx = -Math.sin(a) * 8.5;
+        const ny = Math.cos(a) * 8.5;
+        const tipX = x + Math.cos(a) * 35;
+        const tipY = y + Math.sin(a) * 33;
+        g.fillStyle(i % 2 ? lighten(petal, 0.2) : petal, 0.97);
+        g.fillTriangle(baseX + nx, baseY + ny, baseX - nx, baseY - ny, tipX, tipY);
+        g.fillStyle(0xFFFFFF, 0.55);
+        g.fillCircle(x + Math.cos(a) * 23, y + Math.sin(a) * 22, 3.2);
+        drawStar(g, tipX, tipY, 2.8, 0xFFFFFF, 0.75);
+      }
+      g.fillStyle(0xFFF2A8, 1);
+      g.fillCircle(x, y, 16);
+      g.fillStyle(0x93C7EE, 1);
+      g.fillCircle(x + 7.5, y - 4, 13);
+      g.lineStyle(1.6, 0xFFE58A, 0.95);
+      g.strokeCircle(x, y, 16.5);
+      g.fillStyle(0xC7E6FF, 0.9);
+      g.fillCircle(x - 3.5, y + 6, 2.4);
+      drawStar(g, x - 28, y - 20, 3.6, 0xFFFFFF, 0.9);
+      drawStar(g, x + 28, y + 18, 2.8, 0xC7E6FF, 0.86);
+      return;
+    }
+    if (species.key === 'crystal') {
+      const rot = clock * 0.3;
+      g.fillStyle(0xD9F7FF, 0.2);
+      g.fillCircle(x, y, 44);
+      for (let layer = 0; layer < 2; layer++) {
+        for (let i = 0; i < species.count; i++) {
+          const a = rot + i * TAU / species.count + layer * Math.PI / species.count;
+          const len = layer ? species.radius * 0.56 : species.radius + 7;
+          const nx = -Math.sin(a) * (layer ? 5 : 8);
+          const ny = Math.cos(a) * (layer ? 5 : 8);
+          const midX = x + Math.cos(a) * len * 0.55;
+          const midY = y + Math.sin(a) * len * 0.55;
+          const tipX = x + Math.cos(a) * len;
+          const tipY = y + Math.sin(a) * len;
+          const color = species.petals[(i + layer) % species.petals.length];
+          g.fillStyle(layer ? lighten(color, 0.34) : color, layer ? 0.9 : 0.96);
+          g.fillTriangle(x, y, midX + nx, midY + ny, tipX, tipY);
+          g.fillTriangle(x, y, midX - nx, midY - ny, tipX, tipY);
+          if (!layer) {
+            g.lineStyle(1, 0xFFFFFF, 0.64);
+            g.lineBetween(midX, midY, tipX, tipY);
+          }
+        }
+      }
+      g.fillStyle(0xFFFFFF, 0.96);
+      g.fillCircle(x, y, 11);
+      g.fillStyle(0x9FEBFF, 0.92);
+      g.fillCircle(x, y, 5.5);
+      drawStar(g, x, y, 6, 0xFFFFFF, 0.95);
+      for (let i = 0; i < 4; i++) {
+        const a = clock * 0.9 + i * TAU / 4;
+        drawStar(g, x + Math.cos(a) * 42, y + Math.sin(a) * 36, 3.2, species.petals[i % species.petals.length], 0.85);
+      }
+      return;
+    }
     const count = species.count;
     const start = species.key === 'bluebell' ? -Math.PI * 0.85 : 0;
     for (let i = 0; i < count; i++) {
@@ -676,15 +900,27 @@
       waterOn: waterOn,
       waterOff: waterOff,
       droplet: function () { tone(780 + Math.random() * 420, 0.05, 0.012, 0, 'sine'); },
+      sprout: function () {
+        tone(392, 0.08, 0.018, 0, 'sine');
+        tone(523.25, 0.12, 0.022, 0.05, 'sine');
+      },
       bud: function () {
         tone(523.25, 0.12, 0.026, 0, 'sine');
         tone(659.25, 0.14, 0.022, 0.06, 'sine');
       },
-      bloom: function (index) {
+      bloom: function (index, rarity) {
+        if (rarity === 'rare') {
+          const rareNotes = [659.25, 783.99, 987.77, 1174.66, 1567.98];
+          for (let i = 0; i < rareNotes.length; i++) {
+            tone(rareNotes[i], 0.55, 0.028, i * 0.055, i % 2 ? 'sine' : 'triangle');
+          }
+          tone(2637, 0.4, 0.01, 0.16, 'sine');
+          return;
+        }
         const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5];
         const n = notes[clamp((index || 1) - 1, 0, notes.length - 1)];
-        tone(n, 0.22, 0.034, 0, 'triangle');
-        tone(n * 1.5, 0.2, 0.018, 0.05, 'sine');
+        tone(n, 0.22, 0.03, 0, 'triangle');
+        tone(n * 1.5, 0.2, 0.014, 0.05, 'sine');
       },
       bark: function () {
         sweep(300, 190, 0.12, 0.024, 'triangle');
@@ -708,8 +944,12 @@
         WIDTH: WIDTH,
         HEIGHT: HEIGHT,
         FLOWER_COUNT: FLOWER_COUNT,
+        WATER_TO_SPROUT: WATER_TO_SPROUT,
         WATER_TO_BUD: WATER_TO_BUD,
         WATER_TO_BLOOM: WATER_TO_BLOOM,
+        RARE_CHANCE: RARE_CHANCE,
+        RARE_BURST_SEC: RARE_BURST_SEC,
+        RARITY_TIERS: Object.assign({}, RARITY_TIERS),
         WATER_MAX: WATER_MAX,
         WATER_RATE: WATER_RATE,
         SPRAY_RADIUS: SPRAY_RADIUS,
@@ -732,6 +972,9 @@
       this.liveProps = [];
       this.droplets = [];
       this.confetti = [];
+      this.revealLabels = [];
+      this.rarityCounts = { common: 0, rare: 0 };
+      this.revealFx = emptyRevealFx();
       this.spray = { active: false, pointerId: null, x: 270, y: 390 };
       this.dog = { x: 270, y: DOG_Y, targetX: 270, facing: 1, pose: 'idle' };
       this.flowers = [];
@@ -744,6 +987,8 @@
       this.flowerG = this.add.graphics().setDepth(DEPTH.flowers);
       this.waterG = this.add.graphics().setDepth(DEPTH.water);
       this.fxG = this.add.graphics().setDepth(DEPTH.fx);
+      this.revealG = this.add.graphics().setDepth(DEPTH.reveal);
+      this.bannerRoot = this.add.container(L.rareBanner.x, L.rareBanner.y).setDepth(DEPTH.reveal + 1).setVisible(false);
       this.hudG = this.add.graphics().setDepth(DEPTH.ui);
 
       this.dogG = this.add.graphics();
@@ -752,6 +997,7 @@
 
       this.buildUi();
       this.buildCard();
+      this.buildRevealBanner();
 
       this.renderReady = true;
       this.render();
@@ -781,26 +1027,42 @@
       this.dog.pose = 'idle';
       this.droplets.length = 0;
       this.confetti.length = 0;
+      this.revealLabels.length = 0;
+      this.rarityCounts = { common: 0, rare: 0 };
+      this.revealFx = emptyRevealFx();
       this.sprayTick = 0;
       this.clearLiveProps();
+      this.clearRevealFx();
       this.makeFlowers();
       this.updateHud();
       this.hideCard();
     }
 
-    makeFlowers() {
-      const distinct = shuffle(FLOWER_SPECIES).slice(0, 3);
-      const picked = distinct.slice();
-      while (picked.length < FLOWER_COUNT) {
-        picked.push(FLOWER_SPECIES[Math.floor(Math.random() * FLOWER_SPECIES.length)]);
+    makeFlowers(randomFn) {
+      const rng = typeof randomFn === 'function' ? randomFn : Math.random;
+      const commonPool = shuffleWith(SPECIES_BY_RARITY.common, rng);
+      const rarePool = shuffleWith(SPECIES_BY_RARITY.rare, rng);
+      let commonIndex = 0;
+      let rareIndex = 0;
+      const chosen = [];
+      for (let i = 0; i < FLOWER_COUNT; i++) {
+        if (rng() < RARE_CHANCE) {
+          chosen.push(rarePool[rareIndex % rarePool.length]);
+          rareIndex++;
+        } else {
+          chosen.push(commonPool[commonIndex % commonPool.length]);
+          commonIndex++;
+        }
       }
-      const ordered = shuffle(picked);
+      const ordered = shuffleWith(chosen, rng);
       this.flowers = L.flowerSpots.map(function (spot, i) {
-        const species = ordered[i % ordered.length];
-        const petalColor = species.petals[(i + Math.floor(Math.random() * species.petals.length)) % species.petals.length];
+        const species = ordered[i];
+        const petalIndex = Math.floor(rng() * species.petals.length) % species.petals.length;
+        const petalColor = species.petals[petalIndex];
         return {
           id: i,
           species: species,
+          rarity: species.rarity,
           petalColor: petalColor,
           x: spot.x,
           y: spot.y,
@@ -808,13 +1070,16 @@
           water: 0,
           stage: 0,
           bloomed: false,
+          revealed: false,
+          revealT: 0,
           wobble: 0,
           puddle: 0,
           sparkle: 0,
-          phase: i * 0.83 + Math.random() * 0.35,
+          phase: i * 0.83 + rng() * 0.35,
         };
       });
       this.bloomedCount = 0;
+      this.rarityCounts = { common: 0, rare: 0 };
       this.updateHud();
     }
 
@@ -839,7 +1104,7 @@
       }).setOrigin(0.5).setDepth(DEPTH.ui + 1);
       this.titleText.setShadow(0, 3, '#B6D79E', 3, true, true);
 
-      this.subtitleText = this.add.text(L.subtitle.x, L.subtitle.y, '按住拖动水管，让每朵花都喝饱水', {
+      this.subtitleText = this.add.text(L.subtitle.x, L.subtitle.y, '按住拖动水管，看看种子会开出什么花', {
         fontFamily: FONT, fontSize: '13px', color: '#58784F',
         stroke: '#F8FFEF', strokeThickness: 3,
       }).setOrigin(0.5).setDepth(DEPTH.ui + 1);
@@ -848,7 +1113,7 @@
         fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#4E6B45',
       }).setOrigin(0.5).setDepth(DEPTH.ui + 1);
 
-      this.hintText = this.add.text(L.hint.x, L.hint.y, '按住拖动水管，每朵花都要喝饱', {
+      this.hintText = this.add.text(L.hint.x, L.hint.y, '浇水等它长大开花', {
         fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#5F724F',
       }).setOrigin(0.5).setDepth(DEPTH.ui + 1);
     }
@@ -881,7 +1146,7 @@
       g.fillStyle(0x92CE8A, 0.58);
       g.fillRoundedRect(-99, 87, 198, 18, 9);
 
-      const title = this.add.text(0, -145, '花园喝饱啦！', {
+      this.cardTitle = this.add.text(0, -145, '花园喝饱啦！', {
         fontFamily: FONT, fontSize: '28px', fontStyle: 'bold', color: '#4E6B45',
       }).setOrigin(0.5);
       const number = this.add.text(0, -28, '8', {
@@ -891,13 +1156,51 @@
       const small = this.add.text(0, 38, '8 朵花都开啦', {
         fontFamily: FONT, fontSize: '17px', fontStyle: 'bold', color: '#6A7656',
       }).setOrigin(0.5);
+      this.cardSummary = this.add.text(0, 67, '普通 0 · 稀有 0', {
+        fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#8A765C',
+      }).setOrigin(0.5);
       const button = this.add.text(0, 110, '再玩一次', {
         fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: '#FFFFFF',
       }).setOrigin(0.5);
       const tap = this.add.text(0, 157, '点屏幕也可以', {
         fontFamily: FONT, fontSize: '12px', color: '#91A07E',
       }).setOrigin(0.5);
-      this.cardRoot.add([g, title, number, small, button, tap]);
+      this.cardRoot.add([g, this.cardTitle, number, small, this.cardSummary, button, tap]);
+    }
+
+    buildRevealBanner() {
+      const b = L.rareBanner;
+      const g = this.add.graphics();
+      g.fillStyle(0x5E3A66, 0.22);
+      g.fillRoundedRect(-b.w / 2 + 4, -b.h / 2 + 7, b.w, b.h, 25);
+      drawRounded(g, -b.w / 2, -b.h / 2, b.w, b.h, 25, C.cream, C.gold, 1, 1, 3);
+      g.fillStyle(0xFFF1B8, 0.62);
+      g.fillRoundedRect(-b.w / 2 + 9, -b.h / 2 + 9, b.w - 18, 25, 13);
+      const colors = [C.rarePink, C.gold, C.rareBlue, C.leaf, C.rarePurple];
+      for (let i = 0; i < colors.length; i++) {
+        drawStar(g, -b.w / 2 + 18 + i * 14, b.h / 2 - 16, 3.1, colors[i], 0.9);
+      }
+      this.bannerTitle = this.add.text(0, -14, '稀有绽放！', {
+        fontFamily: FONT, fontSize: '26px', fontStyle: 'bold', color: '#7A3E86',
+        stroke: '#FFF8EA', strokeThickness: 4,
+      }).setOrigin(0.5);
+      this.bannerName = this.add.text(0, 23, '', {
+        fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: '#9A6B18',
+      }).setOrigin(0.5);
+      this.bannerRoot.add([g, this.bannerTitle, this.bannerName]);
+      this.bannerRoot.setVisible(false).setAlpha(0);
+    }
+
+    clearRevealFx() {
+      this.revealFx = emptyRevealFx();
+      if (this.revealG) {
+        this.revealG.clear();
+        this.revealG.setVisible(false);
+      }
+      if (this.bannerRoot) {
+        this.bannerRoot.setVisible(false).setAlpha(0).setScale(1);
+      }
+      if (this.revealLabels) this.revealLabels.length = 0;
     }
 
     updateHud() {
@@ -915,6 +1218,12 @@
     showCard() {
       if (!this.overlayG || !this.cardRoot) return;
       this.overlayG.setVisible(true);
+      if (this.cardTitle) {
+        this.cardTitle.setText(this.rarityCounts.rare > 0 ? '抽到稀有花啦！' : '花园喝饱啦！');
+      }
+      if (this.cardSummary) {
+        this.cardSummary.setText('普通 ' + this.rarityCounts.common + ' · 稀有 ' + this.rarityCounts.rare);
+      }
       this.cardRoot.setVisible(true).setAlpha(0).setScale(0.88);
       if (this.tweens && this.tweens.add) {
         this.tweens.add({
@@ -936,7 +1245,8 @@
       if (!isFinite(x) || !isFinite(y)) return null;
       for (let i = 0; i < this.flowers.length; i++) {
         const f = this.flowers[i];
-        if (dist(x, y, f.x, f.y + (f.stage === 0 ? 8 : 0)) <= SPRAY_RADIUS + 6) return f;
+        const hp = flowerHeadPoint(f);
+        if (dist(x, y, hp.x, hp.y) <= SPRAY_RADIUS + 6) return f;
       }
       return null;
     }
@@ -984,8 +1294,8 @@
       let count = 0;
       for (let i = 0; i < this.flowers.length; i++) {
         const f = this.flowers[i];
-        const hy = f.y + (f.stage === 0 ? 8 : 0);
-        if (dist(x, y, f.x, hy) <= SPRAY_RADIUS) {
+        const hp = flowerHeadPoint(f);
+        if (dist(x, y, hp.x, hp.y) <= SPRAY_RADIUS) {
           this.waterFlower(i, dt);
           count++;
         }
@@ -997,22 +1307,24 @@
       if (this.phase !== 'play') return null;
       const f = this.flowers[index];
       if (!f || !isFinite(dt) || dt <= 0) return null;
-      const prev = f.stage;
       f.water = Math.min(WATER_MAX, f.water + WATER_RATE * dt);
-      const next = f.water >= WATER_TO_BLOOM ? 2 : (f.water >= WATER_TO_BUD ? 1 : 0);
+      const next = f.water >= WATER_TO_BLOOM ? 3 : (f.water >= WATER_TO_BUD ? 2 : (f.water >= WATER_TO_SPROUT ? 1 : 0));
       if (next > f.stage) {
+        const hp = flowerHeadPoint(f);
         f.stage = next;
         f.wobble = 0.55;
         f.sparkle = 0.65;
-        this.spawnDroplets(f.x, f.y, 5, C.waterLight, 34);
-        if (next === 1) Sound.bud();
+        this.spawnDroplets(hp.x, hp.y, next === 3 ? 7 : 5, C.waterLight, 34);
+        if (next === 1) Sound.sprout();
+        else if (next === 2) Sound.bud();
       }
-      if (f.stage === 2 && !f.bloomed) {
+      if (f.stage === 3 && !f.bloomed) {
+        const hp = flowerHeadPoint(f);
         f.bloomed = true;
-        f.sparkle = 1;
+        f.sparkle = 1.2;
         this.bloomedCount++;
-        this.spawnDroplets(f.x, f.y, 10, 0xFFF3B4, 58);
-        Sound.bloom(this.bloomedCount);
+        this.spawnDroplets(hp.x, hp.y, 10, 0xFFF3B4, 58);
+        this.revealFlower(index);
         this.updateHud();
         this.checkComplete();
       } else if (f.bloomed) {
@@ -1020,6 +1332,61 @@
         f.puddle = Math.max(f.puddle, 0.9);
       }
       return f.stage;
+    }
+
+    revealFlower(index) {
+      const f = this.flowers[index];
+      if (!f || f.revealed) return false;
+      const hp = flowerHeadPoint(f);
+      const tier = RARITY_TIERS[f.rarity] || RARITY_TIERS.common;
+      f.revealed = true;
+      f.revealT = REVEAL_CHIP_SEC;
+      f.sparkle = Math.max(f.sparkle, 1.25);
+      this.rarityCounts[f.rarity] = (this.rarityCounts[f.rarity] || 0) + 1;
+      Sound.bloom(this.bloomedCount, f.rarity);
+      this.spawnRarityBurst(f, hp.x, hp.y);
+      this.showRevealLabel(f, hp.x, hp.y, tier);
+      if (f.rarity === 'rare') {
+        this.revealFx.flash = 0.5;
+        this.revealFx.banner = RARE_BANNER_SEC;
+        this.revealFx.burst = RARE_BURST_SEC;
+        this.revealFx.rarity = 'rare';
+        this.revealFx.speciesName = f.species.name;
+        this.revealFx.jump = 1.0;
+        this.revealFx.x = hp.x;
+        this.revealFx.y = hp.y;
+        this.revealFx.colors = f.species.petals.slice();
+        if (this.bannerTitle) this.bannerTitle.setText('稀有绽放！');
+        if (this.bannerName) this.bannerName.setText(f.species.name + ' 出现了');
+        this.spawnConfetti(26);
+        Sound.bark();
+      }
+      return true;
+    }
+
+    spawnRarityBurst(f, x, y) {
+      if (f.rarity === 'rare') {
+        const colors = f.species.petals.concat([C.gold, C.rarePink, 0xFFFFFF]);
+        for (let i = 0; i < colors.length; i++) this.spawnDroplets(x, y, 6, colors[i], 86);
+        this.spawnDroplets(x, y, 10, C.goldLight, 70);
+      } else {
+        this.spawnDroplets(x, y, 4, 0xFFF8D8, 34);
+      }
+    }
+
+    showRevealLabel(f, x, y, tier) {
+      const isRare = f.rarity === 'rare';
+      const color = isRare ? '#7A3E86' : '#557A4D';
+      const label = this.add.text(x, y - 54, tier.label + '花 · ' + f.species.name, {
+        fontFamily: FONT,
+        fontSize: isRare ? '15px' : '12px',
+        fontStyle: 'bold',
+        color: color,
+        stroke: '#FFF8EA',
+        strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(DEPTH.fx + 2);
+      this.trackObj(label);
+      this.revealLabels.push({ obj: label, life: REVEAL_CHIP_SEC, total: REVEAL_CHIP_SEC, baseY: y - 54 });
     }
 
     checkComplete() {
@@ -1085,6 +1452,7 @@
       if (!isFinite(dt) || dt <= 0) return;
       dt = Math.min(dt, 0.1);
       this.clock += dt;
+      this.stepReveal(dt);
 
       if (this.phase === 'play' && this.spray.active) {
         this.updateDogTarget();
@@ -1119,9 +1487,35 @@
         f.wobble = Math.max(0, f.wobble - dt * 2.2);
         f.puddle = Math.max(0, f.puddle - dt * 0.42);
         f.sparkle = Math.max(0, f.sparkle - dt * 1.35);
+        f.revealT = Math.max(0, (f.revealT || 0) - dt);
       }
       this.updateParticles(dt);
       if (this.renderReady) this.render();
+    }
+
+    stepReveal(dt) {
+      if (!this.revealFx) return;
+      if (this.revealFx.flash > 0) this.revealFx.flash = Math.max(0, this.revealFx.flash - dt);
+      if (this.revealFx.burst > 0) this.revealFx.burst = Math.max(0, this.revealFx.burst - dt);
+      if (this.revealFx.banner > 0) this.revealFx.banner = Math.max(0, this.revealFx.banner - dt);
+      if (this.revealFx.jump > 0) this.revealFx.jump = Math.max(0, this.revealFx.jump - dt);
+      const labels = this.revealLabels || [];
+      for (let i = labels.length - 1; i >= 0; i--) {
+        const item = labels[i];
+        item.life -= dt;
+        const age = item.total - item.life;
+        const fadeIn = clamp(age / 0.14, 0, 1);
+        const fadeOut = clamp(item.life / 0.36, 0, 1);
+        const alpha = Math.min(fadeIn, fadeOut);
+        if (item.obj) {
+          item.obj.setY(item.baseY - age * 14);
+          item.obj.setAlpha(alpha);
+        }
+        if (item.life <= 0) {
+          labels.splice(i, 1);
+          if (item.obj) this.untrackObj(item.obj);
+        }
+      }
     }
 
     updateParticles(dt) {
@@ -1149,6 +1543,9 @@
       if (this.completeTimer > 0 || this.phase === 'over') {
         return -Math.abs(Math.sin(this.clock * 5.5)) * 24;
       }
+      if (this.revealFx && this.revealFx.jump > 0) {
+        return -Math.abs(Math.sin(this.clock * 9)) * 15;
+      }
       return 0;
     }
 
@@ -1171,7 +1568,7 @@
       this.dogG.clear();
       const spraying = this.spray.active && this.phase === 'play';
       const moving = Math.abs(this.dog.targetX - this.dog.x) > 2;
-      const celebrating = this.completeTimer > 0 || this.phase === 'over';
+      const celebrating = this.completeTimer > 0 || this.phase === 'over' || (this.revealFx && this.revealFx.jump > 0);
       drawDogLocal(this.dogG, this.dog, this.clock, spraying, moving, celebrating);
 
       this.waterG.clear();
@@ -1192,6 +1589,61 @@
         } else {
           this.fxG.fillStyle(p.color, a);
           this.fxG.fillEllipse(p.x, p.y, p.size * 1.8, p.size);
+        }
+      }
+      this.renderReveal();
+    }
+
+    renderReveal() {
+      if (!this.revealG) return;
+      this.revealG.clear();
+      const fx = this.revealFx || emptyRevealFx();
+      const flash = fx.flash || 0;
+      const burst = fx.burst || 0;
+      const fxX = fx.x || 270;
+      const fxY = fx.y || 390;
+      const colors = fx.colors && fx.colors.length ? fx.colors : [C.gold, C.rarePink, C.rareBlue];
+      if (flash > 0) {
+        const a = clamp(flash / 0.5, 0, 1);
+        this.revealG.setVisible(true);
+        this.revealG.fillStyle(0xFFF4B0, 0.24 * a);
+        this.revealG.fillRect(0, 0, WIDTH, HEIGHT);
+        this.revealG.fillStyle(0xFFFFFF, 0.14 * a);
+        this.revealG.fillRect(0, 0, WIDTH, HEIGHT);
+        this.revealG.fillStyle(0xFFF8D8, 0.3 * a);
+        this.revealG.fillCircle(fxX, fxY, 150 + (1 - a) * 90);
+      }
+      if (burst > 0) {
+        const age = RARE_BURST_SEC - burst;
+        const fade = clamp(burst / RARE_BURST_SEC, 0, 1);
+        this.revealG.setVisible(true);
+        for (let i = 0; i < 14; i++) {
+          const a = this.clock * 0.9 + i * TAU / 14;
+          const inner = 26 + age * 120;
+          const outer = inner + 42 + Math.sin(this.clock * 9 + i) * 9;
+          this.revealG.lineStyle(i % 2 ? 3.8 : 2.2, colors[i % colors.length], 0.42 * fade);
+          this.revealG.lineBetween(fxX + Math.cos(a) * inner, fxY + Math.sin(a) * inner * 0.86, fxX + Math.cos(a) * outer, fxY + Math.sin(a) * outer * 0.86);
+        }
+        this.revealG.lineStyle(3.2, 0xFFFFFF, 0.5 * fade);
+        this.revealG.strokeCircle(fxX, fxY, 28 + age * 150);
+        this.revealG.lineStyle(2, C.gold, 0.55 * fade);
+        this.revealG.strokeCircle(fxX, fxY, 20 + age * 112);
+        for (let i = 0; i < 8; i++) {
+          const a = this.clock * 1.3 + i * TAU / 8;
+          const r = 62 + age * 96 + Math.sin(this.clock * 5 + i) * 5;
+          drawStar(this.revealG, fxX + Math.cos(a) * r, fxY + Math.sin(a) * r * 0.85, 4.2 * (1 - age * 0.55), colors[(i + 2) % colors.length], 0.86 * fade);
+        }
+      }
+      if (flash <= 0 && burst <= 0) this.revealG.setVisible(false);
+      const banner = fx.banner || 0;
+      if (this.bannerRoot) {
+        if (banner > 0) {
+          const elapsed = RARE_BANNER_SEC - banner;
+          const alpha = clamp(Math.min(elapsed / 0.18, banner / 0.38), 0, 1);
+          const scale = 0.9 + 0.1 * clamp(elapsed / 0.22, 0, 1);
+          this.bannerRoot.setVisible(true).setAlpha(alpha).setScale(scale);
+        } else {
+          this.bannerRoot.setVisible(false).setAlpha(0).setScale(1);
         }
       }
     }
