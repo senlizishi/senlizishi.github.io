@@ -26,6 +26,7 @@
   const PULL_SEC = 0.56;
   const REVEAL_SEC = 0.92;
   const WRONG_REVEAL_SEC = 1.6;
+  const WRONG_MODAL_SEC = 0.6;
   const START_BANNER_SEC = 0.8;
   const TAP_LOCK = 0.45;
   const TEAM_MOVE = 18;
@@ -51,6 +52,12 @@
     blueWinSub: '这次差一点点，再来一局吧',
     retry: '再来一局',
     tapRetry: '点屏幕也可以重新开始',
+    wrongTitle: '再看一眼',
+    next: '下一题',
+    seeResult: '看看结果',
+    wrongPick: '你选了 ',
+    wrongHint: '，没关系，下一题再试试',
+    wrongEndHint: '，没关系，看看结果吧',
   });
 
   const C = {
@@ -126,7 +133,7 @@
       redHud: { x: 16, y: 76, w: 154, h: 42 },
       blueHud: { x: 370, y: 76, w: 154, h: 42 },
       goalHint: { x: 270, y: 97 },
-      field: { x: 14, y: 132, w: 512, h: 376, ropeY: 300, groundY: 407 },
+      field: { x: 14, y: 132, w: 512, h: 376, ropeY: 352, groundY: 407 },
       rope: { centerX: 270, left: 44, right: 496, step: ROPE_STEP },
       teamShift: TEAM_MOVE,
       targets: { red: 270 - ROPE_STEP * WIN_STEPS, blue: 270 + ROPE_STEP * WIN_STEPS },
@@ -140,6 +147,8 @@
       readyButton: { x: 270, y: 808, w: 236, h: 64 },
       resultCard: { x: 270, y: 480, w: 430, h: 380 },
       resultButton: { x: 270, y: 594, w: 226, h: 56 },
+      wrongCard: { x: 270, y: 520, w: 440, h: 350 },
+      wrongButton: { x: 270, y: 634, w: 224, h: 58 },
       footer: { x: 270, y: 900 },
     };
   }
@@ -382,7 +391,7 @@
     }
   }
 
-  function drawKid(g, x, y, team, index, lean, hop) {
+  function drawKid(g, x, y, team, index, lean, hop, withHand) {
     const isRed = team === 'red';
     const dir = isRed ? 1 : -1;
     const jersey = isRed ? C.red : C.blue;
@@ -398,7 +407,7 @@
     const bodyX = x + (lean || 0) * 0.36;
     const bodyY = y - 31 - h;
     const handX = x + dir * (23 + index * 2) + (lean || 0) * 0.2;
-    const handY = 300 + (index - 1) * 5 - h * 0.25;
+    const handY = L.field.ropeY + (index - 1) * 4 - h * 0.25;
 
     g.fillStyle(C.shadow, 0.17);
     g.fillEllipse(x, y + 9, 42, 11);
@@ -441,17 +450,29 @@
     g.lineStyle(1.3, 0x835046, 0.55);
     g.lineBetween(headX + dir * 4, headY + 9, headX + dir * 9, headY + 8);
 
+    if (withHand !== false) {
+      g.fillStyle(skin, 1);
+      g.fillCircle(handX, handY, 5);
+      g.fillStyle(0xFFFFFF, 0.28);
+      g.fillCircle(handX - 1, handY - 2, 1.5);
+    }
+  }
+
+  function drawKidHand(g, x, y, team, index, lean, hop) {
+    const dir = team === 'red' ? 1 : -1;
+    const skinColors = [0xFFD6B5, 0xEAB58D, 0xFFE0C3];
+    const skin = skinColors[index % skinColors.length];
+    const handX = x + dir * (23 + index * 2) + (lean || 0) * 0.2;
+    const handY = L.field.ropeY + (index - 1) * 4 - (hop || 0) * 0.25;
     g.fillStyle(skin, 1);
     g.fillCircle(handX, handY, 5);
     g.fillStyle(0xFFFFFF, 0.28);
     g.fillCircle(handX - 1, handY - 2, 1.5);
   }
 
-  function drawRopeAndTargets(g, visualPosition, strain, feedbackKind) {
+  function drawTargetMarks(g) {
     const center = L.rope.centerX;
     const ropeY = L.field.ropeY;
-    const knotX = center - visualPosition * L.rope.step;
-
     for (let side = -1; side <= 1; side += 2) {
       for (let step = 1; step <= WIN_STEPS; step++) {
         const x = center + side * step * L.rope.step;
@@ -464,7 +485,11 @@
     }
     drawFlag(g, L.targets.red, 218, C.red);
     drawFlag(g, L.targets.blue, 218, C.blue);
+  }
 
+  function drawRope(g, visualPosition, strain, feedbackKind) {
+    const ropeY = L.field.ropeY;
+    const knotX = L.rope.centerX - visualPosition * L.rope.step;
     g.lineStyle(10, C.ropeDark, 0.9);
     g.lineBetween(L.rope.left, ropeY, L.rope.right, ropeY);
     g.lineStyle(6, C.rope, 1);
@@ -503,6 +528,7 @@
         CARD_ROWS: CARD_ROWS,
         REVEAL_SEC: REVEAL_SEC,
         WRONG_REVEAL_SEC: WRONG_REVEAL_SEC,
+        WRONG_MODAL_SEC: WRONG_MODAL_SEC,
         TAP_LOCK: TAP_LOCK,
         LAYOUT: JSON.parse(JSON.stringify(L)),
         TEXT: Object.assign({}, TEXT),
@@ -529,6 +555,7 @@
       this.startBannerT = 0;
       this.tapLockUntil = 0;
       this.cardSelected = -1;
+      this.wrongModalOpen = false;
       this.liveProps = [];
       this.fxParticles = [];
       this.textObjs = [];
@@ -602,6 +629,12 @@
       this.overStatsText = add(this, 270, 492, '', 17, '#8A6548', { weight: 'bold', depth: DEPTH.overlayText });
       this.retryText = add(this, L.resultButton.x, L.resultButton.y, TEXT.retry, 21, '#FFF8E8', { weight: 'bold', depth: DEPTH.overlayText });
       this.overHintText = add(this, 270, 642, TEXT.tapRetry, 13, '#92765C', { depth: DEPTH.overlayText });
+
+      this.wrongTitleText = add(this, 270, 434, '', 28, '#A23B43', { title: true, weight: 'bold', depth: DEPTH.overlayText });
+      this.wrongEquationText = add(this, 270, 486, '', 40, '#563B2D', { weight: 'bold', depth: DEPTH.overlayText });
+      this.wrongAnswerText = add(this, 270, 530, '', 19, '#3E7A40', { weight: 'bold', depth: DEPTH.overlayText });
+      this.wrongHintText = add(this, 270, 562, '', 14, '#87654A', { depth: DEPTH.overlayText });
+      this.wrongButtonText = add(this, L.wrongButton.x, L.wrongButton.y, TEXT.next, 21, '#FFF8E8', { weight: 'bold', depth: DEPTH.overlayText });
     }
 
     resetRound() {
@@ -623,6 +656,7 @@
       this.startBannerT = 0;
       this.tapLockUntil = 0;
       this.cardSelected = -1;
+      this.wrongModalOpen = false;
       this.fxParticles.length = 0;
       this.clearLiveProps();
     }
@@ -640,6 +674,7 @@
       this.feedback = null;
       this.pendingWinner = null;
       this.cardSelected = -1;
+      this.wrongModalOpen = false;
       this.usedKeys = [];
       this.question = this.makeQuestion(0, this.cap, this.usedKeys);
       this.usedKeys.push(this.question.key);
@@ -692,6 +727,7 @@
       this.stage = 'pulling';
       this.busy = true;
       this.actionT = 0;
+      this.wrongModalOpen = false;
 
       const direction = isCorrect ? -1 : 1;
       this.spawnDust(270 + direction * 62, 415, isCorrect ? 9 : 7);
@@ -718,6 +754,7 @@
       this.feedback = null;
       this.pendingWinner = null;
       this.cardSelected = -1;
+      this.wrongModalOpen = false;
       this.actionT = 0;
       this.busy = false;
       this.stage = 'play';
@@ -734,6 +771,7 @@
       this.stage = 'over';
       this.busy = false;
       this.pendingWinner = null;
+      this.wrongModalOpen = false;
       this.tapLockUntil = this.clock + TAP_LOCK;
       if (this.winner === 'red') {
         this.spawnConfetti(76, 'red');
@@ -751,6 +789,15 @@
       this.resetRound();
       this.startGame();
       return true;
+    }
+
+    confirmWrong() {
+      if (this.stage !== 'pulling' || !this.wrongModalOpen) return false;
+      const pending = this.pendingWinner;
+      this.wrongModalOpen = false;
+      Sound.tap();
+      if (pending) return this.finish(pending);
+      return this.nextQuestion();
     }
 
     cardAt(x, y) {
@@ -774,6 +821,11 @@
         if (this.clock < this.tapLockUntil) return false;
         return this.tryRestart();
       }
+      if (this.stage === 'pulling' && this.wrongModalOpen) {
+        const b = L.wrongButton;
+        if (pointInRect(x, y, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)) return this.confirmWrong();
+        return false;
+      }
       if (this.stage !== 'play' || this.busy) return false;
       const value = this.cardAt(x, y);
       if (value < 0) return false;
@@ -794,7 +846,11 @@
       }
       if (this.stage === 'pulling') {
         this.actionT += delta;
-        if (this.actionT >= this.holdTime()) {
+        if (this.feedback && this.feedback.kind === 'wrong') {
+          if (!this.wrongModalOpen && this.actionT >= WRONG_MODAL_SEC) {
+            this.wrongModalOpen = true;
+          }
+        } else if (this.actionT >= this.holdTime()) {
           if (this.pendingWinner) this.finish(this.pendingWinner);
           else this.nextQuestion();
         }
@@ -952,12 +1008,14 @@
       this.updateTexts(visual);
       if (this.stage === 'ready') this.drawReadyOverlay(this.overlayG);
       if (this.stage === 'over') this.drawResultOverlay(this.overlayG);
+      if (this.stage === 'pulling' && this.wrongModalOpen) this.drawWrongModal(this.overlayG);
       if (this.startBannerT > 0 && this.stage === 'play') this.drawStartBanner(this.overlayG);
     }
 
     drawFieldScene(g, visual) {
       const strain = this.pullStrain();
-      drawRopeAndTargets(g, visual, strain, this.feedback ? this.feedback.kind : null);
+      const feedbackKind = this.feedback ? this.feedback.kind : null;
+      drawTargetMarks(g);
 
       const slide = -visual * L.teamShift;
       const lean = -visual * 3.4 + (this.feedback ? (this.feedback.kind === 'correct' ? -6.5 : 6.5) * strain : 0);
@@ -970,11 +1028,22 @@
 
       for (let i = 0; i < 3; i++) {
         const hop = redWon ? Math.abs(Math.sin(this.clock * 7 + i * 0.75)) * 12 : Math.sin(this.clock * 2.1 + i) * 0.9;
-        drawKid(g, blueXs[i] + slide, blueYs[i], 'blue', i, lean + (strain ? 2.5 : 0), hop);
+        drawKid(g, blueXs[i] + slide, blueYs[i], 'blue', i, lean + (strain ? 2.5 : 0), hop, false);
       }
       for (let i = 0; i < 3; i++) {
         const hop = redWon ? Math.abs(Math.sin(this.clock * 7 + i * 0.75)) * 12 : Math.sin(this.clock * 2.1 + i + 1) * 0.9;
-        drawKid(g, redXs[i] + slide, redYs[i], 'red', i, lean - (strain ? 2.5 : 0), hop);
+        drawKid(g, redXs[i] + slide, redYs[i], 'red', i, lean - (strain ? 2.5 : 0), hop, false);
+      }
+
+      drawRope(g, visual, strain, feedbackKind);
+
+      for (let i = 0; i < 3; i++) {
+        const hop = redWon ? Math.abs(Math.sin(this.clock * 7 + i * 0.75)) * 12 : Math.sin(this.clock * 2.1 + i) * 0.9;
+        drawKidHand(g, blueXs[i] + slide, blueYs[i], 'blue', i, lean + (strain ? 2.5 : 0), hop);
+      }
+      for (let i = 0; i < 3; i++) {
+        const hop = redWon ? Math.abs(Math.sin(this.clock * 7 + i * 0.75)) * 12 : Math.sin(this.clock * 2.1 + i + 1) * 0.9;
+        drawKidHand(g, redXs[i] + slide, redYs[i], 'red', i, lean - (strain ? 2.5 : 0), hop);
       }
 
       this.drawTeamHud(g);
@@ -1198,6 +1267,39 @@
       g.strokeRoundedRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.h / 2);
     }
 
+    drawWrongModal(g) {
+      g.fillStyle(0x241F2B, 0.46);
+      g.fillRect(0, 0, WIDTH, HEIGHT);
+      const c = L.wrongCard;
+      g.fillStyle(C.shadow, 0.24);
+      g.fillRoundedRect(c.x - c.w / 2 + 3, c.y - c.h / 2 + 9, c.w, c.h, 28);
+      g.fillStyle(C.cream, 1);
+      g.fillRoundedRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 28);
+      g.lineStyle(3, C.gold, 0.9);
+      g.strokeRoundedRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 28);
+      g.fillStyle(0xFFF0C7, 0.55);
+      g.fillRoundedRect(c.x - c.w / 2 + 16, c.y - c.h / 2 + 16, c.w - 32, 12, 6);
+
+      g.fillStyle(C.greenLight, 0.58);
+      g.fillCircle(270, 382, 34);
+      g.fillStyle(C.green, 1);
+      g.fillCircle(270, 382, 24);
+      g.lineStyle(3.6, 0xFFFFFF, 1);
+      g.beginPath();
+      g.moveTo(260, 382);
+      g.lineTo(267, 389);
+      g.lineTo(281, 375);
+      g.strokePath();
+
+      const b = L.wrongButton;
+      g.fillStyle(C.shadow, 0.18);
+      g.fillRoundedRect(b.x - b.w / 2 + 2, b.y - b.h / 2 + 5, b.w, b.h, b.h / 2);
+      g.fillStyle(C.red, 1);
+      g.fillRoundedRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.h / 2);
+      g.lineStyle(2.4, C.goldLight, 0.88);
+      g.strokeRoundedRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.h / 2);
+    }
+
     drawFx() {
       const g = this.fxG;
       for (let i = 0; i < this.fxParticles.length; i++) {
@@ -1243,9 +1345,24 @@
       this.eqEq.setVisible(showEquation);
       this.eqAns.setVisible(showEquation);
       const banner = this.startBannerT > 0 && this.stage === 'play';
-      this.feedbackText.setVisible(showEquation && !!this.feedback && this.stage !== 'over' && !banner);
-      this.instructionText.setVisible(showEquation && this.stage !== 'over' && !banner);
+      const wrongModal = this.stage === 'pulling' && this.wrongModalOpen;
+      this.feedbackText.setVisible(showEquation && !!this.feedback && this.stage !== 'over' && !banner && !wrongModal);
+      this.instructionText.setVisible(showEquation && this.stage !== 'over' && !banner && !wrongModal);
       for (let i = 0; i < this.cardTexts.length; i++) this.cardTexts[i].setVisible(showGame);
+
+      this.wrongTitleText.setVisible(wrongModal);
+      this.wrongEquationText.setVisible(wrongModal);
+      this.wrongAnswerText.setVisible(wrongModal);
+      this.wrongHintText.setVisible(wrongModal);
+      this.wrongButtonText.setVisible(wrongModal);
+      if (wrongModal && this.feedback) {
+        const op = this.feedback.op === 'add' ? '+' : '−';
+        this.setText(this.wrongTitleText, TEXT.wrongTitle);
+        this.setText(this.wrongEquationText, this.feedback.a + ' ' + op + ' ' + this.feedback.b + ' = ' + this.feedback.answer);
+        this.setText(this.wrongAnswerText, TEXT.wrongPrefix + this.feedback.answer);
+        this.setText(this.wrongHintText, TEXT.wrongPick + this.feedback.selected + (this.pendingWinner ? TEXT.wrongEndHint : TEXT.wrongHint));
+        this.setText(this.wrongButtonText, this.pendingWinner ? TEXT.seeResult : TEXT.next);
+      }
 
       if (showEquation && this.question) {
         this.setText(this.eqA, String(this.question.a));
